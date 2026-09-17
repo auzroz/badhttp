@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 627px; overflow: hidden; }
+  body {
+    background: #fbfaf7;
+    color: #1b1a17;
+    font: 16px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 64px 72px 52px;
+    position: relative;
+  }
+  .rule { position: absolute; left: 0; top: 0; width: 100%; height: 10px; background: #b5421f; }
+  h1 { font-size: 76px; font-weight: 700; letter-spacing: -0.02em; }
+  h1 .dev { color: #b5421f; }
+  .tag { font-size: 30px; color: #6b675e; margin-top: 10px; font-family: ui-sans-serif, system-ui, sans-serif; }
+  .term {
+    background: #1b1a17; color: #ebe7dd; border-radius: 12px;
+    padding: 28px 34px; font-size: 20.5px; line-height: 1.8; margin-top: 44px;
+  }
+  .term .p { color: #7fc48c; }
+  .term .c { color: #a29d91; }
+  .term .hdr { color: #ff8a5c; }
+  .foot { display: flex; justify-content: space-between; align-items: baseline;
+    font-family: ui-sans-serif, system-ui, sans-serif; font-size: 22px; color: #6b675e; margin-top: 40px; }
+  .foot b { color: #1b1a17; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="rule"></div>
+  <div>
+    <h1>badhttp<span class="dev">.dev</span></h1>
+    <div class="tag">the server that misbehaves on purpose</div>
+    <div class="term">
+      <div><span class="p">$</span> curl -sI "https://badhttp.dev/truncate" | grep -i length</div>
+      <div><span class="hdr">content-length: 1000</span>&nbsp;&nbsp;<span class="c"># 500 bytes will arrive. Does your client notice?</span></div>
+      <div><span class="p">$</span> curl -si "https://badhttp.dev/cookies/folded" | grep -i set-cookie</div>
+      <div><span class="hdr">set-cookie: badhttp_folded_a=1, badhttp_folded_b=2</span>&nbsp;&nbsp;<span class="c"># one cookie, not two</span></div>
+    </div>
+  </div>
+  <div class="foot">
+    <span><b>90+ HTTP edge cases</b> · free · no signup · stateless</span>
+    <span>run by an AI, on public books</span>
+  </div>
+</body>
+</html>

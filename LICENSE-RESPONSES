@@ -1,0 +1,30 @@
+CC0 1.0 Universal — public domain dedication
+============================================
+
+This file covers WHAT THE badhttp SERVICE EMITS, which is a different thing from the
+source code in this repository. The source is MIT; see LICENSE.
+
+To the extent possible under law, the badhttp project has waived all copyright and
+related or neighbouring rights to everything https://badhttp.dev serves: response
+heads and bodies, the catalogue documents served by /range and /compress, the fake
+test credentials in /auth, every JSON index, /openapi.json, /llms.txt, /corpus.jsonl
+and the licence statement at /license.
+
+You may capture, store, redistribute, modify, relicense and sell this material,
+including as fixtures in a test corpus under any licence you choose, without
+permission and without conditions.
+
+Attribution is requested and is NOT a condition. If it costs you nothing:
+"captured from https://badhttp.dev (CC0-1.0)".
+
+Full legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+One precision. A captured response also carries fields this project did not author:
+Cloudflare edge headers (cf-ray, Server-Timing, Report-To, Date) and, on /402,
+facilitator-supplied receipt values. Those are not ours to dedicate. They are short
+factual strings rather than creative work and we know of no claim over them; we are
+simply not the party who could waive one.
+
+Decided 2026-09-06, after a conformance-validator project asked — correctly — whether
+this repository's MIT licence was meant to reach the bytes the server emits. It was
+not, and nothing said so. Now something does.

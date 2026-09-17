@@ -1,0 +1,327 @@
+# /compress probe matrix against production, 2026-09-01 (version 29d1f881, before the `gzip` flavor was dropped — identical to `ok` for a gzip client; `deflate` was kept so the edge fact stays reproducible — and before `mismatch`/`unknown` were renamed `not-compressed`/`unknown-coding`).
+# Columns: flavor, client Accept-Encoding (ae), curl exit (rc), status, content-encoding as received, content-length, wire bytes,
+# first 4 bytes, declared plaintext bytes, local decode result by the received coding, SHA-256 match vs x-badhttp-plain-sha256, Vary.
+# "(none)" cells were not run here; the absent-header case was probed separately (see LEDGER.md #17): absent, "*" and an empty value
+# all reach the Worker as request.cf.clientAcceptEncoding = null and are transcoded like identity.
+
+################ --http1.1
+ok                ae=identity                 rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding]
+ok                ae=gzip                     rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding]
+ok                ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding]
+ok                ae=br                       rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding]
+ok                ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding]
+ok                ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding]
+gzip              ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+gzip              ae=gzip                     rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+gzip              ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+gzip              ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+gzip              ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+gzip              ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=gzip                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=gzip, deflate, br, zstd  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+br                ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+br                ae=gzip                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+br                ae=gzip, deflate, br, zstd  rc=0   200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[]
+br                ae=br                       rc=0   200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[]
+br                ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+br                ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+zstd              ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+zstd              ae=gzip                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+zstd              ae=gzip, deflate, br, zstd  rc=0   200 ce=[zstd] cl=[200] wire=200 first=28b52ffd plain=4096 dec=zstd:0 SHA-OK vary=[]
+zstd              ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+zstd              ae=zstd                     rc=0   200 ce=[zstd] cl=[200] wire=200 first=28b52ffd plain=4096 dec=zstd:0 SHA-OK vary=[]
+zstd              ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+mismatch          ae=identity                 rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+mismatch          ae=gzip                     rc=0   200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+mismatch          ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+mismatch          ae=br                       rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+mismatch          ae=zstd                     rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+mismatch          ae=deflate                  rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+undeclared        ae=identity                 rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+undeclared        ae=gzip                     rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+undeclared        ae=gzip, deflate, br, zstd  rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+undeclared        ae=br                       rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+undeclared        ae=zstd                     rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+undeclared        ae=deflate                  rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+truncated         ae=identity                 rc=0   200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+truncated         ae=gzip                     rc=0   200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+truncated         ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+truncated         ae=br                       rc=0   200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+truncated         ae=zstd                     rc=0   200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+truncated         ae=deflate                  rc=0   200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+corrupt           ae=identity                 rc=0   200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[]
+corrupt           ae=gzip                     rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+corrupt           ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+corrupt           ae=br                       rc=0   200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[]
+corrupt           ae=zstd                     rc=0   200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[]
+corrupt           ae=deflate                  rc=0   200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[]
+bad-crc           ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+bad-crc           ae=gzip                     rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[]
+bad-crc           ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[]
+bad-crc           ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+bad-crc           ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+bad-crc           ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+trailing-garbage  ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+trailing-garbage  ae=gzip                     rc=0   200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[]
+trailing-garbage  ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[]
+trailing-garbage  ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+trailing-garbage  ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+trailing-garbage  ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+multi-member      ae=identity                 rc=0   200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+multi-member      ae=gzip                     rc=0   200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+multi-member      ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+multi-member      ae=br                       rc=0   200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+multi-member      ae=zstd                     rc=0   200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+multi-member      ae=deflate                  rc=0   200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+double            ae=identity                 rc=0   200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+double            ae=gzip                     rc=0   200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip2:0 SHA-OK vary=[]
+double            ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip2:0 SHA-OK vary=[]
+double            ae=br                       rc=0   200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+double            ae=zstd                     rc=0   200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+double            ae=deflate                  rc=0   200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+double-hidden     ae=identity                 rc=0   200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+double-hidden     ae=gzip                     rc=0   200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[]
+double-hidden     ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[]
+double-hidden     ae=br                       rc=0   200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+double-hidden     ae=zstd                     rc=0   200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+double-hidden     ae=deflate                  rc=0   200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+deflate-raw       ae=identity                 rc=0   200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[]
+deflate-raw       ae=gzip                     rc=0   200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=deflate:0:raw SHA-OK vary=[]
+deflate-raw       ae=gzip, deflate, br, zstd  rc=0   200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=deflate:0:raw SHA-OK vary=[]
+deflate-raw       ae=br                       rc=0   200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[]
+deflate-raw       ae=zstd                     rc=0   200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[]
+deflate-raw       ae=deflate                  rc=0   200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[]
+unknown           ae=identity                 rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+unknown           ae=gzip                     rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+unknown           ae=gzip, deflate, br, zstd  rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+unknown           ae=br                       rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+unknown           ae=zstd                     rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+unknown           ae=deflate                  rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+uppercase         ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+uppercase         ae=gzip                     rc=0   200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+uppercase         ae=gzip, deflate, br, zstd  rc=0   200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+uppercase         ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+uppercase         ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+uppercase         ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+x-gzip            ae=identity                 rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+x-gzip            ae=gzip                     rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+x-gzip            ae=gzip, deflate, br, zstd  rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+x-gzip            ae=br                       rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+x-gzip            ae=zstd                     rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+x-gzip            ae=deflate                  rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+empty             ae=identity                 rc=0   200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[]
+empty             ae=gzip                     rc=0   200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[]
+empty             ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[]
+empty             ae=br                       rc=0   200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[]
+empty             ae=zstd                     rc=0   200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[]
+empty             ae=deflate                  rc=0   200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[]
+wrong-length      ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+wrong-length      ae=gzip                     rc=18  200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+wrong-length      ae=gzip, deflate, br, zstd  rc=18  200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+wrong-length      ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+wrong-length      ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+wrong-length      ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+bomb              ae=identity                 rc=0   200 ce=[] cl=[] wire=8388608 first=62616468 plain=8388608 dec=identity ? vary=[]
+bomb              ae=gzip                     rc=0   200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 ? vary=[]
+bomb              ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 ? vary=[]
+bomb              ae=br                       rc=0   200 ce=[] cl=[] wire=8388608 first=62616468 plain=8388608 dec=identity ? vary=[]
+bomb              ae=zstd                     rc=0   200 ce=[] cl=[] wire=8388608 first=62616468 plain=8388608 dec=identity ? vary=[]
+bomb              ae=deflate                  rc=0   200 ce=[] cl=[] wire=8388608 first=62616468 plain=8388608 dec=identity ? vary=[]
+################ --http2
+ok                ae=identity                 rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding]
+ok                ae=gzip                     rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding]
+ok                ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding]
+ok                ae=br                       rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding]
+ok                ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding]
+ok                ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding]
+gzip              ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+gzip              ae=gzip                     rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+gzip              ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+gzip              ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+gzip              ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+gzip              ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=gzip                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=gzip, deflate, br, zstd  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+deflate           ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+br                ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+br                ae=gzip                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+br                ae=gzip, deflate, br, zstd  rc=0   200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[]
+br                ae=br                       rc=0   200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[]
+br                ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+br                ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+zstd              ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+zstd              ae=gzip                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+zstd              ae=gzip, deflate, br, zstd  rc=0   200 ce=[zstd] cl=[200] wire=200 first=28b52ffd plain=4096 dec=zstd:0 SHA-OK vary=[]
+zstd              ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+zstd              ae=zstd                     rc=0   200 ce=[zstd] cl=[200] wire=200 first=28b52ffd plain=4096 dec=zstd:0 SHA-OK vary=[]
+zstd              ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+mismatch          ae=identity                 rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+mismatch          ae=gzip                     rc=0   200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+mismatch          ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+mismatch          ae=br                       rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+mismatch          ae=zstd                     rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+mismatch          ae=deflate                  rc=0   200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+undeclared        ae=identity                 rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+undeclared        ae=gzip                     rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+undeclared        ae=gzip, deflate, br, zstd  rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+undeclared        ae=br                       rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+undeclared        ae=zstd                     rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+undeclared        ae=deflate                  rc=0   200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+truncated         ae=identity                 rc=0   200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+truncated         ae=gzip                     rc=0   200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+truncated         ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+truncated         ae=br                       rc=0   200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+truncated         ae=zstd                     rc=0   200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+truncated         ae=deflate                  rc=0   200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+corrupt           ae=identity                 rc=0   200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[]
+corrupt           ae=gzip                     rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+corrupt           ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[]
+corrupt           ae=br                       rc=0   200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[]
+corrupt           ae=zstd                     rc=0   200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[]
+corrupt           ae=deflate                  rc=0   200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[]
+bad-crc           ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+bad-crc           ae=gzip                     rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[]
+bad-crc           ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[]
+bad-crc           ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+bad-crc           ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+bad-crc           ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+trailing-garbage  ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+trailing-garbage  ae=gzip                     rc=0   200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[]
+trailing-garbage  ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[]
+trailing-garbage  ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+trailing-garbage  ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+trailing-garbage  ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+multi-member      ae=identity                 rc=0   200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+multi-member      ae=gzip                     rc=0   200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+multi-member      ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+multi-member      ae=br                       rc=0   200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+multi-member      ae=zstd                     rc=0   200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+multi-member      ae=deflate                  rc=0   200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[]
+double            ae=identity                 rc=0   200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+double            ae=gzip                     rc=0   200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip2:0 SHA-OK vary=[]
+double            ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip2:0 SHA-OK vary=[]
+double            ae=br                       rc=0   200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+double            ae=zstd                     rc=0   200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+double            ae=deflate                  rc=0   200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+double-hidden     ae=identity                 rc=0   200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+double-hidden     ae=gzip                     rc=0   200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[]
+double-hidden     ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[]
+double-hidden     ae=br                       rc=0   200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+double-hidden     ae=zstd                     rc=0   200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+double-hidden     ae=deflate                  rc=0   200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[]
+deflate-raw       ae=identity                 rc=0   200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[]
+deflate-raw       ae=gzip                     rc=0   200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=deflate:0:raw SHA-OK vary=[]
+deflate-raw       ae=gzip, deflate, br, zstd  rc=0   200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=deflate:0:raw SHA-OK vary=[]
+deflate-raw       ae=br                       rc=0   200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[]
+deflate-raw       ae=zstd                     rc=0   200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[]
+deflate-raw       ae=deflate                  rc=0   200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[]
+unknown           ae=identity                 rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+unknown           ae=gzip                     rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+unknown           ae=gzip, deflate, br, zstd  rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+unknown           ae=br                       rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+unknown           ae=zstd                     rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+unknown           ae=deflate                  rc=0   200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=unknown-ce SHA-OK vary=[]
+uppercase         ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+uppercase         ae=gzip                     rc=0   200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+uppercase         ae=gzip, deflate, br, zstd  rc=0   200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+uppercase         ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+uppercase         ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+uppercase         ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+x-gzip            ae=identity                 rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+x-gzip            ae=gzip                     rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+x-gzip            ae=gzip, deflate, br, zstd  rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+x-gzip            ae=br                       rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+x-gzip            ae=zstd                     rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+x-gzip            ae=deflate                  rc=0   200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+empty             ae=identity                 rc=0   200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[]
+empty             ae=gzip                     rc=0   200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[]
+empty             ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[]
+empty             ae=br                       rc=0   200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[]
+empty             ae=zstd                     rc=0   200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[]
+empty             ae=deflate                  rc=0   200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[]
+wrong-length      ae=identity                 rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+wrong-length      ae=gzip                     rc=92  200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+wrong-length      ae=gzip, deflate, br, zstd  rc=92  200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[]
+wrong-length      ae=br                       rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+wrong-length      ae=zstd                     rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+wrong-length      ae=deflate                  rc=0   200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[]
+bomb              ae=identity                 rc=0   200 ce=[] cl=[] wire=8388608 first=62616468 plain=8388608 dec=identity ? vary=[]
+bomb              ae=gzip                     rc=0   200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 ? vary=[]
+bomb              ae=gzip, deflate, br, zstd  rc=0   200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 ? vary=[]
+bomb              ae=br                       rc=0   200 ce=[] cl=[] wire=8388608 first=62616468 plain=8388608 dec=identity ? vary=[]
+bomb              ae=zstd                     rc=0   200 ce=[] cl=[] wire=8388608 first=62616468 plain=8388608 dec=identity ? vary=[]
+bomb              ae=deflate                  rc=0   200 ce=[] cl=[] wire=8388608 first=62616468 plain=8388608 dec=identity ? vary=[]
+=== HEAD ===
+ok            200 ce=gzip cl=269
+gzip          200 ce=gzip cl=269
+br            200 ce= cl=
+empty         200 ce=gzip cl=0
+wrong-length  200 ce=gzip cl=4096
+bomb          200 ce=gzip cl=24491
+=== index ===
+{"n":21,"ae":{"as_sent_by_you":"identity","as_seen_by_this_worker":"gzip, br","note":"Cloudflare's edge rewrites Accept-Encoding to a canonical value before a Worker runs and keeps the original in request.cf.clientAcceptEncoding; /compress/ok negotiates from the original. /headers shows the rewritten value."}}
+=== 406 ===
+200
+=== params ===
+400 400 400 400 405 404 404
+=== template ===
+/compress/{flavor},21
+=== wrong-length exits ===
+h1 exit 18 bytes 269
+h2 exit 92 bytes 269
+=== bomb 32 ===
+code=200 wire=97729 t=0.285956
+ 33554432
+=== timing 1 MiB ===
+ok?length=1048576 code=200 wire=50675 t=0.182233
+
+################ Accept-Encoding normalization: what request.cf.clientAcceptEncoding reports for each client value
+# (second probe, same day; "reports" = accept_encoding.as_the_edge_reports_it in GET /compress, also x-badhttp-negotiated-from on /compress/ok)
+client sent                          -> edge reports         (Worker's own Accept-Encoding header: always "gzip, br")
+(no Accept-Encoding header)          -> null
+(empty value: "Accept-Encoding: ")   -> null
+*                                    -> null
+identity                             -> identity
+identity;q=0                         -> identity
+gzip;q=0                             -> gzip
+gzip;q=0, identity;q=0               -> gzip, identity
+gzip, identity;q=0                   -> gzip, identity
+gzip;q=0.5, br                       -> gzip, br
+deflate, gzip;q=0.1                  -> gzip, deflate
+deflate                              -> deflate
+x-gzip                               -> gzip
+GZIP                                 -> gzip
+zstd                                 -> null            (and yet /compress/zstd IS delivered as zstd to this client)
+gzip, zstd                           -> gzip
+br;q=0.5, gzip;q=0, x-gzip, *, foo   -> gzip, br         (review verifier, same day)
+(any non-ASCII byte in the value)     -> null            (the whole header is dropped, not the token — review verifier, same day: 'gzip, ñ' → identity from ok, 406 from bomb)
+# Consequences: q-values never reach the Worker (a refusal cannot be honoured, so no 406 from /compress/ok);
+# zstd is invisible to the Worker although the edge delivers it; the Worker cannot tell "*" from no header.
+
+################ Re-probe after the review (same day, version 8eb874de, the 20-flavor module)
+ok ae=zstd    -> content-length: 4096 (3 samples)   # the matrix's cl=[] rows for ok/zstd and ok/deflate did not reproduce: transient re-chunking, not a rule
+ok ae=deflate -> content-length: 4096 (3 samples)
+corrupt?length=1048576, no Accept-Encoding   -> 200, 1,048,516 bytes: the correct plaintext up to the damage, garbage after, 60 bytes short (edge transcoding is NOT empty at this length)
+truncated?length=1048576, no Accept-Encoding -> 200, 628,228 bytes: a correct prefix
+wrong-length?length=52 / 127 (gzip client)  -> 400 (the member would be at least as long as the claim; 502 from the edge before the fix)
+wrong-length?length=128 / 129 (gzip client) -> 200, content-length = length, 61 wire bytes, then the reset (curl exit 92 over HTTP/2)
+bomb?size=1, no Accept-Encoding              -> 406 JSON (272 bytes) asking for Accept-Encoding: gzip; the edge no longer inflates anything for such a client
+deflate flavor, ae=deflate / ae=gzip         -> 200, no content-encoding, identity body (the edge decodes zlib deflate for everyone; fact 3 stands)
+GET /compress with ae=gzip, br               -> not compressed: the index is no-transform now, so a gzip client can read it with curl | jq
+
+################ 2026-09-02, version 4b211949 (21 flavors: mismatch→not-compressed, unknown→unknown-coding, + gzip-file, + ?code=)
+gzip-file, ae=gzip           -> 200, content-type application/gzip, content-disposition attachment (.gz), content-encoding gzip, content-length 269, body 1f8b… (as sent)
+gzip-file, no Accept-Encoding -> 200, content-type application/gzip, content-disposition kept, NO content-encoding, NO content-length, 4096 plaintext bytes: the edge decoded the .gz and left the .gz label on it
+gzip-file, curl --compressed  -> exit 0, 4096 plaintext bytes (curl applied transport decoding; `curl -O` would save plaintext as .gz)
+not-compressed?code=502, ae=gzip -> 502, content-encoding gzip, content-length 4096 (as sent)
+truncated?code=503, no Accept-Encoding -> 503, 1,860 bytes: the edge transcodes 5xx bodies exactly as 200s
+empty?code=502 -> 502; bomb?code=500 -> 400; ok?code=304 -> 400; wrong-length?code=500 -> 500 then the reset
+br?length=4096 -> 200; br?length=10 -> 400; empty?length=0 -> 200 (fixed flavors accept their own length as a no-op)
+bomb?size=1 -> x-badhttp-plain-sha256 1c9c3ee0… (from the table; matches gzip -dc | shasum); bomb with "*" -> 406 with the RFC 9110 caveat in the hint

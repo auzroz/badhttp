@@ -1,0 +1,23 @@
+{
+  // badhttp — the server that misbehaves on purpose.
+  // Deploy with scripts/deploy.sh (sources .env for CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, deploys, smoke-tests).
+  // No account_id here on purpose: it lives in .env. No workers.dev route: the custom domain is the only public hostname.
+  // Facilitator lists live in src/x402.js. Override without a code change via secrets (they survive deploys; plain vars here would not):
+  //   wrangler secret put X402_FACILITATORS_BASE   (comma-separated URLs; same for X402_FACILITATORS_BASE_SEPOLIA). Local dev: .dev.vars.
+  // invocation_logs is off so that discarded PAYMENT-SIGNATURE headers are not retained by Workers Logs; the Worker never logs.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "badhttp",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  // Two hosts, one Worker. alt.badhttp.dev exists so the /redirect credential-boundary family can
+  // cross a real host boundary with real DNS and a real certificate — the universal cert already
+  // covers *.badhttp.dev, so the second host costs nothing. It serves ONLY that family's landing
+  // endpoints; every other path on it points back at the canonical host (see hostRole in src/index.js).
+  "routes": [
+    { "pattern": "badhttp.dev", "custom_domain": true },
+    { "pattern": "alt.badhttp.dev", "custom_domain": true }
+  ],
+  "observability": { "enabled": true, "head_sampling_rate": 0.05, "logs": { "invocation_logs": false } }
+}

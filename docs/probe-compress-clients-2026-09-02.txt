@@ -1,0 +1,188 @@
+# /compress: six real clients against https://badhttp.dev, 2026-09-02T00:57Z, Worker version 4b211949 (21 flavors)
+# columns: flavor | status | Content-Encoding as the client saw it | bytes received/declared plaintext | SHA-256 verdict vs x-badhttp-plain-sha256 | error
+
+===== curl (--compressed) =====
+# curl 8.7.1 (x86_64-apple-darwin25.0), --compressed sends Accept-Encoding: gzip, deflate
+ok | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | exit=0
+br | 200 | ce=[] | bytes=4096/4096 | SHA-OK | exit=0
+zstd | 200 | ce=[] | bytes=4096/4096 | SHA-OK | exit=0
+deflate | 200 | ce=[] | bytes=4096/4096 | SHA-OK | exit=0
+not-compressed | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | exit=56
+undeclared | 200 | ce=[] | bytes=269/4096 | sha-DIFF(first=1f8b) | exit=0
+truncated | 200 | ce=[gzip] | bytes=1860/4096 | sha-DIFF(first=3030) | exit=0
+corrupt | 200 | ce=[gzip] | bytes=1860/4096 | sha-DIFF(first=3030) | exit=56
+bad-crc | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | exit=56
+trailing-garbage | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | exit=56
+multi-member | 200 | ce=[gzip] | bytes=2048/4096 | sha-DIFF(first=3030) | exit=56
+double | 200 | ce=[gzip, gzip] | bytes=4096/4096 | SHA-OK | exit=0
+double-hidden | 200 | ce=[gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | exit=0
+deflate-raw | 200 | ce=[deflate] | bytes=4096/4096 | SHA-OK | exit=0
+unknown-coding | 200 | ce=[badhttp] | bytes=4096/4096 | SHA-OK | exit=56
+uppercase | 200 | ce=[GZIP] | bytes=4096/4096 | SHA-OK | exit=0
+x-gzip | 200 | ce=[x-gzip] | bytes=4096/4096 | SHA-OK | exit=0
+empty | 200 | ce=[gzip] | bytes=0/0 | SHA-OK | exit=0
+wrong-length | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | exit=92
+gzip-file | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | exit=0
+bomb | 200 | ce=[gzip] | bytes=8388608/8388608 | SHA-OK | exit=0
+
+===== Node fetch (undici) =====
+# node v26.8.1 undici 8.10.0; Accept-Encoding as the edge saw it: "gzip, deflate, br"
+ok | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | no-error
+br | 200 | ce=[br] | bytes=4096/4096 | SHA-OK | no-error
+zstd | 200 | ce=[zstd] | bytes=4096/4096 | SHA-OK | no-error
+deflate | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+not-compressed | 200 | ce=[gzip] | body-error: Z_DATA_ERROR incorrect header check
+undeclared | 200 | ce=[] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+truncated | 200 | ce=[gzip] | bytes=1860/4096 | sha-DIFF(first=3030) | no-error
+corrupt | 200 | ce=[gzip] | body-error: Z_DATA_ERROR invalid distance too far back
+bad-crc | 200 | ce=[gzip] | body-error: Z_DATA_ERROR incorrect data check
+trailing-garbage | 200 | ce=[gzip] | body-error: Z_DATA_ERROR incorrect header check
+multi-member | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | no-error
+double | 200 | ce=[gzip, gzip] | bytes=4096/4096 | SHA-OK | no-error
+double-hidden | 200 | ce=[gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+deflate-raw | 200 | ce=[deflate] | bytes=4096/4096 | SHA-OK | no-error
+unknown-coding | 200 | ce=[badhttp] | bytes=4096/4096 | SHA-OK | no-error
+uppercase | 200 | ce=[GZIP] | bytes=4096/4096 | SHA-OK | no-error
+x-gzip | 200 | ce=[x-gzip] | bytes=4096/4096 | SHA-OK | no-error
+empty | 200 | ce=[gzip] | bytes=0/0 | SHA-OK | no-error
+wrong-length | 200 | ce=[gzip] | body-error: ERR_HTTP2_STREAM_ERROR Stream closed with error code NGHTTP2_INTERNAL_ERROR
+gzip-file | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | no-error
+bomb | 200 | ce=[gzip] | bytes=8388608/8388608 | SHA-OK | no-error
+
+===== Python: urllib (no Accept-Encoding, never decodes = what the edge makes of each flavor), urllib with Accept-Encoding: gzip (raw bytes), requests, httpx =====
+## urllib.request (stdlib; sends no Accept-Encoding, never decodes)
+ok | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+br | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+zstd | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+deflate | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+not-compressed | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+undeclared | 200 | ce=[] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+truncated | 200 | ce=[] | bytes=1860/4096 | sha-DIFF(first=3030) | no-error
+corrupt | 200 | ce=[] | bytes=0/4096 | sha-DIFF(first=) | no-error
+bad-crc | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+trailing-garbage | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+multi-member | 200 | ce=[] | bytes=2048/4096 | sha-DIFF(first=3030) | no-error
+double | 200 | ce=[gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+double-hidden | 200 | ce=[] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+deflate-raw | 200 | ce=[] | bytes=251/4096 | sha-DIFF(first=a5d5) | no-error
+unknown-coding | 200 | ce=[badhttp] | bytes=4096/4096 | SHA-OK | no-error
+uppercase | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+x-gzip | 200 | ce=[x-gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+empty | 200 | ce=[] | bytes=0/0 | SHA-OK | no-error
+wrong-length | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+gzip-file | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+bomb | error: HTTPError: HTTP Error 406: Not Acceptable
+## urllib.request with Accept-Encoding: gzip set by hand (raw bytes, no decoding)
+ok | 200 | ce=[gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+br | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+zstd | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+deflate | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+not-compressed | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | no-error
+undeclared | 200 | ce=[] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+truncated | 200 | ce=[gzip] | bytes=161/4096 | sha-DIFF(first=1f8b) | no-error
+corrupt | 200 | ce=[gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+bad-crc | 200 | ce=[gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+trailing-garbage | 200 | ce=[gzip] | bytes=318/4096 | sha-DIFF(first=1f8b) | no-error
+multi-member | 200 | ce=[gzip] | bytes=350/4096 | sha-DIFF(first=1f8b) | no-error
+double | 200 | ce=[gzip, gzip] | bytes=292/4096 | sha-DIFF(first=1f8b) | no-error
+double-hidden | 200 | ce=[gzip] | bytes=292/4096 | sha-DIFF(first=1f8b) | no-error
+deflate-raw | 200 | ce=[deflate] | bytes=251/4096 | sha-DIFF(first=a5d5) | no-error
+unknown-coding | 200 | ce=[badhttp] | bytes=4096/4096 | SHA-OK | no-error
+uppercase | 200 | ce=[GZIP] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+x-gzip | 200 | ce=[x-gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+empty | 200 | ce=[gzip] | bytes=0/0 | SHA-OK | no-error
+wrong-length | error: IncompleteRead: IncompleteRead(269 bytes read, 3827 more expected)
+gzip-file | 200 | ce=[gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+bomb | 200 | ce=[gzip] | bytes=24491/8388608 | sha-DIFF(first=1f8b) | no-error
+## requests 2.34.2 (urllib3 decoder; default Accept-Encoding: gzip, deflate, br, zstd)
+ok | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | no-error
+br | 200 | ce=[br] | bytes=4096/4096 | SHA-OK | no-error
+zstd | 200 | ce=[zstd] | bytes=4096/4096 | SHA-OK | no-error
+deflate | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+not-compressed | error: ContentDecodingError: ('Received response with content-encoding: gzip, but failed to decode it.', error('Error -3 while decompressin
+undeclared | 200 | ce=[] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+truncated | 200 | ce=[gzip] | bytes=1860/4096 | sha-DIFF(first=3030) | no-error
+corrupt | error: ContentDecodingError: ('Received response with content-encoding: gzip, but failed to decode it.', error('Error -3 while decompressin
+bad-crc | error: ContentDecodingError: ('Received response with content-encoding: gzip, but failed to decode it.', error('Error -3 while decompressin
+trailing-garbage | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | no-error
+multi-member | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | no-error
+double | 200 | ce=[gzip, gzip] | bytes=4096/4096 | SHA-OK | no-error
+double-hidden | 200 | ce=[gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+deflate-raw | 200 | ce=[deflate] | bytes=4096/4096 | SHA-OK | no-error
+unknown-coding | 200 | ce=[badhttp] | bytes=4096/4096 | SHA-OK | no-error
+uppercase | 200 | ce=[GZIP] | bytes=4096/4096 | SHA-OK | no-error
+x-gzip | 200 | ce=[x-gzip] | bytes=4096/4096 | SHA-OK | no-error
+empty | 200 | ce=[gzip] | bytes=0/0 | SHA-OK | no-error
+wrong-length | error: ChunkedEncodingError: ('Connection broken: IncompleteRead(269 bytes read, 3827 more expected)', IncompleteRead(269 bytes read, 3827 
+gzip-file | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | no-error
+bomb | 200 | ce=[gzip] | bytes=8388608/8388608 | SHA-OK | no-error
+## httpx 0.28.1 (own decoders; default Accept-Encoding: gzip, deflate, br, zstd)
+ok | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | no-error
+br | 200 | ce=[br] | bytes=4096/4096 | SHA-OK | no-error
+zstd | 200 | ce=[zstd] | bytes=4096/4096 | SHA-OK | no-error
+deflate | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+not-compressed | error: DecodingError: Error -3 while decompressing data: incorrect header check
+undeclared | 200 | ce=[] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+truncated | 200 | ce=[gzip] | bytes=1860/4096 | sha-DIFF(first=3030) | no-error
+corrupt | error: DecodingError: Error -3 while decompressing data: invalid distance too far back
+bad-crc | error: DecodingError: Error -3 while decompressing data: incorrect data check
+trailing-garbage | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | no-error
+multi-member | 200 | ce=[gzip] | bytes=2048/4096 | sha-DIFF(first=3030) | no-error
+double | 200 | ce=[gzip, gzip] | bytes=4096/4096 | SHA-OK | no-error
+double-hidden | 200 | ce=[gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+deflate-raw | 200 | ce=[deflate] | bytes=4096/4096 | SHA-OK | no-error
+unknown-coding | 200 | ce=[badhttp] | bytes=4096/4096 | SHA-OK | no-error
+uppercase | 200 | ce=[GZIP] | bytes=4096/4096 | SHA-OK | no-error
+x-gzip | 200 | ce=[x-gzip] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+empty | 200 | ce=[gzip] | bytes=0/0 | SHA-OK | no-error
+wrong-length | error: RemoteProtocolError: peer closed connection without sending complete message body (received 269 bytes, expected 4096)
+gzip-file | 200 | ce=[gzip] | bytes=4096/4096 | SHA-OK | no-error
+bomb | 200 | ce=[gzip] | bytes=8388608/8388608 | SHA-OK | no-error
+
+===== Ruby Net::HTTP =====
+# ruby 2.6.10 Net::HTTP (decode_content=true by default)
+ok | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+br | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+zstd | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+deflate | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+not-compressed | error: Zlib::DataError: incorrect header check
+undeclared | 200 | ce=[] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+truncated | 200 | ce=[] | bytes=0/4096 | sha-DIFF(first=) | no-error
+corrupt | error: Zlib::DataError: invalid distance too far back
+bad-crc | error: Zlib::DataError: incorrect data check
+trailing-garbage | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+multi-member | 200 | ce=[] | bytes=2048/4096 | sha-DIFF(first=3030) | no-error
+double | 200 | ce=[gzip, gzip] | bytes=292/4096 | sha-DIFF(first=1f8b) | no-error
+double-hidden | 200 | ce=[] | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+deflate-raw | error: Zlib::DataError: incorrect header check
+unknown-coding | 200 | ce=[badhttp] | bytes=4096/4096 | SHA-OK | no-error
+uppercase | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+x-gzip | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+empty | 200 | ce=[] | bytes=0/0 | SHA-OK | no-error
+wrong-length | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+gzip-file | 200 | ce=[] | bytes=4096/4096 | SHA-OK | no-error
+bomb | 200 | ce=[] | bytes=8388608/8388608 | SHA-OK | no-error
+
+===== Go net/http =====
+# go1.27.0 net/http default transport
+ok | 200 | ce=[] uncompressed=true | bytes=4096/4096 | SHA-OK | no-error
+br | 200 | ce=[] uncompressed=false | bytes=4096/4096 | SHA-OK | no-error
+zstd | 200 | ce=[] uncompressed=false | bytes=4096/4096 | SHA-OK | no-error
+deflate | 200 | ce=[] uncompressed=false | bytes=4096/4096 | SHA-OK | no-error
+not-compressed | 200 | ce=[] uncompressed=true | bytes=0/4096 | sha-DIFF(first=) | read-error: gzip: invalid header
+undeclared | 200 | ce=[] uncompressed=false | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+truncated | 200 | ce=[] uncompressed=true | bytes=1860/4096 | sha-DIFF(first=3030) | read-error: unexpected EOF
+corrupt | 200 | ce=[] uncompressed=true | bytes=1349/4096 | sha-DIFF(first=3030) | read-error: flate: corrupt input before offset 132
+bad-crc | 200 | ce=[] uncompressed=true | bytes=4096/4096 | SHA-OK | read-error: gzip: invalid checksum
+trailing-garbage | 200 | ce=[] uncompressed=true | bytes=4096/4096 | SHA-OK | read-error: gzip: invalid header
+multi-member | 200 | ce=[] uncompressed=true | bytes=4096/4096 | SHA-OK | no-error
+double | 200 | ce=[gzip, gzip] uncompressed=false | bytes=292/4096 | sha-DIFF(first=1f8b) | no-error
+double-hidden | 200 | ce=[] uncompressed=true | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+deflate-raw | 200 | ce=[deflate] uncompressed=false | bytes=251/4096 | sha-DIFF(first=a5d5) | no-error
+unknown-coding | 200 | ce=[badhttp] uncompressed=false | bytes=4096/4096 | SHA-OK | no-error
+uppercase | 200 | ce=[] uncompressed=true | bytes=4096/4096 | SHA-OK | no-error
+x-gzip | 200 | ce=[x-gzip] uncompressed=false | bytes=269/4096 | sha-DIFF(first=1f8b) | no-error
+empty | 200 | ce=[gzip] uncompressed=false | bytes=0/0 | SHA-OK | no-error
+wrong-length | 200 | ce=[] uncompressed=true | bytes=4096/4096 | SHA-OK | read-error: stream error: stream ID 37; INTERNAL_ERROR; received from peer
+gzip-file | 200 | ce=[] uncompressed=true | bytes=4096/4096 | SHA-OK | no-error
+bomb | 200 | ce=[] uncompressed=true | bytes=8388608/8388608 | SHA-OK | no-error

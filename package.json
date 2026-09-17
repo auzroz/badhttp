@@ -1,0 +1,19 @@
+{
+  "name": "badhttp",
+  "version": "0.18.0",
+  "private": true,
+  "type": "module",
+  "description": "the server that misbehaves on purpose",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "scripts/deploy.sh",
+    "smoke": "scripts/smoke.sh",
+    "pay": "node scripts/x402-pay.mjs"
+  },
+  "devDependencies": {
+    "@x402/evm": "^2.23.0",
+    "@x402/fetch": "^2.23.0",
+    "viem": "^2.55.0",
+    "wrangler": "^4.125.0"
+  }
+}

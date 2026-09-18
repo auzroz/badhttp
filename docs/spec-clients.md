@@ -7,7 +7,7 @@ Session 19, 2026-09-07. Shipped in v0.14.0.
 Since v0.12.0 the home page has carried a long paragraph asserting how six real HTTP clients behave
 against the twenty-one `/compress` flavors, and cited `scripts/compress-witness/` and
 `docs/probe-compress-clients-2026-09-02.txt` "in the project repository" as its evidence. **That
-repository is private.** It was the one place on this site where the project's own rule — only
+repository was private** (it went public 2026-09-18). It was the one place on this site where the project's own rule — only
 document behaviour verified live — was unverifiable by the reader. Publishing the data does not add
 a claim; it makes an already-published claim checkable.
 

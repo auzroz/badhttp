@@ -504,9 +504,9 @@ chk sitemap "$(curl -s "$B/sitemap.xml" | grep -c '<loc>')$(curl -s -o /dev/null
 chk robotsmap "$(curl -s "$B/robots.txt" | grep -c "^Sitemap: $B/sitemap.xml")" 1
 chk favicon "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$B/favicon.svg")$(curl -s -o /dev/null -w ' %{http_code} %{redirect_url}' "$B/favicon.ico")$(curl -sI "$B/" | tr -d '\r' | grep -ic "^content-security-policy: .*img-src 'self' data:")" "200 image/svg+xml 301 $B/favicon.svg1"
 # ---- funding discovery (v0.16.0): the manifest and its provenance file ------------------------
-# Validated against the schema's REQUIRED fields rather than against our own output, and pinned to
-# the honest omission: no projects[] while the repository is private, because the schema demands a
-# repositoryUrl and a manifest is not the place to imply one exists.
+# Validated against the schema's REQUIRED fields rather than against our own output. projects[] was
+# deliberately absent while the repository was private (the schema demands a repositoryUrl); since
+# 2026-09-18 it names the public repository, and the check pins that it does, with the licence.
 fj=$(curl -s "$B/funding.json")
 chk fundingmanifest "$(printf '%s\n' "$fj" | jq -r '
   . as $r
@@ -515,7 +515,7 @@ chk fundingmanifest "$(printf '%s\n' "$fj" | jq -r '
      ($r.entity|has("type") and has("role") and has("name") and has("email") and has("description") and has("webpageUrl")),
      ($r.entity.type|IN("individual","group","organisation","other")),
      ($r.entity.role|IN("owner","steward","maintainer","contributor","other")),
-     ($r|has("projects")|not),
+     ($r.projects|length==1 and (.[0].repositoryUrl.url|test("^https://github.com/auzroz/badhttp$")) and (.[0].licenses|index("spdx:MIT")!=null)),
      (($r.funding.channels|length) > 0),
      (($r.funding.plans|length) > 0),
      ([$r.funding.plans[].channels[]] | all(. as $c | $guids | index($c) != null))]

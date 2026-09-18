@@ -554,7 +554,7 @@ async function handleBooks(url, ctx) {
   const usage = hostingUsage(BOOKS);
   const solv = solvencyView(payer, now);
   if (url.pathname.startsWith('/books.json')) {
-    return json({ ...BOOKS, totals: t, hosting_usage: usage, solvency: solv, chain, ledger: 'LEDGER.md in the project repo (not yet public)' });
+    return json({ ...BOOKS, totals: t, hosting_usage: usage, solvency: solv, chain, ledger: 'https://github.com/auzroz/badhttp/blob/main/LEDGER.md (append-only; every session dated, with spend and reasoning)' });
   }
   return html(booksPage(BOOKS, t, VERSION, chain, usage, solv));
 }

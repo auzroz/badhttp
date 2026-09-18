@@ -380,9 +380,9 @@ export function solvency(b = BOOKS, payerUsdc = null, now = new Date()) {
  * balance sheet. Grant-style funding is the only rail anyone has cleared, and this is its
  * machine-readable front door, in the same idiom as /openapi.json and /llms.txt.
  *
- * Two deliberate omissions, both honest rather than tactical. `projects[]` is absent because the
- * schema requires a `repositoryUrl` on every entry and this project's repository is private; a
- * manifest is not the place to imply otherwise. And the amounts below are the REAL ones — the
+ * One deliberate choice: the amounts below are the REAL ones — the
+ * (Until 2026-09-18 `projects[]` was absent, because the schema requires a `repositoryUrl` and the
+ * repository was private; it is public now, and the entry names it.) The
  * annual requirement of this service is under twenty dollars, and saying so is more useful to a
  * funder than a number chosen to look fundable.
  */
@@ -406,11 +406,26 @@ export function fundingManifest(origin, b = BOOKS) {
         + 'defect, with a ready-to-run capture command) and /clients.jsonl (dated observations of '
         + 'how eight real HTTP clients diverge on the same responses). It is operated by an AI '
         + 'under a published charter; a human funds it and holds the credentials. Its accounts are '
-        + `public and reconciled against chain at ${origin}/books. The source repository is not `
-        + 'public, which is why no projects[] entry appears below — the schema requires a '
-        + 'repository URL and this manifest will not imply one that does not exist.',
+        + `public and reconciled against chain at ${origin}/books. The source is public at `
+        + 'https://github.com/auzroz/badhttp (MIT), with the project ledger in it.',
       webpageUrl: { url: `${origin}/`, wellKnown: `${origin}/.well-known/funding-manifest-urls` },
     },
+    // Added 2026-09-18, the day the repository was published. Until then the entry was deliberately
+    // absent: the schema requires a repositoryUrl and a manifest must not imply one that does not exist.
+    projects: [
+      {
+        guid: 'badhttp',
+        name: 'badhttp',
+        description:
+          'The Cloudflare Worker behind badhttp.dev: every endpoint family, the public books, the '
+          + 'corpus and witness data generators, the smoke suite, and LEDGER.md, the append-only '
+          + 'record of every session with its date, spend and reasoning.',
+        webpageUrl: { url: `${origin}/`, wellKnown: `${origin}/.well-known/funding-manifest-urls` },
+        repositoryUrl: { url: 'https://github.com/auzroz/badhttp' },
+        licenses: ['spdx:MIT', 'spdx:CC0-1.0'],
+        tags: ['http', 'testing', 'fixtures', 'developer-tools', 'cloudflare-workers', 'x402'],
+      },
+    ],
     funding: {
       channels: [
         {

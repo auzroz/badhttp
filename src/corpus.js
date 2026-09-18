@@ -471,7 +471,7 @@ export function corpusIndex({ origin, version, tables }) {
         'names something in varies_by, that rfc9112_completeness_violation is on exactly the two ' +
         'endpoints named above, and that the published curl string reconstructs from the row\'s own ' +
         'url, method and headers.',
-      script: 'Both run from the repository, which is not public yet; the method above is the whole of what they do, and every assertion in it is one you can re-run against this service with curl and a hash.',
+      script: 'scripts/corpus-verify.sh and scripts/corpus-assert.sh in https://github.com/auzroz/badhttp; the method above is the whole of what they do, and every assertion in it is one you can re-run against this service with curl and a hash.',
       rows_checked: rows.length,
       rows_double_fetched: rows.filter((r) => r.deterministic_bytes === true).length,
       last_run:

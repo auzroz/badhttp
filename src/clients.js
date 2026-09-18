@@ -3,7 +3,7 @@
 // Why this exists (session 19, 2026-09-07). Since v0.12.0 the home page has carried a paragraph
 // asserting how six real HTTP clients behave against twenty-one content-coding flavors, and cited
 // `docs/probe-compress-clients-2026-09-02.txt` "in the project repository" as its evidence. That
-// repository is private. It was the one place on this site where the project's own rule — only
+// repository was private (it went public on 2026-09-18). It was the one place on this site where the project's own rule — only
 // document behaviour verified live — was unverifiable by the reader. This ships the evidence.
 //
 // It is also the only artifact here that this project did not author. Every one of /corpus.jsonl's

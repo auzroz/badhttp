@@ -4,6 +4,11 @@
 // Invariants (spec docs/spec-auth.md): no response ever echoes any part of a received
 // Authorization/Proxy-Authorization value; no handler reads a request body; the scheme names
 // Negotiate and NTLM are never emitted (SSPI clients would answer with real handshake material).
+//
+// Session 25 (2026-09-18): the index carries a `witness` block — what eight real clients did at every
+// flavor — derived from the /clients.jsonl auth rows (src/witness-auth-data.js), never hand-typed.
+
+import { WITNESS_AUTH, CLIENTS_AUTH, OBSERVATIONS_AUTH } from './witness-auth-data.js';
 
 const USER = 'agent';
 const PASS = 'correct';
@@ -228,6 +233,132 @@ async function checkDigest(params, { method, url, algoLabel, expectGen }) {
 
 const TOKEN68_RE = /^[A-Za-z0-9\-._~+/]+=*$/;
 
+
+// ---------- the witness: eight real clients at every flavor, read from the rows ----------
+// Numbers are computed from the capture; the prose is a reading of THAT capture and is re-read when the
+// capture is re-run (scripts/auth-witness/all.sh, then scripts/witness-parse-auth.mjs). Descriptions of
+// what the caller received, never verdicts — see the reading_this on /clients. An explanation of WHY a
+// named client behaved as it did is attached only while the computed list is the one it was written for.
+
+const getObs = (client, flavor) => OBSERVATIONS_AUTH.find((o) => o.client === client && o.flavor === flavor);
+const rows = (flavor) => OBSERVATIONS_AUTH.filter((o) => o.flavor === flavor);
+const nameOf = (id) => (CLIENTS_AUTH.find((c) => c.id === id) || { name: id }).name;
+const where = (flavor, pred) => CLIENTS_AUTH.filter((c) => { const o = getObs(c.id, flavor); return !!(o && pred(o)); }).map((c) => c.name);
+const same = (a, b) => a.join('|') === b.join('|');
+const list = (a) => (a.length ? a.join(', ') : 'none');
+const uniq = (a) => [...new Set(a)];
+const N = () => CLIENTS_AUTH.length;
+const HANDLER_KINDS = ['basic-handler', 'digest-handler', 'any-handler'];
+const isHandler = (o) => HANDLER_KINDS.includes(o.mechanism_kind);
+const PARSER_FLAVORS = ['bare-scheme', 'token68', 'case', 'quoted'];
+
+export function authFindings() {
+  const first = where('basic', (o) => o.sent_credentials_first === true);
+  const waited = where('basic', (o) => o.sent_credentials_first === false);
+  const noneAuth = where('none', (o) => o.outcome === 'authenticated');
+  const noneNot = where('none', (o) => o.outcome !== 'authenticated');
+  const noDigest = where('digest', (o) => o.mechanism_kind === 'no-mechanism');
+  const digestOk = where('digest', (o) => o.outcome === 'authenticated');
+  const digestSeq = uniq(rows('digest').filter((o) => o.outcome === 'authenticated').map((o) => o.statuses_seen.join(' then ')));
+  const shaOk = where('digest-sha256', (o) => o.outcome === 'authenticated');
+  const shaRaised = where('digest-sha256', (o) => o.outcome === 'client-raised');
+  const shaRefused = where('digest-sha256', (o) => o.mechanism_kind === 'digest-handler' && o.outcome === 'refused');
+  const staleOk = where('stale', (o) => o.generations === 2);
+  const staleNot = where('stale', (o) => o.mechanism_kind === 'digest-handler' && o.outcome !== 'authenticated');
+  const anyH = where('multi', (o) => o.mechanism_kind === 'any-handler');
+  const anyDigest = where('multi', (o) => o.mechanism_kind === 'any-handler' && o.scheme_reported === 'Digest');
+  const multiDigestH = where('multi', (o) => o.mechanism_kind === 'digest-handler');
+  const multiDigestOk = where('multi', (o) => o.mechanism_kind === 'digest-handler' && o.scheme_reported === 'Digest');
+  const multiBasic = where('multi', (o) => o.mechanism_kind === 'basic-auth' || o.mechanism_kind === 'basic-header');
+  const alwaysH = rows('always-401').filter(isHandler);
+  const alwaysHCred = uniq(alwaysH.map((o) => o.credentialed_requests));
+  const alwaysO = rows('always-401').filter((o) => !isHandler(o));
+  const alwaysOCred = uniq(alwaysO.map((o) => o.credentialed_requests));
+  const alwaysAll401 = rows('always-401').every((o) => o.final_status === 401);
+  const utfClient = where('utf8', (o) => o.encoding === 'utf-8' && o.credential_encoded_by === 'client');
+  const latClient = where('utf8', (o) => o.encoding === 'latin1' && o.credential_encoded_by === 'client');
+  const harnessEnc = where('utf8', (o) => o.credential_encoded_by === 'harness');
+  const utfAllAuth = rows('utf8').every((o) => o.outcome === 'authenticated');
+  const proxyAnswered = where('proxy', (o) => o.hops.some((h) => h.proxy_authorization));
+  const proxyReturned = where('proxy', (o) => o.final_status === 407);
+  const proxyOneReq = where('proxy', (o) => o.final_status === 407 && o.requests_made === 1);
+  const proxyRaised = where('proxy', (o) => o.outcome === 'client-raised');
+  const proxyRaisedErr = proxyRaised.length ? (getObs(CLIENTS_AUTH.find((c) => c.name === proxyRaised[0]).id, 'proxy').reported_error || '') : '';
+  const parserH = where('bare-scheme', isHandler);
+  const answered = (f) => where(f, (o) => isHandler(o) && o.outcome === 'authenticated');
+  const declined = (f) => where(f, (o) => isHandler(o) && o.outcome === 'refused' && o.credentialed_requests === 0);
+  const raisedOn = (f) => where(f, (o) => isHandler(o) && o.outcome === 'client-raised');
+  const parserAnsweredAll = PARSER_FLAVORS.filter((f) => same(answered(f), parserH));
+  const parserDeclined = PARSER_FLAVORS.filter((f) => declined(f).length);
+  const unknownRaised = raisedOn('unknown-scheme');
+  const unknownReturned = where('unknown-scheme', (o) => isHandler(o) && o.outcome === 'refused');
+  const notObserved = where('bare-scheme', (o) => !isHandler(o));
+  const pre200 = PARSER_FLAVORS.filter((f) => same(where(f, (o) => !isHandler(o) && o.outcome === 'authenticated'), notObserved));
+  const pre401 = same(where('unknown-scheme', (o) => !isHandler(o) && o.final_status === 401), notObserved);
+  const followed = where('redirect', (o) => o.outcome === 'authenticated');
+  const seqMap = new Map();
+  for (const o of rows('redirect').filter((x) => x.outcome === 'authenticated')) {
+    const k = `${o.statuses_seen.join(' then ')} with credentials on ${o.credentialed_requests} of ${o.requests_made} requests`;
+    seqMap.set(k, (seqMap.get(k) || []).concat(nameOf(o.client)));
+  }
+  const followedSeq = [...seqMap.entries()].map(([k, v]) => `${k} (${list(v)})`);
+  const acceptAny = where('accept-any', (o) => o.authenticated === true && o.checked_flag === false);
+  const forb = where('forbidden', (o) => o.final_status === 403 && o.credentialed_requests === 1);
+  const bearerOk = where('bearer', (o) => o.outcome === 'authenticated' && o.requests_made === 1);
+  const raisedRows = OBSERVATIONS_AUTH.filter((o) => o.outcome === 'client-raised');
+  return [
+    `Whether credentials go out before any challenge is read from hops, and it follows the mechanism, not the client: on basic, ${list(first)} sent them on their first request; ${list(waited)} sent nothing until the 401 arrived. On none — a 401 with no WWW-Authenticate at all — that decides everything: ${list(noneAuth)} authenticated and ${list(noneNot)} could not, because there was no challenge to answer.${same(waited, ['Python urllib.request']) ? ' urllib\'s HTTPBasicAuthHandler is the only challenge-driven Basic mechanism in this roster; every other client\'s Basic option sets the header before the first request (the stdlib also offers HTTPPasswordMgrWithPriorAuth for that form, not used here).' : ''}`,
+    `digest: ${list(digestOk)} completed the MD5 challenge${digestSeq.length === 1 ? ` (${digestSeq[0]}: a probe without credentials, then the answer)` : ''}. ${list(noDigest)} have no Digest mechanism at all and were sent with no credentials, so their 401 there is a capability of the library, not a bug in it.${same(noDigest, ['Go net/http', 'Node fetch (undici)', 'Python urllib3']) ? ' net/http, fetch and urllib3 contain no challenge handling of any kind: a 401 is returned to the caller as an ordinary response, and nothing in those libraries reads WWW-Authenticate.' : ''}`,
+    `digest-sha256: ${list(shaOk)} completed the SHA-256 challenge${shaRaised.length ? `; ${list(shaRaised)} raised instead of returning a response` : ''}${shaRefused.length ? `; ${list(shaRefused)} handed the 401 back` : ''}. The three clients without a Digest mechanism receive the 401 here as on digest.`,
+    `stale: ${list(staleOk)} retried on stale=true and reached the 200 (generations: 2)${staleNot.length ? `; ${list(staleNot)} handed the stale=true 401 back to the caller after the one retry each allows per call` : ''}.${same(staleNot, ['Python requests', 'Python httpx', 'Python aiohttp']) ? ' None of the three reads the stale parameter: each answers exactly one Digest challenge per call, and the second 401 — which promises the credentials were right — consumes that budget. All three complete the dance on a reused auth object that already holds a nonce, which is why the harness used a fresh one per row.' : ''}`,
+    `multi (Digest and Basic in one comma-joined header): ${anyH.length} of ${N()} clients have a mechanism that reads the list and chooses — ${list(anyH)} — and ${same(anyDigest, anyH) ? 'both chose Digest' : `${list(anyDigest)} chose Digest`}. ${list(multiDigestH)} have no such mechanism and were handed their Digest object, which had to parse the two-challenge header to answer: ${same(multiDigestOk, multiDigestH) ? 'all did, and answered Digest' : `${list(multiDigestOk)} did`}. ${list(multiBasic)} were handed their Basic option and never observed the challenge, so scheme_reported: Basic on those rows is the harness\'s configuration, not a choice the client made.${same(anyH, ['curl', 'Python urllib.request']) ? ' curl --anyauth picks what it considers the most secure scheme offered; urllib consults its handlers in handler_order, and HTTPDigestAuthHandler (490) is asked before HTTPBasicAuthHandler (500).' : ''}`,
+    `always-401 (a perfect Basic challenge that rejects everything): ${alwaysAll401 ? 'every client ended with the 401 in hand' : 'see the rows for the final statuses'}. Where a handler was configured (${list(alwaysH.map((o) => nameOf(o.client)))}) — the only rows on which a retry count is an observation — the credentialed attempts were ${list(alwaysHCred.map(String))}. The other ${alwaysO.length} sent the credentials on their first request, by the client's own design for a Basic option and by construction for a hand-set header, and made ${list(alwaysOCred.map(String))} credentialed attempt each: none re-sent after the 401. No client looped.`,
+    `utf8 (a password with an é under charset="UTF-8"): among the clients that encoded the credentials themselves, ${list(utfClient)} sent the é as UTF-8 and ${list(latClient)} as Latin-1; ${list(harnessEnc)} carried a header the harness encoded (UTF-8), which is the harness\'s choice and not an observation of the client. ${utfAllAuth ? 'All authenticated' : 'See the rows for which authenticated'}: charset is advisory (RFC 7617 §2.1) and this server accepts either encoding, reporting which arrived.${same(latClient, ['Python requests', 'Python urllib3', 'Python aiohttp']) ? ' requests\' _basic_auth_str and urllib3\'s make_headers encode a str password as latin-1 by default (both call it backward compatibility), and aiohttp.BasicAuth defaults to encoding="latin1" while aiohttp\'s newer encode_basic_auth() defaults to UTF-8.' : ''}`,
+    `proxy (a 407 with Proxy-Authenticate from an origin that is nobody\'s proxy; no proxy and no proxy credentials were configured, and the Basic credentials on these rows were origin credentials this flavor does not read): ${proxyAnswered.length ? `${list(proxyAnswered)} answered it with Proxy-Authorization` : 'no client answered it with the origin credentials — Proxy-Authorization was on none of the requests sent, and the oracle would have said so'}. ${proxyOneReq.length === proxyReturned.length ? `${list(proxyReturned)} handed the 407 back after one request` : `${list(proxyReturned)} handed the 407 back`}${proxyRaised.length ? `; ${list(proxyRaised)} rejected the call instead (${proxyRaisedErr}) and the 407 never reached the caller` : ''}.${same(proxyRaised, ['Node fetch (undici)']) ? ' The Fetch standard turns a 407 into a network error, and undici applies that rule outside a browser; the row\'s last_status_seen and challenge_seen were recovered from the wire.' : ''} What a client with proxy credentials configured would send to an origin\'s 407 was not observed.`,
+    `The challenge-parser flavors (bare-scheme, unknown-scheme, token68, case, quoted) only exercise a client that reads the challenge, and for a Basic-shaped challenge that is ${list(parserH)} here (a handler kind on those rows). ${PARSER_FLAVORS.map((f) => `${f}: answered by ${list(answered(f))}${declined(f).length ? `, declined by ${list(declined(f))} (401 returned, credentials never sent)` : ''}${raisedOn(f).length ? `, raised by ${list(raisedOn(f))}` : ''}`).join('; ')}; unknown-scheme: ${unknownRaised.length ? `${list(unknownRaised)} raised after the 401 had already arrived (last_status_seen: 401)` : ''}${unknownRaised.length && unknownReturned.length ? ', ' : ''}${unknownReturned.length ? `${list(unknownReturned)} returned the 401 without retrying` : ''}.${same(declined('bare-scheme'), ['Python urllib.request']) && same(answered('bare-scheme'), ['curl']) ? ' urllib\'s Basic handler matches challenges with a regex that requires realm=, so a bare "Basic" is not a challenge it answers; curl answered it.' : ''} The ${notObserved.length} clients handed their Basic option or a header sent it on their first request and never saw the challenge, so the server decided those rows before any parser ran: authenticated on ${list(pre200)}, 401 on unknown-scheme${pre401 ? ' for all of them' : ' for some; see the rows'}.`,
+    `redirect (302 to /auth/basic, same host, same scheme): ${followed.length === N() ? `all ${N()}` : list(followed)} reached the 200: ${followedSeq.join('; ')}. A hop count alone cannot say whether a credential followed the 302 or was dropped and re-answered; the statuses and the credentialed-request count on each row can.`,
+    `accept-any: ${acceptAny.length === N() ? `all ${N()}` : list(acceptAny)} received authenticated: true with checked: false — the server checked nothing, and a client that authenticates here has shown only that it sent a header. bearer: ${bearerOk.length === N() ? `all ${N()}` : list(bearerOk)} authenticated in one request; only curl has a Bearer option, the rest carried a header. forbidden: ${forb.length === N() ? `all ${N()}` : list(forb)} received the 403 after one credentialed attempt and none retried.`,
+    `${raisedRows.length} of ${OBSERVATIONS_AUTH.length} observations ended in the client raising rather than returning a response: ${list(raisedRows.map((o) => `${nameOf(o.client)} on ${o.flavor}`))}. Every other row is a response this server sent, read back from the wire with its x-badhttp-version, and every row is one request or more that this server answered.`,
+  ];
+}
+
+export function authWitness() {
+  return {
+    measured: WITNESS_AUTH.probed,
+    observations: OBSERVATIONS_AUTH.length,
+    data: 'https://badhttp.dev/clients.jsonl',
+    data_note:
+      'Every observation is a row of /clients.jsonl with family "auth", joined to /corpus.jsonl by ' +
+      'corpus_id; /clients indexes them with the mechanism legend, the outcome legend and the per-flavor ' +
+      'disagreement. The findings below are a reading of those rows, not a second source.',
+    what_this_is:
+      'Eight real HTTP clients, each handed the documented fake credentials through its own mechanism ' +
+      'for the flavor\'s scheme, run against these exact URLs on this exact date. It is a DATED CAPTURE, ' +
+      'not a live measurement, and it describes WHAT THE CALLER RECEIVED — it is never a verdict on a ' +
+      'client. Which mechanism a client was handed was fixed per flavor by the harness, not chosen by ' +
+      'the client; a client with no Digest mechanism was sent with no credentials on the Digest flavors, ' +
+      'and its 401 there is a capability, not a defect. RFC 9110 §11 leaves preemptive sending, retry ' +
+      'counts and the choice among several challenges to the client. Re-run it and move the date rather ' +
+      'than letting it stale.',
+    clients: CLIENTS_AUTH.map((c) => `${c.name} ${c.version}`),
+    findings: authFindings(),
+    what_the_oracle_cannot_tell_you:
+      'A /auth response says what arrived on ONE request. It cannot say how many requests the client made ' +
+      'to get there, which of them carried credentials, or whether the client would have retried: those ' +
+      'come from the harness\'s own side, which is why every row carries hops (status and header presence ' +
+      'per request the client sent), requests_made and credentialed_requests, and names the layer at which ' +
+      'they were counted. It also cannot say what the client was configured with, which is why every row ' +
+      'carries mechanism_kind and mechanism, and a table built from response bodies alone would be ' +
+      'unverifiable.',
+    reproduce:
+      'Configure the row\'s client the way its mechanism field says, with the documented credentials from ' +
+      'this index and nothing else, ask for the flavor url, and compare the status and body with the row; ' +
+      'count the requests your client sent. Pace the calls against the zone limit of 100 per 10 s, and ' +
+      'treat a response without x-badhttp-version as no observation. The harnesses that produced the rows ' +
+      'are in scripts/auth-witness/ in the source.',
+  };
+}
+
 // ---------- the handler ----------
 
 export async function handleAuth({ seg, url, request, json, withBase }) {
@@ -244,6 +375,7 @@ export async function handleAuth({ seg, url, request, json, withBase }) {
         note: 'These are the only values any /auth flavor ever accepts.',
       },
       warning: AUTH_WARNING,
+      witness: authWitness(),
     });
   }
   if (!Object.hasOwn(AUTH, flavor)) return json({ error: 'unknown flavor', flavors: Object.keys(AUTH) }, 404);

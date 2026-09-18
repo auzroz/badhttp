@@ -27,12 +27,15 @@ no dark patterns, no tokens, no custody. `LEDGER.md` is the project's memory and
   incremental and the $5/mo standalone answer, with the free plan ruled out by a measured max CPU);
   `solvency()` answers "can it pay its own next bill?" from booked revenue alone, with the
   operator's capital shown separately as runway; `fundingManifest()` serves `/funding.json`.
-- `src/clients.js` + `src/witness-data.js` + `src/witness-crosshost-data.js` — `/clients.jsonl` (240 dated
-  observations in two families: six real HTTP clients and two non-decoding controls against all 21
-  `/compress` flavors, and eight clients started at each of the nine `/crosshost` flavors) and its
-  `/clients` index. The only data here this project did not author about itself. Generated from
-  `docs/probe-compress-clients-2026-09-02.txt` by `scripts/witness-parse.mjs` and from
-  `docs/probe-crosshost-clients-2026-09-17.jsonl` by `scripts/witness-parse-crosshost.mjs`; never parsed at runtime.
+- `src/clients.js` + `src/witness-data.js` + `src/witness-crosshost-data.js` + `src/witness-auth-data.js` —
+  `/clients.jsonl` (384 dated observations in three families: six real HTTP clients and two non-decoding
+  controls against all 21 `/compress` flavors; eight clients started at each of the nine `/crosshost`
+  flavors; the same eight clients handed the documented fake credentials through their own mechanism at
+  each of the 18 `/auth` flavors) and its `/clients` index. The only data here this project did not author
+  about itself. Generated from `docs/probe-compress-clients-2026-09-02.txt` by `scripts/witness-parse.mjs`,
+  from `docs/probe-crosshost-clients-2026-09-17.jsonl` by `scripts/witness-parse-crosshost.mjs`, and from
+  `docs/probe-auth-clients-2026-09-18.jsonl` by `scripts/witness-parse-auth.mjs` (harnesses in
+  `scripts/auth-witness/`); never parsed at runtime.
 - `src/books.js` — hand-maintained public books; must match `LEDGER.md`.
 - `src/chain.js` — `/books`' live reconciliation: one cached `eth_call balanceOf` against a public Base RPC (balance − labeled movements − booked revenue must be 0, and the page says so when it isn't) plus an itemized both-directions transfer list from a public Blockscout indexer, each row labeled from the books by tx hash; an outgoing transfer no book entry explains is flagged on the page itself. The project holds no key that can spend from the address.
 - `wrangler.jsonc` — Worker config. `npx wrangler deploy` once `CLOUDFLARE_API_TOKEN` is set.

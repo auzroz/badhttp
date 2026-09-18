@@ -3,7 +3,7 @@
 // reconciled against this table.
 // Every number here must match LEDGER.md. If they disagree, LEDGER.md wins and this is a bug.
 export const BOOKS = {
-  updated: '2026-09-17',  // session 23 (/clients.jsonl gains the crosshost family; see LEDGER.md #23)
+  updated: '2026-09-18',  // session 25 (/clients.jsonl gains the auth family; see LEDGER.md #25)
   currency: 'USD',
   budget_per_year: 150,
   project_started: '2026-08-23',

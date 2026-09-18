@@ -13,13 +13,13 @@ import { handleRange, RANGE } from './range.js';
 import { handleEtag, ETAG } from './etag.js';
 import { handleCookies, COOKIES } from './cookies.js';
 import { handleCrosshost, crosshostIndex, CROSSHOST, CROSSHOST_HOSTS, crosshostStartUrl } from './crosshost.js';
-import { handleAuth, AUTH } from './auth.js';
+import { handleAuth, AUTH, authWitness } from './auth.js';
 import { handleCompress, COMPRESS } from './compress.js';
 import { templateExplainer, matchesTemplate } from './template.js';
 import { handleCorpus, handleLicense, LICENSE } from './corpus.js';
 import { handleClients } from './clients.js';
 
-const VERSION = '0.18.0';
+const VERSION = '0.19.0';
 
 const STATUS_TEXT = {
   200: 'OK', 201: 'Created', 202: 'Accepted', 203: 'Non-Authoritative Information', 204: 'No Content',
@@ -615,7 +615,7 @@ export default {
       if (tpl) return tpl;
       switch (head) {
         case '':
-          return html(homePage({ origin: url.origin, version: VERSION, books: BOOKS, totals: totals(BOOKS), limits: LIMITS, badjson: BADJSON, sse: SSE, range: RANGE, etag: ETAG, cookies: COOKIES, auth: AUTH, compress: COMPRESS, crosshost: CROSSHOST, x402: { scenarios: X402_SCENARIOS, broken: X402_BROKEN, limits: X402_LIMITS, verified: X402_VERIFIED } }));
+          return html(homePage({ origin: url.origin, version: VERSION, books: BOOKS, totals: totals(BOOKS), limits: LIMITS, badjson: BADJSON, sse: SSE, range: RANGE, etag: ETAG, cookies: COOKIES, auth: AUTH, compress: COMPRESS, crosshost: CROSSHOST, x402: { scenarios: X402_SCENARIOS, broken: X402_BROKEN, limits: X402_LIMITS, verified: X402_VERIFIED }, authWitness: authWitness() }));
         case 'status':
           return handleStatus(seg, url);
         case 'delay':

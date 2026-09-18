@@ -192,3 +192,92 @@ the rows, and `chk clientschfinding` pins the first finding's count to the rows 
 - The HTML matrix page.
 - Witness data for `/cookies`, `/auth`, `/range`, `/etag`, `/sse` — same install matrix, one family
   per session at most.
+
+## Third family: `/auth` (session 25, 2026-09-18; v0.19.0)
+
+Since v0.9.0 (2026-08-27) the home page carried a hand-typed note about three clients at `/auth`,
+with verdict words in it ("correctly", "refuses", "dies loudly") and claims the grid does not re-test.
+This re-captures the family against the same eight clients as `/crosshost` and ships every observation as
+a `/clients.jsonl` row with `family: "auth"`, joined to the corpus by `corpus_id`. The home-page note is
+now rendered from the rows (`authWitness()` in `src/auth.js`), so it cannot drift from them.
+
+### The dimension the first two families did not have
+
+An HTTP client does nothing with a 401 unless the caller configured credentials through some mechanism,
+and clients differ in which mechanisms exist. So every row names what was **configured**, in a shared
+vocabulary (`mechanism_kind`), fixed per flavor by the harness and never chosen by the client:
+
+| kind | what it is | who |
+|---|---|---|
+| `basic-auth` | the client's own Basic option or auth object | curl `-u`, Go `SetBasicAuth`, requests/httpx/aiohttp `BasicAuth`, urllib3 `make_headers` |
+| `basic-header` | a hand-set `Authorization: Basic` header, **harness-encoded** | Node fetch only (no credential mechanism of its own) |
+| `basic-handler` | a Basic challenge handler | urllib `HTTPBasicAuthHandler` |
+| `digest-handler` | the client's Digest mechanism, a fresh instance per row | curl `--digest`, urllib, requests, httpx, aiohttp |
+| `any-handler` | reads the challenge and chooses among the schemes it speaks | curl `--anyauth`, urllib with both handlers |
+| `bearer-auth` / `bearer-header` | the client's Bearer option / a hand-set header | curl `--oauth2-bearer` / everyone else |
+| `no-mechanism` | none for the scheme demanded; sent with no credentials | Go, fetch, urllib3 on the Digest flavors |
+
+The per-flavor rule: Basic-shaped flavors get the client's Basic option; the **challenge-parser** flavors
+(bare-scheme, unknown-scheme, token68, case, quoted) get the challenge-driven Basic mechanism where one
+exists (curl `--anyauth`, urllib's handler) and the Basic option otherwise, with the mechanism string
+saying the challenge was never observed; the Digest flavors get the Digest mechanism or `no-mechanism`;
+`multi` gets `any-handler` where one exists, else the Digest object (it must parse the two-challenge
+header to answer), else the Basic option; `proxy` gets the Basic option **as origin credentials** — no
+proxy exists in the harness, so what a client would do with proxy credentials was not observed, and the
+rows say so.
+
+`credential_encoded_by: client | harness` is derived from the kind, and the utf8 finding is gated on
+client-encoded rows only.
+
+### What a row records
+
+The twelve common keys plus `mechanism_kind`, `mechanism`, `credential_encoded_by`, `requests_made`,
+`hops` (per request the client sent: its status and whether `Authorization` / `Proxy-Authorization` was
+present — presence only, never a value), `statuses_seen`, `credentialed_requests`,
+`sent_credentials_first`, `last_status_seen` (what the harness saw before a raise), `redirects_followed`,
+`redirect_followed`, `final_url`, `attempts`, and the oracle's own fields (`authenticated`, `checked_flag`,
+`scheme_reported`, `algorithm`, `encoding`, `generations`, `matched`, `server_error`, `server_defect`,
+`server_note`, `challenge_seen`), plus `error_kind`, `reported_error`, `outcome`. The oracle is the final
+`/auth` response itself, which never echoes a received credential; the body is kept by **allowlist** (the
+identity keys `user`/`token` and the constant `warning`/`hint`/`credentials` prose are dropped).
+
+Requests are counted at a layer each harness names (`requests_counted_by` on every client): curl's `-v`
+request lines, a Go `RoundTripper`, undici's diagnostics channel, a urllib `BaseHandler`, a requests
+`HTTPAdapter`, httpx event hooks, a urllib3 pool subclass, an innermost aiohttp middleware. A count is
+bounded by the client's retry cap and the harness's 30 s / 6-redirect limits; a runaway loop would
+appear as `request-failed`, never as a large number.
+
+### `outcome`, again a description
+
+`authenticated` (a 2xx whose body says so — on accept-any that is the server saying it checked
+nothing), `refused` (a final 4xx from this server; on forbidden the body says the credentials were
+valid), `redirect-not-followed`, `client-raised` (with `last_status_seen` and `challenge_seen` from the
+wire), `request-failed`. The classifier is exhaustive and throws on any other shape; a `did-not-land`
+row (no `x-badhttp-version`) is refused by the parser outright — whole-capture re-run, never a row
+patch. `disagreement_by_flavor` keys on (kind → what the caller received) and excludes `no-mechanism`
+rows, so a harness choice is never counted as clients disagreeing.
+
+### No-echo, extended
+
+The harnesses strip the server's constant prose and scrub exception text; the parser scrubs again
+(case-insensitively, including URL-encoded and base64 forms), **validates** `challenge_seen` instead of
+scrubbing it (it must start with a scheme this server emits and carry no `response=`/`username=`/`uri=`/
+`cnonce=`/`nc=`), and refuses to emit if any of a fixed needle set — both base64 encodings of the
+documented Basic credentials, the raw and URL-encoded values, the token, a `Proxy-Authorization:` line,
+a Digest `response=` — appears in any row string or in the committed run log.
+
+### Capture
+
+`scripts/auth-witness/all.sh out.jsonl` runs `curl.sh`, `go-nethttp.go`, `node-fetch.mjs` and
+`py-clients.py` in sequence (one IP, one zone rate limit; never while smoke runs), unsets any
+`AUTH_FLAVORS` dry-run override, and writes a provenance line with `flavors_run: 18`, `clients_run: 8`
+and the Worker deployment id; `scripts/witness-parse-auth.mjs` turns it into `src/witness-auth-data.js`
+and refuses a partial grid. The run log is committed beside the capture. `docs/probe-auth-clients-2026-09-18.jsonl`
+is the first capture.
+
+### Deferred, still
+
+- The HTML matrix page.
+- Witness data for `/cookies`, `/range`, `/etag`, `/sse` — same install matrix, one family per session.
+- A proxy-credential row (a client configured with a real proxy and proxy credentials, pointed at an
+  origin's 407) — needs a proxy in the harness, which is a different fixture.

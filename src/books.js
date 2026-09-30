@@ -3,7 +3,7 @@
 // reconciled against this table.
 // Every number here must match LEDGER.md. If they disagree, LEDGER.md wins and this is a bug.
 export const BOOKS = {
-  updated: '2026-09-18',  // session 25 (/clients.jsonl gains the auth family; see LEDGER.md #25)
+  updated: '2026-09-30',  // session 25 (/clients.jsonl gains the auth family; see LEDGER.md #25)
   currency: 'USD',
   budget_per_year: 150,
   project_started: '2026-08-23',
@@ -178,6 +178,48 @@ export const BOOKS = {
       tx: '0x645b92cd93250785c5208821f22328087389803ed2178566e871f2edeed5686a',
       note: 'Settled 2026-09-01 21:32:11 UTC (block 50754492) from 0x54e163e9b8edda194d83f46add921bfa5fc5f4e0, the scout address nohumans.directory publishes on its sellers page; the request was a 200 from /402/pay/base with user agent nohumans-scout/1.0. Booked the next session start (2026-09-02).',
     },
+    {
+      date: '2026-09-22',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from nohumans.directory\'s paying scout, a second time (user agent nohumans-scout/1.0)',
+      amount: 0.01,
+      tx: '0x7427669622c6872a85db375b6b71067e0b4002ee77da267ca90922c46610fedb',
+      note: 'Settled 2026-09-22 06:01:35 UTC (block 51633774) from 0x54e163e9b8edda194d83f46add921bfa5fc5f4e0 — nohumans.directory\'s paying scout, a second time (user agent nohumans-scout/1.0). Booked at the next session start (2026-09-30).',
+    },
+    {
+      date: '2026-09-24',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a second external payer, 0x556d…0484 (first seen 2026-09-24)',
+      amount: 0.01,
+      tx: '0xfd6bbfa25cb26ae555a0025e1b59465fda3e2a377448fa21c505038cad89f33b',
+      note: 'Settled 2026-09-24 19:23:41 UTC (block 51744237) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — an address not seen before, 0x556d8a86991b56646f98040c8c8298c5053d0484, which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
+    },
+    {
+      date: '2026-09-24',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a second external payer, 0x556d…0484 (first seen 2026-09-24)',
+      amount: 0.01,
+      tx: '0x62d951ac02744275cbcb03950288f144043cedb7551be04c389ed190c4f21c99',
+      note: 'Settled 2026-09-24 21:45:55 UTC (block 51748504) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — an address not seen before, 0x556d8a86991b56646f98040c8c8298c5053d0484, which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
+    },
+    {
+      date: '2026-09-24',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a second external payer, 0x556d…0484 (first seen 2026-09-24)',
+      amount: 0.01,
+      tx: '0xee38d4df39f6b912edb240cd94c415c5062cb527cfbc248e39e3d630e4413ec3',
+      note: 'Settled 2026-09-24 21:47:41 UTC (block 51748557) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — an address not seen before, 0x556d8a86991b56646f98040c8c8298c5053d0484, which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
+    },
+    {
+      date: '2026-09-24',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a second external payer, 0x556d…0484 (first seen 2026-09-24)',
+      amount: 0.01,
+      tx: '0x09fcc3e1122c79bfd3dc6472b9c57252b2f8c31c50d4c82b0db7d2a3d4514117',
+      note: 'Settled 2026-09-24 22:05:49 UTC (block 51749101) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — an address not seen before, 0x556d8a86991b56646f98040c8c8298c5053d0484, which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
+    },
+    {
+      date: '2026-09-24',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a second external payer, 0x556d…0484 (first seen 2026-09-24)',
+      amount: 0.01,
+      tx: '0xe3e7b9a4c7181dd9dfe95ae14ac55365f2afca1839f6fa82aec93f836bfb5eb0',
+      note: 'Settled 2026-09-24 22:17:01 UTC (block 51749437) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — an address not seen before, 0x556d8a86991b56646f98040c8c8298c5053d0484, which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
+    },
   ],
   // Every on-chain USDC movement of the receive address that is NOT booked revenue, labeled by
   // transaction hash. Hand-maintained like the tables above; amount_atomic is exact atomic USDC
@@ -351,7 +393,7 @@ export function solvency(b = BOOKS, payerUsdc = null, now = new Date()) {
     // operator's working capital against the bill and reports a $1.66 gap — arithmetically true,
     // and it reads as "a service 87% of the way to paying its own way". It is not: $9.965 of that
     // is money the operator LENT the project and $1.25 is credit they bought. What the project has
-    // earned, from anyone other than itself, in its entire existence, is one cent.
+    // earned, from anyone other than itself, in its entire existence, is a few cents (earned_to_date_usd).
     //
     // "Self-sustaining" is a question about the earned column and nothing else, so it is answered
     // from the earned column, and the combined figure keeps its place below as a different and

@@ -1,4 +1,4 @@
-// /clients — what real HTTP clients did, as data. Three families so far.
+// /clients — what real HTTP clients did, as data. Four families so far.
 //
 // Why this exists (session 19, 2026-09-07). Since v0.12.0 the home page has carried a paragraph
 // asserting how six real HTTP clients behave against twenty-one content-coding flavors, and cited
@@ -32,6 +32,8 @@ import { WITNESS_AUTH, CLIENTS_AUTH, OBSERVATIONS_AUTH } from './witness-auth-da
 import { LICENSE } from './corpus.js';
 import { crosshostFindings } from './crosshost.js';
 import { authFindings } from './auth.js';
+import { WITNESS_COOKIES, CLIENTS_COOKIES, OBSERVATIONS_COOKIES } from './witness-cookies-data.js';
+import { cookieFindings } from './cookies.js';
 
 // The keys every row carries whatever its family. Family-specific fields are listed per family below.
 export const COMMON_FIELDS = ['id', 'corpus_id', 'family', 'flavor', 'url', 'client', 'observed', 'badhttp_version_observed', 'status', 'reported_error', 'outcome', 'license'];
@@ -462,35 +464,177 @@ function authFamily({ rows }) {
 }
 
 // ---------------------------------------------------------------------------------------------------
+// cookies: eight clients x 17 setter flavors, each with a fresh jar, through set → echo → delete → echo.
+
+// What the client HAS, never what happened. A no-jar client returns nothing on every flavor by construction.
+const COOKIE_JARS = {
+  'own-jar': 'The client\'s own cookie jar, default configuration, one fresh jar per flavor (curl -c/-b with a fresh file; net/http/cookiejar with the public suffix list; http.cookiejar behind urllib, requests and httpx; aiohttp\'s CookieJar). The client decides what to store and what to send.',
+  'harness-jar': 'A jar the harness supplies because the transport has none: Node fetch with tough-cookie, the harness copying Set-Cookie into the jar and the jar\'s Cookie string onto each request, redirects followed by the harness so the 302\'s own Set-Cookie is seen. What is stored and what is sent is tough-cookie\'s decision; when it was sent is the harness\'s.',
+  'no-jar': 'The client has no cookie jar at all (urllib3\'s PoolManager): Set-Cookie is visible on the response and nothing is ever sent back. Every such row returns nothing, which is a capability of the library, not a bug in it.',
+};
+
+const COOKIE_OUTCOMES = {
+  'all-returned': 'Every cookie the flavor planted came back on the follow-up to /cookies/echo (the two nameless cookies are matched by value).',
+  'some-returned': 'At least one planted cookie came back and at least one did not.',
+  'none-returned': 'None came back. On wrong-domain, public-suffix and path-prefix this is what RFC 6265 asks for; on a no-jar client it is what having no jar means; elsewhere it is the finding.',
+  'client-raised': 'The client raised something other than its transport-error type before returning a response.',
+  'request-failed': 'The client raised before any usable response reached the caller, or the transport failed.',
+};
+
+const COOKIE_READING =
+  'Read outcome as a description of what came back to /cookies/echo relative to what the flavor planted, ' +
+  'never as a verdict on the client. "none-returned" is the CORRECT answer on wrong-domain, public-suffix ' +
+  'and path-prefix and the finding elsewhere, and which is which is a property of the flavor (GET /cookies ' +
+  'says so per flavor). A jar_kind of no-jar returns nothing everywhere because there is nothing to return ' +
+  'from. unplanted_names lists cookies that came back which this flavor did not set (a comma-splitting jar\'s ' +
+  'invented second cookie, a value-with-no-equals stored as a NAME), and after_delete_unplanted lists what ' +
+  'was still there after /cookies/delete that the flavor never planted (a deletion tombstone kept as a live ' +
+  'cookie). jar_entries is what the client\'s jar recorded where the harness could enumerate it, which is ' +
+  'how a cookie stored and then withheld is told apart from one never stored. No client here is ' +
+  'scored, ranked, or called conformant; RFC 6265 and rfc6265bis disagree with each other on several of ' +
+  'these flavors, and a jar can be conformant to either.';
+
+const COOKIE_FIELDS = ['jar_kind', 'jar', 'requests_made', 'hops', 'setter_status', 'setter_body_read', 'planted_names', 'echo', 'returned_names', 'unplanted_names', 'after_delete', 'after_delete_remaining', 'after_delete_unplanted', 'jar_enumerable', 'jar_entries', 'jar_rejections', 'attempts', 'error_kind', 'oracle'];
+
+/** One row per observation: 8 clients x 17 flavors. */
+function cookieRows() {
+  return OBSERVATIONS_COOKIES.map((o) => {
+    const c = CLIENTS_COOKIES.find((x) => x.id === o.client);
+    return {
+      id: `cookies.${o.flavor}.${o.client}`,
+      corpus_id: `cookies.${o.flavor}`,
+      family: WITNESS_COOKIES.family,
+      flavor: o.flavor,
+      url: o.url,
+      client: { id: c.id, name: c.name, version: c.version, platform: c.platform, invocation: c.invocation, role: c.role },
+      observed: WITNESS_COOKIES.probed,
+      badhttp_version_observed: WITNESS_COOKIES.badhttp_version_observed,
+      status: o.echo ? o.echo.status : null,
+      jar_kind: o.jar_kind,
+      jar: o.jar,
+      requests_made: o.requests_made,
+      hops: o.hops,
+      setter_status: o.setter_status,
+      setter_body_read: o.setter_body_read,
+      planted_names: o.planted_names,
+      echo: o.echo,
+      returned_names: o.returned_names,
+      unplanted_names: o.unplanted_names,
+      after_delete: o.after_delete,
+      after_delete_remaining: o.after_delete_remaining,
+      after_delete_unplanted: o.after_delete_unplanted,
+      jar_enumerable: o.jar_enumerable,
+      jar_entries: o.jar_entries,
+      jar_rejections: o.jar_rejections,
+      attempts: o.attempts,
+      error_kind: o.error_kind,
+      reported_error: o.reported_error,
+      outcome: o.outcome,
+      oracle: '/cookies/echo: the Cookie header as it reached the Worker, parsed the way this server documents (name up to the first "=", order and duplicates kept); every value this family plants is a documented constant',
+      license: LICENSE.responses.id,
+    };
+  });
+}
+
+// A client's answer on a flavor as a short string: what came back to /cookies/echo (planted names, in order,
+// with the value where it is short enough to be the observation) plus anything unplanted. Jar contents are not
+// in the key (two jars that send the same thing agree, whatever they recorded), and neither is what survived
+// /cookies/delete: that is one property of the client, reported once in the findings, and keying on it would
+// make a jar that keeps one tombstone disagree on all seventeen flavors.
+export function cookieSignature(o) {
+  if (!o.echo) return o.outcome;
+  const back = o.echo.cookies.map((c) => (c.value == null ? `${c.name}=<${c.value_bytes} bytes>` : `${c.name}=${c.value}`));
+  return [o.outcome, back.length ? `returned ${back.join('; ')}` : 'returned nothing'].join(' | ');
+}
+
+function cookieFamily({ rows }) {
+  // Disagreement is counted among the clients that HAVE a jar: a no-jar row returns nothing by construction
+  // and counting it would manufacture disagreement the way controls would on /compress.
+  const perFlavor = {};
+  for (const o of OBSERVATIONS_COOKIES) {
+    if (o.jar_kind === 'no-jar') continue;
+    const m = (perFlavor[o.flavor] = perFlavor[o.flavor] || new Map());
+    const sig = cookieSignature(o);
+    m.set(sig, (m.get(sig) || []).concat(o.client));
+  }
+  const disagreement = Object.fromEntries(
+    Object.entries(perFlavor).sort((a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0]))
+      .map(([f, m]) => [f, { distinct_answers: m.size, answers: Object.fromEntries([...m.entries()].sort((a, b) => b[1].length - a[1].length)) }])
+  );
+  const outcomeCounts = {};
+  for (const o of OBSERVATIONS_COOKIES) outcomeCounts[o.outcome] = (outcomeCounts[o.outcome] || 0) + 1;
+  const jarCounts = {};
+  for (const o of OBSERVATIONS_COOKIES) jarCounts[o.jar_kind] = (jarCounts[o.jar_kind] || 0) + 1;
+  return {
+    what:
+      'What eight HTTP clients did with the seventeen /cookies setter flavors, one row per observation. ' +
+      'Each row is four requests with one fresh jar: the setter (redirects followed), /cookies/echo, ' +
+      '/cookies/delete, and /cookies/echo again. The oracle is /cookies/echo — the Cookie header exactly as ' +
+      'it reached the Worker — and what the row adds from the harness\'s side is the jar\'s own record where ' +
+      'the client exposes one.',
+    rows: rows.length,
+    flavors: WITNESS_COOKIES.flavors,
+    observed: WITNESS_COOKIES.probed,
+    badhttp_version_observed: WITNESS_COOKIES.badhttp_version_observed,
+    worker_version: WITNESS_COOKIES.worker_version,
+    clients: CLIENTS_COOKIES,
+    fields: [...COMMON_FIELDS, ...COOKIE_FIELDS],
+    jar_legend: COOKIE_JARS,
+    outcome_legend: COOKIE_OUTCOMES,
+    reading_this: COOKIE_READING,
+    outcome_counts: outcomeCounts,
+    jar_counts: jarCounts,
+    disagreement_by_flavor: disagreement,
+    disagreement_note: 'distinct_answers is, per flavor, the number of distinct answers (what came back to /cookies/echo) among clients that have a jar; answers lists them. What survived /cookies/delete is not in the key — it is reported once, in the findings — and no-jar rows are excluded: returning nothing is what having no jar means.',
+    findings: cookieFindings(),
+    freshness:
+      `A dated capture, not a live measurement: taken ${WITNESS_COOKIES.probed} against badhttp version ` +
+      `${WITNESS_COOKIES.badhttp_version_observed}, with the client versions on each row. Client behaviour ` +
+      'changes between releases and this table does not update itself. Re-run it from ' +
+      `${WITNESS_COOKIES.capture_scripts} in the source and the numbers move; the date on every row is how ` +
+      'you know whether to trust it.',
+    reproduce:
+      'Start the row\'s client with a fresh jar, GET the row\'s url following redirects, GET /cookies/echo ' +
+      'and compare its cookies with the row\'s echo.cookies; then GET /cookies/delete and /cookies/echo ' +
+      'again and compare with after_delete. Pace the calls against the zone limit of 100 per 10 s, and ' +
+      'treat a response without x-badhttp-version as no observation.',
+  };
+}
+
+// ---------------------------------------------------------------------------------------------------
 
 export function clientRows({ origin }) {
-  return [...compressRows({ origin }), ...crosshostRows(), ...authRows()];
+  return [...compressRows({ origin }), ...crosshostRows(), ...authRows(), ...cookieRows()];
 }
 
 export function clientsIndex({ origin }) {
   const compress = compressRows({ origin });
   const crosshost = crosshostRows();
   const auth = authRows();
+  const cookies = cookieRows();
   return {
     what:
       'What real HTTP clients actually did with this server\'s misbehaviour, as data: one row per ' +
-      'observation, across three families so far — the 21 /compress flavors (six decoding clients and ' +
+      'observation, across four families so far — the 21 /compress flavors (six decoding clients and ' +
       'two non-decoding controls), the 9 /crosshost flavors (eight clients; eight boundaries and a ' +
-      'same-origin control) and the 18 /auth flavors (the same eight clients, each handed the documented ' +
-      'fake credentials through its own mechanism). Every row names ' +
+      'same-origin control), the 18 /auth flavors (the same eight clients, each handed the documented ' +
+      'fake credentials through its own mechanism) and the 17 /cookies setter flavors (the same eight, ' +
+      'each with a fresh jar, through set, echo, delete and echo again). Every row names ' +
       'the client and its version, the date, what it received, and what it reported.',
     why:
       'For /compress the home page has claimed these results since v0.12.0 and cited a private ' +
       'repository as the evidence; for /crosshost the family index carried them as prose from ' +
       'v0.17.0 (2026-09-10); for /auth the home page carried a three-client note from v0.9.0 ' +
-      '(2026-08-27). Here are all three as rows. It is also the only data on this service that ' +
+      '(2026-08-27); for /cookies the home page carried a three-jar note from v0.6.0 (2026-08-24). Here ' +
+      'are all four as rows. It is also the only data on this service that ' +
       'badhttp did not write about itself.',
     jsonl: `${origin}/clients.jsonl`,
-    rows: compress.length + crosshost.length + auth.length,
+    rows: compress.length + crosshost.length + auth.length + cookies.length,
     families: {
       compress: compressFamily({ rows: compress }),
       crosshost: crosshostFamily({ rows: crosshost }),
       auth: authFamily({ rows: auth }),
+      cookies: cookieFamily({ rows: cookies }),
     },
     common_fields: COMMON_FIELDS,
     join: 'corpus_id joins each row to a row of ' + `${origin}/corpus.jsonl` + '; family names the block above whose legend and fields apply',

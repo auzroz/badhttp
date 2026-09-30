@@ -281,3 +281,55 @@ is the first capture.
 - Witness data for `/cookies`, `/range`, `/etag`, `/sse` — same install matrix, one family per session.
 - A proxy-credential row (a client configured with a real proxy and proxy credentials, pointed at an
   origin's 407) — needs a proxy in the harness, which is a different fixture.
+
+## Fourth family: `/cookies` (session 26, 2026-09-30; v0.20.0)
+
+The design and the row shape are in `docs/spec-cookies-witness.md`; this section records what shipped.
+
+Eight clients (the `/auth` roster) × 17 setter flavors = **136 rows**, `family: "cookies"`, joined to
+`/corpus.jsonl` by `corpus_id: cookies.<flavor>`. Each row is four requests with one fresh jar: the
+setter (redirects followed), `/cookies/echo`, `/cookies/delete`, `/cookies/echo` again. The oracle
+is `/cookies/echo` — the `Cookie` header as it reached the Worker, parsed the way this server documents
+— and the harness adds the jar's own record where the client exposes one (`jar_entries`,
+`jar_enumerable`), what the jar refused loudly (`jar_rejections`; only tough-cookie throws), and the
+`Set-Cookie` count the client's response API exposed per hop.
+
+### The dimension this family adds
+
+`jar_kind` names what the client HAS, never what happened: `own-jar` (curl, Go with the public suffix
+list, `http.cookiejar` behind urllib/requests/httpx, aiohttp), `harness-jar` (Node fetch has no jar, so
+the harness runs tough-cookie beside it and copies headers both ways — what is stored and sent is
+tough-cookie's decision, when it is sent is the harness's) and `no-jar` (urllib3's `PoolManager`,
+which returns nothing on every flavor by construction). Disagreement is counted among jar clients
+only, and `reading_this` says a `no-jar` row is a capability.
+
+### `outcome`, again a description
+
+`all-returned` / `some-returned` / `none-returned` relative to the names the flavor plants (a fixed
+table in the parser, cross-checked against the setter body's `set` array on every row that read it,
+so the table cannot drift from `src/cookies.js` without the generator refusing), plus
+`client-raised` and `request-failed`. `none-returned` is the documented right answer on
+`wrong-domain`, `public-suffix` and `path-prefix`. Two fields carry what an outcome cannot:
+`unplanted_names` (a comma-splitting jar's invented `badhttp_folded_b`; `http.cookiejar` storing a
+value-with-no-equals as a NAME) and `after_delete_unplanted` (a deletion tombstone from
+`/cookies/delete` kept as a live cookie — found on the first dry run, on aiohttp).
+
+### The `/cookies` index and the home page read from the rows
+
+`cookieWitness()` / `cookieFindings()` in `src/cookies.js` compute the index's `witness` block and
+the home page's cookies paragraph from `src/witness-cookies-data.js`; the hand-typed 2026-08-23
+three-jar note (which carried verdict words and a curl-clamp claim that had aged) is gone. Explanations
+of *why* a named client behaves as it does are gated on the computed list they were written for.
+Smoke pins the family's counts, shape, legends, non-vacuity floors (every jar returns the `ok`
+control; the `no-jar` client returns nothing on all 17; the negative flavors name their cookie), a
+verdict-word ban over the reading and findings, and the date on `/cookies` and on the home page to
+the rows' date.
+
+### Capture
+
+`scripts/cookies-witness/{all.sh,curl.sh,go-nethttp.go,node-fetch.mjs,py-clients.py}`, run in
+sequence against one IP, 0.2 s between requests; `docs/probe-cookies-clients-2026-09-30.jsonl` and
+its `.log` committed beside the data; `scripts/witness-parse-cookies.mjs` regenerates the literal
+and refuses a partial grid, a version mismatch, a row carrying a path or hostname from the capturing
+machine, or a `setter_set` whose names disagree with the parser's planted table.
+

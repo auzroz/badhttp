@@ -604,11 +604,11 @@ chk corpusredirect "$(jq -r 'select(.family=="redirect")|.id' "$T/corpus.jsonl" 
 # family default of gzip the edge decodes them and the capture is of something else entirely.
 chk corpusbrzstdae "$(jq -r 'select(.id=="compress.br" or .id=="compress.zstd")|"\(.flavor)=\(.request_headers["accept-encoding"])"' "$T/corpus.jsonl" | sort | tr '\n' ' ')" "br=br zstd=zstd "
 
-# /clients — the witness matrix as data. compress: 8 profiles x 21 flavors; crosshost: 8 clients x 9 flavors; auth: 8 clients x 18 flavors.
+# /clients — the witness matrix as data. compress: 8 profiles x 21 flavors; crosshost: 8 clients x 9 flavors; auth: 8 clients x 18 flavors; cookies: 8 clients x 17 setter flavors.
 clh=$(curl -s -D - "$B/clients.jsonl" -o "$T/clients.jsonl")
 chk clientsjsonlhdr "$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^content-type: application/x-ndjson')$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^cache-control:.*no-transform')$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^x-badhttp-license: CC0-1.0')$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^link: <.*>; rel="license"')" "1111"
-chk clientsrows "$(wc -l < "$T/clients.jsonl" | tr -d ' ')" 384
-chk clientsfamilies "$(jq -r .family "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "144auth;168compress;72crosshost;"
+chk clientsrows "$(wc -l < "$T/clients.jsonl" | tr -d ' ')" 520
+chk clientsfamilies "$(jq -r .family "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "144auth;168compress;136cookies;72crosshost;"
 chk clientsrowcount "$(wc -l < "$T/clients.jsonl" | tr -d ' ')" "$(printf '%s\n' "$clh" | tr -d '\r' | sed -n 's/^x-badhttp-rows: //Ip' | tr -d '\r')"
 chk clientsjsonlvalid "$(while IFS= read -r l; do printf '%s' "$l" | jq -e . >/dev/null 2>&1 || echo BAD; done < "$T/clients.jsonl" | grep -c BAD)" 0
 chk clientsids "$(jq -r .id "$T/clients.jsonl" | sort | uniq -d | wc -l | tr -d ' ')" 0
@@ -619,11 +619,11 @@ chk clientsorigin "$(jq -r --arg b "$B" 'select((.url|startswith($b))|not)|.corp
 chk clientshosts "$(jq -r '.url' "$T/clients.jsonl" | sed -E 's#^https?://([^/:]+).*#\1#' | grep -vcE '^(badhttp\.dev|alt\.badhttp\.dev)$')" 0
 # Six decoding clients and two controls: the split is what keeps the site's "six real clients" claim
 # literally true now that eight profiles are published.
-chk clientsroles "$(jq -r '.client.role' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "342client;42control;"
+chk clientsroles "$(jq -r '.client.role' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "478client;42control;"
 # Every /clients row must join to a real /corpus.jsonl row, or the join key is decoration.
 chk clientsjoin "$(comm -23 <(jq -r .corpus_id "$T/clients.jsonl" | sort -u) <(jq -r .id "$T/corpus.jsonl" | sort -u) | wc -l | tr -d ' ')" 0
 cidxc=$(curl -s "$B/clients")
-chk clientsindex "$(printf '%s\n' "$cidxc" | jq -r '[(.rows==384), (.families.compress.rows==168), (.families.crosshost.rows==72), (.families.compress.flavors==21), (.families.crosshost.flavors==9), (.license=="CC0-1.0"), (.families.compress.clients|length==8), (.families.crosshost.clients|length==8), (.jsonl|test("/clients.jsonl$")), (.families.compress.outcome_legend|keys|length==6), (.families.crosshost.outcome_legend|keys|length==5), (.common_fields|length==12)] | join(",")')" "true,true,true,true,true,true,true,true,true,true,true,true"
+chk clientsindex "$(printf '%s\n' "$cidxc" | jq -r '[(.rows==520), (.families.compress.rows==168), (.families.crosshost.rows==72), (.families.compress.flavors==21), (.families.crosshost.flavors==9), (.license=="CC0-1.0"), (.families.compress.clients|length==8), (.families.crosshost.clients|length==8), (.jsonl|test("/clients.jsonl$")), (.families.compress.outcome_legend|keys|length==6), (.families.crosshost.outcome_legend|keys|length==5), (.common_fields|length==12)] | join(",")')" "true,true,true,true,true,true,true,true,true,true,true,true"
 chk clientsauthindex "$(printf '%s\n' "$cidxc" | jq -r '[(.families.auth.rows==144), (.families.auth.flavors==18), (.families.auth.clients|length==8), (.families.auth.outcome_legend|keys|length==5), (.families.auth.mechanism_legend|keys|length==8), (.families.auth.findings|length>=10), ([.families.auth.clients[].requests_counted_by]|all(type=="string" and length>20)), (.families.auth.disagreement_by_flavor|keys|length==18)] | join(",")')" "true,true,true,true,true,true,true,true"
 # The honesty guard: the index must say outright that an outcome is not a verdict, and must name the
 # flavor where "differs" is correct behaviour. If this sentence is ever dropped, the table becomes a
@@ -655,13 +655,29 @@ chk clientsauthfloors "$(jq -r 'select(.family=="auth" and .flavor=="basic")|.st
 chk clientsauthattempts "$(jq -r 'select(.family=="auth")|.attempts' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr -d '\n ')" "1441"
 # The last auth finding states how many rows ended in a raise; it must be the count in the rows.
 chk clientsauthfinding "$(printf '%s\n' "$cidxc" | jq -r '.families.auth.findings[-1]' | grep -c "^$(jq -r 'select(.family=="auth" and .outcome=="client-raised")|.id' "$T/clients.jsonl" | wc -l | tr -d ' ') of 144 observations")" 1
+# cookies: 8 clients x 17 setter flavors, one fresh jar each, set -> echo -> delete -> echo. The index, the
+# row shape, the legends, and non-vacuity floors pinned to what the flavors do (a no-jar client returns
+# nothing everywhere; the ok control comes back from every jar; the three negative flavors and the
+# supercookie are named on the rows they are about).
+chk clientscookiesindex "$(printf '%s\n' "$cidxc" | jq -r '[(.families.cookies.rows==136), (.families.cookies.flavors==17), (.families.cookies.clients|length==8), (.families.cookies.outcome_legend|keys|length==5), (.families.cookies.jar_legend|keys|length==3), (.families.cookies.findings|length>=12), (.families.cookies.disagreement_by_flavor|keys|length==17), (.families.cookies.reading_this|test("never as a verdict")), (.families.cookies.reading_this|test("no-jar"))] | join(",")')" "true,true,true,true,true,true,true,true,true"
+chk clientscookiesshape "$(jq -r 'select(.family=="cookies") | [(.jar_kind|IN("own-jar","harness-jar","no-jar")), (.outcome|IN("all-returned","some-returned","none-returned","client-raised","request-failed")), (.hops|type=="array" and length>=1), (.planted_names|type=="array" and length>=1), (.attempts|type=="number"), (.observed|test("^2026-")), (.url|startswith("https://badhttp.dev/cookies/")), ((.echo|type=="object") == (.outcome|IN("all-returned","some-returned","none-returned"))), ((.jar_kind=="no-jar" or (.outcome|IN("client-raised","request-failed"))) == (.after_delete==null)), ((.jar_enumerable==true and (.outcome|IN("all-returned","some-returned","none-returned"))) == (.jar_entries|type=="array"))] | all' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr -d '\n ')" "136true"
+chk clientscookiesoutcomes "$(comm -23 <(jq -r 'select(.family=="cookies")|.outcome' "$T/clients.jsonl" | sort -u) <(printf '%s\n' "$cidxc" | jq -r '.families.cookies.outcome_legend|keys[]' | sort -u) | wc -l | tr -d ' ')$(comm -23 <(jq -r 'select(.family=="cookies")|.jar_kind' "$T/clients.jsonl" | sort -u) <(printf '%s\n' "$cidxc" | jq -r '.families.cookies.jar_legend|keys[]' | sort -u) | wc -l | tr -d ' ')" "00"
+chk clientscookiesfloors "$(jq -r 'select(.family=="cookies" and .flavor=="ok" and .jar_kind!="no-jar")|.outcome' "$T/clients.jsonl" | sort -u | tr '\n' ',')|$(jq -r 'select(.family=="cookies" and .jar_kind=="no-jar")|.outcome' "$T/clients.jsonl" | sort -u | tr '\n' ',')|$(jq -r 'select(.family=="cookies" and .jar_kind=="no-jar")|.flavor' "$T/clients.jsonl" | wc -l | tr -d ' ')|$(jq -r 'select(.family=="cookies" and .flavor=="wrong-domain")|.planted_names[0]' "$T/clients.jsonl" | sort -u | tr '\n' ',')|$(jq -r 'select(.family=="cookies" and .flavor=="public-suffix")|.planted_names[0]' "$T/clients.jsonl" | sort -u | tr '\n' ',')|$(jq -r 'select(.family=="cookies" and .flavor=="many")|.planted_names|length' "$T/clients.jsonl" | sort -u | tr '\n' ',')" "all-returned,|none-returned,|17|badhttp_wrong_domain,|badhttp_supercookie,|10,"
+chk clientscookiesnoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.cookies.reading_this, .families.cookies.findings[]] | join(" ")' | grep -ciwE '(correctly|refuses|non-compliant|violates|broken)')" 0
+chk clientscookiesattempts "$(jq -r 'select(.family=="cookies")|.attempts' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr -d '\n ')" "1361"
+chk clientscookiesfinding "$(printf '%s\n' "$cidxc" | jq -r '.families.cookies.findings[-1]' | grep -c "^$(jq -r 'select(.family=="cookies" and (.outcome=="client-raised" or .outcome=="request-failed"))|.id' "$T/clients.jsonl" | wc -l | tr -d ' ') of 136 observations")" 1
+# The /cookies index's witness block is rendered from the same rows: date, count and roster pinned to them.
+chk cookieswitness "$(curl -s "$B/cookies" | jq -r --arg d "$(jq -r 'select(.family=="cookies")|.observed' "$T/clients.jsonl" | sort -u | tr -d '\n')" '[(.witness.measured==$d), (.witness.observations==136), (.witness.clients|length==8), (.witness.findings|length>=12), (.witness.data|test("/clients.jsonl$")), (.witness.what_this_is|test("DATED CAPTURE")), (.witness.what_this_is|test("never a verdict")), (.witness.what_the_oracle_cannot_tell_you|test("jar_entries"))] | join(",")')" "true,true,true,true,true,true,true,true"
 # The /auth index's witness block is derived from the same rows: date, count, roster, data pointer, and the honesty sentences.
 chk authwitness "$(curl -s "$B/auth" | jq -r --arg d "$(jq -r 'select(.family=="auth")|.observed' "$T/clients.jsonl" | sort -u | tr -d '\n')" '[(.witness.measured==$d), (.witness.observations==144), (.witness.clients|length==8), (.witness.findings|length>=10), (.witness.data|test("/clients.jsonl$")), (.witness.what_this_is|test("DATED CAPTURE")), (.witness.what_this_is|test("never a verdict")), (.witness.what_the_oracle_cannot_tell_you|test("hops"))] | join(",")')" "true,true,true,true,true,true,true,true"
 # The home page's auth note is rendered from the rows: its date and count must be the rows' date and count.
 awd=$(jq -r 'select(.family=="auth")|.observed' "$T/clients.jsonl" | sort -u | tr -d '\n')
 chk authwitnesspagedate "$(curl -s "$B/" | grep -c "eight real clients on ${awd%%T*} — 144 observations")" 1
+# The home page's cookies note is rendered from the rows too (v0.20.0 replaced the hand-typed 2026-08-23 note).
+cwd=$(jq -r 'select(.family=="cookies")|.observed' "$T/clients.jsonl" | sort -u | tr -d '\n')
+chk cookieswitnesspagedate "$(curl -s "$B/" | grep -c "eight real clients on ${cwd%%T*} — 136 observations")" 1
 chk clientscors "$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS "$B/clients.jsonl")" 204
-chk clientssurfaces "$(curl -s "$B/llms.txt" | grep -c '/clients.jsonl')$(curl -s "$B/" | grep -c 'clients.jsonl')$(curl -s "$B/sitemap.xml" | grep -c '/clients<')" "141"
+chk clientssurfaces "$(curl -s "$B/llms.txt" | grep -c '/clients.jsonl')$(curl -s "$B/" | grep -c 'clients.jsonl')$(curl -s "$B/sitemap.xml" | grep -c '/clients<')" "251"
 chk openapiclients "$(curl -s "$B/openapi.json" | jq -r '[(.paths|has("/clients")), (.paths|has("/clients.jsonl"))] | join(",")')" "true,true"
 # The one revenue-surface repair of session 19: robots.txt was telling every polite crawler — the
 # only population that has ever paid this project — to skip the three routes that can take money.
@@ -798,7 +814,7 @@ chk chwitnesspagedate "$(printf '%s' "$chwh" | grep -c "eight real clients on ${
 chk chaltwitnessdata "$(curl -s "$ALT/crosshost" | jq -r .witness.data)" "https://badhttp.dev/clients.jsonl"
 chk booksalthost "$(curl -s "$B/books.json" | jq -r '[(.infrastructure|length), (.infrastructure[0].cost_usd==0), (.infrastructure[0].item|test("alt.badhttp.dev"))] | join(",")')" "1,true,true"
 # One "dated capture" sentence per family whose witness note is on the page: crosshost and auth (the compress note predates the phrase).
-chk chwitnesspage "$(curl -s "$B/" | grep -c 'dated capture')" 2
+chk chwitnesspage "$(curl -s "$B/" | grep -c 'dated capture')" 3
 # The oracle reports the port, because one flavor's entire subject is a port change and hostname omits it.
 chk chport "$(curl -s "$B/crosshost/land" | jq -r .port)$(curl -s "https://badhttp.dev:8443/crosshost/land" | jq -r .port)" "4438443"
 chk openapicrosshost "$(curl -s "$B/openapi.json" | jq -r '[(.paths|has("/crosshost")), (.paths|has("/crosshost/land")), (.paths["/crosshost/{flavor}"].get.parameters[0].schema.enum|length==9)] | join(",")')" "true,true,true"

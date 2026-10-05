@@ -35,6 +35,13 @@ month are free, then $0.001 each; verification is free. At this project's volume
 
 1. Create a Secret API Key at https://portal.cdp.coinbase.com (Ed25519 is their default). Copy the key **ID** and
    the key **secret** once; the portal shows the secret once. No wallet secret is needed for the facilitator.
+   **Permissions (checked against docs.cdp.coinbase.com, 2026-10-05):** the facilitator "authenticates with your CDP API
+   key ID and secret" and nothing else — a Secret API Key proves project ownership; a *Wallet Secret* is for signing
+   wallet transactions and is not used here (settlement is relayed by Coinbase, not from any wallet of ours). So:
+   leave the optional "Permission restrictions" at their default (the facilitator needs no trade/transfer rights);
+   do **not** set an IP allowlist (the Worker calls from Cloudflare's egress addresses, which are not ours to pin);
+   keep the default Ed25519 algorithm (`src/cdp-auth.js` handles P-256 too). The key can be revoked in the portal at
+   any time; a revoked or wrong key costs nothing but a failover to PayAI (`details` on the response says so).
 2. From the repository directory, with `.env` loaded (`set -a; source .env; set +a; export PATH=/opt/homebrew/bin:$PATH`):
 
        ./node_modules/.bin/wrangler secret put CDP_API_KEY_ID

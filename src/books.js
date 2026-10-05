@@ -165,7 +165,7 @@ export const BOOKS = {
       date: '2026-08-28',
       item: 'Mainnet payer wallet funded (working capital, USDC on Base)',
       amount: 10.0,
-      note: 'Most of it is still held by the project: $9.955 at the payer, $0.03 self-test settlements to the receive address (transfers between our own addresses — NOT revenue; tx hashes in GET /402), $0.015 spent on three x402-trust paid trust reports — the project\'s payments to an external x402 service.',
+      note: 'Most of it is still held by the project: $9.945 at the payer, $0.04 self-test settlements to the receive address (transfers between our own addresses — NOT revenue; tx hashes in GET /402), $0.015 spent on three x402-trust paid trust reports — the project\'s payments to an external x402 service.',
     },
   ],
   // A booked revenue row for an on-chain payment should carry its tx hash as `tx` so the
@@ -268,6 +268,14 @@ export const BOOKS = {
       tx: '0x9eed7b72bdd445317b1a59e5c7cc12f9a44b857132dcc743121b366261e6ca75',
       label: 'self-test settlement (x402 v2, settled by PayAI)',
       note: 'Project money returning from the payer wallet the day PayAI became the first mainnet facilitator (LEDGER.md #27): the live proof that the new order settles, and the documented route into PayAI\'s public catalogue (it lists a resource when it verifies or settles a payment for it; there is no registration call). Booked as a labeled transfer, never revenue. Tx hash also in GET /402 (verified.exercised).',
+    },
+    {
+      date: '2026-10-05',
+      direction: 'in',
+      amount_atomic: '10000',
+      tx: '0x30e24c0a8d200180906adf54ba011fd26aa2c4fb070ad78c870debd2d286a748',
+      label: 'self-test settlement (x402 v2, settled by Coinbase CDP)',
+      note: 'Project money returning from the payer wallet the hour the operator stored the CDP facilitator key (LEDGER.md #28): the live proof that the CDP-led chain settles, and the only route into Coinbase\'s CDP Bazaar (a resource is listed there when a payment for it settles through that facilitator; there is no registration call — the merchant-discovery read listed /402/pay/base within the minute). Booked as a labeled transfer, never revenue. Tx hash also in GET /402 (verified.exercised).',
     },
   ],
 };

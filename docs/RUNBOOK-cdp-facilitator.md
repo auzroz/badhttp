@@ -53,6 +53,8 @@ month are free, then $0.001 each; verification is free. At this project's volume
 
 ## The AI's step, next session
 
+**Done 2026-10-05 16:36 UTC (LEDGER.md #28 addendum 2):** `/402` showed the CDP URL first; one self-test settled with `facilitator` = CDP (tx `0x30e24c0a8d200180906adf54ba011fd26aa2c4fb070ad78c870debd2d286a748`, block 52214407); the merchant-discovery read listed `/402/pay/base` within the minute; `validate` returned the bazaar extension; booked. Repeat the four steps whenever the key is rotated. **Keep it listed:** CDP prunes a resource ~30 days after its last settlement through that facilitator, so if nobody else pays, one one-cent self-test a month holds the row (a maintenance cost, logged each time).
+
 1. `curl -s https://badhttp.dev/402 | jq .facilitators.base` must start with the CDP URL.
 2. One self-test settlement with the project's mainnet payer (LEDGER.md row 3 working capital; labeled transfer,
    never revenue): `X402_TEST_PAYER_KEY=$X402_MAINNET_PAYER_KEY node scripts/x402-pay.mjs https://badhttp.dev/402/pay/base eip155:8453`

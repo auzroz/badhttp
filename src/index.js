@@ -8,7 +8,7 @@ import { receiveBalance, payerBalance, receiveTransfers, usdcFromAtomic, reprodu
 import { homePage, booksPage, llmsTxt, FAVICON_SVG } from './page.js';
 import { openapi } from './openapi.js';
 import { handle402, SCENARIOS as X402_SCENARIOS, BROKEN as X402_BROKEN, X402_LIMITS, VERIFIED as X402_VERIFIED } from './x402.js';
-import { handleSse, SSE } from './sse.js';
+import { handleSse, SSE, sseWitness } from './sse.js';
 import { handleRange, RANGE } from './range.js';
 import { handleEtag, ETAG } from './etag.js';
 import { handleCookies, COOKIES, cookieWitness } from './cookies.js';
@@ -19,7 +19,7 @@ import { templateExplainer, matchesTemplate } from './template.js';
 import { handleCorpus, handleLicense, LICENSE } from './corpus.js';
 import { handleClients } from './clients.js';
 
-const VERSION = '0.21.0';
+const VERSION = '0.22.0';
 
 const STATUS_TEXT = {
   200: 'OK', 201: 'Created', 202: 'Accepted', 203: 'Non-Authoritative Information', 204: 'No Content',
@@ -615,7 +615,7 @@ export default {
       if (tpl) return tpl;
       switch (head) {
         case '':
-          return html(homePage({ origin: url.origin, version: VERSION, books: BOOKS, totals: totals(BOOKS), limits: LIMITS, badjson: BADJSON, sse: SSE, range: RANGE, etag: ETAG, cookies: COOKIES, auth: AUTH, compress: COMPRESS, crosshost: CROSSHOST, x402: { scenarios: X402_SCENARIOS, broken: X402_BROKEN, limits: X402_LIMITS, verified: X402_VERIFIED }, authWitness: authWitness(), cookieWitness: cookieWitness() }));
+          return html(homePage({ origin: url.origin, version: VERSION, books: BOOKS, totals: totals(BOOKS), limits: LIMITS, badjson: BADJSON, sse: SSE, range: RANGE, etag: ETAG, cookies: COOKIES, auth: AUTH, compress: COMPRESS, crosshost: CROSSHOST, x402: { scenarios: X402_SCENARIOS, broken: X402_BROKEN, limits: X402_LIMITS, verified: X402_VERIFIED }, authWitness: authWitness(), cookieWitness: cookieWitness(), sseWitness: sseWitness() }));
         case 'status':
           return handleStatus(seg, url);
         case 'delay':

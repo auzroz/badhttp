@@ -1,0 +1,113 @@
+curl ok: status 200 exit 0 bytes 304 ok
+curl stall: status 200 exit 0 bytes 47 ok
+curl cut: status 200 exit 0 bytes 61 ok
+curl drop: status 200 exit 18 bytes 53 ok
+curl crlf: status 200 exit 0 bytes 202 ok
+curl cr: status 200 exit 0 bytes 188 ok
+curl no-space: status 200 exit 0 bytes 75 ok
+curl multiline: status 200 exit 0 bytes 122 ok
+curl comments: status 200 exit 0 bytes 159 ok
+curl split-utf8: status 200 exit 0 bytes 55 ok
+curl wrong-type: status 200 exit 0 bytes 188 ok
+curl error-event: status 200 exit 0 bytes 187 ok
+curl big: status 200 exit 0 bytes 65564 ok
+curl resume: status 200 exit 0 bytes 112 ok
+node-eventsource ok: 5 events, 1 connection, end reconnecting ok
+node-eventsource stall: 1 events, 1 connection, end reconnecting ok
+node-eventsource cut: 1 events, 1 connection, end reconnecting ok
+node-eventsource drop: 1 events, 1 connection, end reconnecting ok
+node-eventsource crlf: 3 events, 1 connection, end reconnecting ok
+node-eventsource cr: 3 events, 1 connection, end reconnecting ok
+node-eventsource no-space: 4 events, 1 connection, end reconnecting ok
+node-eventsource multiline: 3 events, 1 connection, end reconnecting ok
+node-eventsource comments: 3 events, 1 connection, end reconnecting ok
+node-eventsource split-utf8: 2 events, 1 connection, end reconnecting ok
+node-eventsource wrong-type: 0 events, 1 connection, end error ok
+node-eventsource error-event: 3 events, 1 connection, end reconnecting ok
+node-eventsource big: 1 events, 1 connection, end reconnecting ok
+node-eventsource resume: 6 events, 3 connections, end stopped ok
+eventsource-npm ok: 5 events, 1 connection, end reconnecting ok
+eventsource-npm stall: 1 events, 1 connection, end reconnecting ok
+eventsource-npm cut: 1 events, 1 connection, end reconnecting ok
+eventsource-npm drop: 1 events, 1 connection, end reconnecting ok
+eventsource-npm crlf: 3 events, 1 connection, end reconnecting ok
+eventsource-npm cr: 3 events, 1 connection, end reconnecting ok
+eventsource-npm no-space: 4 events, 1 connection, end reconnecting ok
+eventsource-npm multiline: 3 events, 1 connection, end reconnecting ok
+eventsource-npm comments: 3 events, 1 connection, end reconnecting ok
+eventsource-npm split-utf8: 2 events, 1 connection, end reconnecting ok
+eventsource-npm wrong-type: 0 events, 1 connection, end error ok
+eventsource-npm error-event: 3 events, 1 connection, end reconnecting ok
+eventsource-npm big: 1 events, 1 connection, end reconnecting ok
+eventsource-npm resume: 6 events, 3 connections, end stopped ok
+protocols negotiated by undici sockets: http/1.1
+httpx-sse ok: 6 events, 1 connections, end clean ok
+httpx-sse stall: 2 events, 1 connections, end clean ok
+httpx-sse cut: 2 events, 1 connections, end clean ok
+httpx-sse drop: 2 events, 1 connections, end error ok
+httpx-sse crlf: 4 events, 1 connections, end clean ok
+httpx-sse cr: 4 events, 1 connections, end clean ok
+httpx-sse no-space: 5 events, 1 connections, end clean ok
+httpx-sse multiline: 4 events, 1 connections, end clean ok
+httpx-sse comments: 3 events, 1 connections, end clean ok
+httpx-sse split-utf8: 3 events, 1 connections, end clean ok
+httpx-sse wrong-type: 0 events, 1 connections, end error ok
+httpx-sse error-event: 4 events, 1 connections, end clean ok
+httpx-sse big: 2 events, 1 connections, end clean ok
+httpx-sse resume: 4 events, 1 connections, end clean ok
+sseclient-py ok: 5 events, 1 connections, end clean ok
+sseclient-py stall: 1 events, 1 connections, end clean ok
+sseclient-py cut: 2 events, 1 connections, end clean ok
+sseclient-py drop: 0 events, 1 connections, end error ok
+sseclient-py crlf: 3 events, 1 connections, end clean ok
+sseclient-py cr: 3 events, 1 connections, end clean ok
+sseclient-py no-space: 4 events, 1 connections, end clean ok
+sseclient-py multiline: 3 events, 1 connections, end clean ok
+sseclient-py comments: 3 events, 1 connections, end clean ok
+sseclient-py split-utf8: 2 events, 1 connections, end clean ok
+sseclient-py wrong-type: 3 events, 1 connections, end clean ok
+sseclient-py error-event: 3 events, 1 connections, end clean ok
+sseclient-py big: 1 events, 1 connections, end clean ok
+sseclient-py resume: 3 events, 1 connections, end clean ok
+aiohttp-sse-client ok: 5 events, 1 connections, end reconnecting ok
+aiohttp-sse-client stall: 1 events, 1 connections, end reconnecting ok
+aiohttp-sse-client cut: 1 events, 1 connections, end reconnecting ok
+aiohttp-sse-client drop: 1 events, 1 connections, end error ok
+aiohttp-sse-client crlf: 3 events, 1 connections, end reconnecting ok
+aiohttp-sse-client cr: 0 events, 1 connections, end reconnecting ok
+aiohttp-sse-client no-space: 4 events, 1 connections, end reconnecting ok
+aiohttp-sse-client multiline: 3 events, 1 connections, end reconnecting ok
+aiohttp-sse-client comments: 3 events, 1 connections, end reconnecting ok
+aiohttp-sse-client split-utf8: 2 events, 1 connections, end reconnecting ok
+aiohttp-sse-client wrong-type: 0 events, 1 connections, end error ok
+aiohttp-sse-client error-event: 3 events, 1 connections, end reconnecting ok
+aiohttp-sse-client big: 1 events, 1 connections, end reconnecting ok
+aiohttp-sse-client resume: 6 events, 3 connections, end stopped ok
+go-sse ok: 6 events, end reconnecting, 1 connection(s), 1088 ms ok
+go-sse stall: 2 events, end reconnecting, 1 connection(s), 10087 ms ok
+go-sse cut: 2 events, end reconnecting, 1 connection(s), 193 ms ok
+go-sse drop: 2 events, end reconnecting, 1 connection(s), 187 ms ok
+go-sse crlf: 4 events, end reconnecting, 1 connection(s), 94 ms ok
+go-sse cr: 4 events, end reconnecting, 1 connection(s), 84 ms ok
+go-sse no-space: 5 events, end reconnecting, 1 connection(s), 91 ms ok
+go-sse multiline: 4 events, end reconnecting, 1 connection(s), 105 ms ok
+go-sse comments: 4 events, end clean, 1 connection(s), 82 ms ok
+go-sse split-utf8: 3 events, end reconnecting, 1 connection(s), 688 ms ok
+go-sse wrong-type: 0 events, end error, 1 connection(s), 92 ms ok
+go-sse error-event: 4 events, end reconnecting, 1 connection(s), 100 ms ok
+go-sse big: 1 events, end reconnecting, 1 connection(s), 148 ms ok
+go-sse resume: 8 events, end stopped, 3 connection(s), 2143 ms ok
+r3labs-sse ok: 6 events, end clean, 1 connection(s), 1086 ms ok
+r3labs-sse stall: 2 events, end clean, 1 connection(s), 10085 ms ok
+r3labs-sse cut: 3 events, end clean, 1 connection(s), 200 ms ok
+r3labs-sse drop: 3 events, end error, 1 connection(s), 200 ms ok
+r3labs-sse crlf: 4 events, end clean, 1 connection(s), 89 ms ok
+r3labs-sse cr: 4 events, end clean, 1 connection(s), 96 ms ok
+r3labs-sse no-space: 5 events, end clean, 1 connection(s), 90 ms ok
+r3labs-sse multiline: 4 events, end clean, 1 connection(s), 92 ms ok
+r3labs-sse comments: 4 events, end clean, 1 connection(s), 98 ms ok
+r3labs-sse split-utf8: 3 events, end clean, 1 connection(s), 686 ms ok
+r3labs-sse wrong-type: 4 events, end clean, 1 connection(s), 91 ms ok
+r3labs-sse error-event: 4 events, end clean, 1 connection(s), 98 ms ok
+r3labs-sse big: 1 events, end error, 1 connection(s), 110 ms ok
+r3labs-sse resume: 4 events, end clean, 1 connection(s), 93 ms ok

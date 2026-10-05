@@ -11,7 +11,7 @@ no dark patterns, no tokens, no custody. `LEDGER.md` is the project's memory and
 - `src/index.js` — router and every endpoint. No storage beyond a per-colo edge cache of our own balances and transfer list, no cron. The only outbound requests are `/402/pay`'s calls to an x402 facilitator and `/books`' cached chain reads — the receive address's and the payer wallet's balances from a public Base RPC, the receive address's itemized transfers from a public Blockscout indexer (see `src/chain.js`).
 - `src/x402.js` — the `/402` range: one x402 paywall that settles for real (USDC on Base; Base Sepolia by default; v2 in the PAYMENT-REQUIRED header and v1 in the 402 body, since much deployed buyer tooling is still v1-only) and a set of paywalls that misbehave on purpose.
 - `src/cdp-auth.js` — bearer tokens for Coinbase's CDP x402 facilitator, built with Web Crypto in the exact shape `@coinbase/cdp-sdk` produces (`scripts/cdp-auth-test.mjs` proves it against the SDK offline). Dormant until the operator stores `CDP_API_KEY_ID`/`CDP_API_KEY_SECRET` as Worker secrets; then CDP leads the mainnet chain and every settlement lists `/402/pay/base` in the CDP Bazaar (`docs/RUNBOOK-cdp-facilitator.md`). Since 2026-10-05 PayAI leads the mainnet chain for the same reason: it is the facilitator that publishes a catalogue of what it settles.
-- `src/sse.js` — the `/sse` range: Server-Sent Events streams that misbehave on purpose (line endings, split UTF-8, cuts, resets, stalls, Last-Event-ID).
+- `src/sse.js` — the `/sse` range: Server-Sent Events streams that misbehave on purpose (line endings, split UTF-8, cuts, resets, stalls, Last-Event-ID). Since v0.22.0 the index carries a `witness` block — what real SSE client libraries delivered at every flavor — computed from the `/clients.jsonl` sse rows (`scripts/sse-witness/`, `scripts/witness-parse-sse.mjs`).
 - `src/range.js` — the `/range` range: resumable downloads that misbehave over a self-describing document (Range ignored, shifted or off-by-one bytes, Content-Range lies, If-Range ignored).
 - `src/etag.js` — the `/etag` range: conditional requests that misbehave (validators that change or lie, conditionals ignored, unconditional 304s, unquoted ETags, impossible dates).
 - `src/cookies.js` — the `/cookies` range: Set-Cookie edge cases (folded headers, duplicate names, supercookies, broken prefixes, unparseable dates); `/cookies/echo` reads back what your client sent. Since v0.20.0 the index carries a `witness` block — what eight real clients' jars did at every setter flavor — computed from the `/clients.jsonl` cookies rows (`scripts/cookies-witness/`, `scripts/witness-parse-cookies.mjs`).
@@ -28,11 +28,14 @@ no dark patterns, no tokens, no custody. `LEDGER.md` is the project's memory and
   incremental and the $5/mo standalone answer, with the free plan ruled out by a measured max CPU);
   `solvency()` answers "can it pay its own next bill?" from booked revenue alone, with the
   operator's capital shown separately as runway; `fundingManifest()` serves `/funding.json`.
-- `src/clients.js` + `src/witness-data.js` + `src/witness-crosshost-data.js` + `src/witness-auth-data.js` —
-  `/clients.jsonl` (384 dated observations in three families: six real HTTP clients and two non-decoding
+- `src/clients.js` + `src/witness-data.js` + `src/witness-crosshost-data.js` + `src/witness-auth-data.js` + `src/witness-cookies-data.js` + `src/witness-sse-data.js` —
+  `/clients.jsonl` (dated observations in five families: six real HTTP clients and two non-decoding
   controls against all 21 `/compress` flavors; eight clients started at each of the nine `/crosshost`
   flavors; the same eight clients handed the documented fake credentials through their own mechanism at
-  each of the 18 `/auth` flavors) and its `/clients` index. The only data here this project did not author
+  each of the 18 `/auth` flavors; the same eight with a fresh jar at each of the 17 `/cookies` setter flavors;
+  7 real SSE client libraries plus a raw-wire control at each of the 14 `/sse` flavors, each row described
+  against a reference WHATWG §9.2.6 parse of the bytes the control received — the first family whose oracle is a
+  client-side specification, derived from the wire by `scripts/witness-parse-sse.mjs`) and its `/clients` index. The only data here this project did not author
   about itself. Generated from `docs/probe-compress-clients-2026-09-02.txt` by `scripts/witness-parse.mjs`,
   from `docs/probe-crosshost-clients-2026-09-17.jsonl` by `scripts/witness-parse-crosshost.mjs`, and from
   `docs/probe-auth-clients-2026-09-18.jsonl` by `scripts/witness-parse-auth.mjs` (harnesses in

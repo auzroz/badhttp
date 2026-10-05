@@ -333,3 +333,60 @@ its `.log` committed beside the data; `scripts/witness-parse-cookies.mjs` regene
 and refuses a partial grid, a version mismatch, a row carrying a path or hostname from the capturing
 machine, or a `setter_set` whose names disagree with the parser's planted table.
 
+## Fifth family: `/sse` (session 27, 2026-10-05; v0.22.0)
+
+The design and the row shape are in `docs/spec-sse-witness.md`; this section records what shipped.
+
+7 real SSE client libraries plus a raw-wire control (curl) × 14 flavors = **112 rows**
+(`98` client rows and 14 control rows), `family: "sse"`, joined to `/corpus.jsonl` by
+`corpus_id: sse.<flavor>`. Each row is one fresh client pointed at `GET /sse/{flavor}` with default parameters,
+recording every event the library delivered (type, id, data), every connection it opened and what that
+connection carried (status, content type, the `Last-Event-ID` it sent, how it ended), every error it surfaced,
+and how the row ended from the caller's side.
+
+### The oracle is derived from the wire
+
+This is the first family with a specification of the CLIENT side: WHATWG HTML §9.2.6 defines how an event
+stream is to be interpreted. The curl control captures each flavor's bytes (`raw_base64` in the committed
+capture; `raw_sha256` on the served rows), and `scripts/witness-parse-sse.mjs` runs a reference implementation
+of §9.2.6 over them to produce the **reference parse** every client row is compared against — so no expected
+value is typed anywhere, and a change to `src/sse.js` that the control does not reproduce makes the generator
+refuse (floors on the reference: 5/1/1/1 events on ok/cut/drop/big, last id `2` with pending data discarded on
+cut). The one stated exception is `/sse/resume`'s later connections (ids 4–6, then 204), which curl cannot
+reconnect to witness; the reference says so. Tick events carry the server clock inside JSON data; the parser
+removes `t` before comparing.
+
+### The dimension this family adds: `class`
+
+Two kinds of library were measured and the expected ending differs by kind. `eventsource` libraries implement
+the WHATWG `EventSource` interface: they reconnect after ANY server close and surface both a clean close and a
+transport failure as an error event in a reconnecting state — so on every clean-close flavor the as-spec end
+for them is `reconnecting`, and `resume` is the one flavor that lets the reconnect run (six events over three
+connections, stopped at the 204). `one-shot` libraries iterate one response and return: `clean` is their
+as-spec end, and on `resume` three events over one connection IS their design. Disagreement is counted within a
+class, never across.
+
+### `outcome`, again a description
+
+`as-spec` / `events-differ` / `end-differs` / `both-differ` relative to the reference parse and the class's
+expected end, plus `harness-timeout` and `request-failed`; `diff` on every row names the first difference.
+`reading_this` says in so many words that "differs" never means defective: on `wrong-type` a one-shot library
+delivering the three events is a choice the specification leaves to it, on `error-event` routing the named
+event to the error callback is what the `EventSource` interface does by design, and on `resume` a one-shot
+library returning after three events is its class.
+
+### The `/sse` index and the home page read from the rows
+
+`sseWitness()` / `sseFindings()` in `src/sse.js` compute the index's `witness` block and the home page's
+SSE paragraph from `src/witness-sse-data.js`; the hand-typed 2026-08-23 one-client note ("Node's built-in
+EventSource handles all fourteen as the spec says") is gone. Smoke pins the family's counts, roster size,
+date, shape, the control rows' hashes against the reference, the reference floors, non-vacuity on the `ok`
+control, the verdict-word ban, the no-machine-path rule, and the date on `/sse` and on the home page to the
+rows' date.
+
+### Capture
+
+`scripts/sse-witness/{all.sh,curl.sh,node-clients.mjs,py-clients.py,go-sse.go}`, run in sequence against one IP
+(never while smoke runs); `docs/probe-sse-clients-2026-10-05.jsonl` with its `.log` beside it;
+`node scripts/witness-parse-sse.mjs <capture>` regenerates `src/witness-sse-data.js`. The findings prose in
+`src/sse.js` is computed, but its gated explanations must be re-read against a new matrix.

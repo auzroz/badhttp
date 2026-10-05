@@ -1,4 +1,4 @@
-// /clients — what real HTTP clients did, as data. Four families so far.
+// /clients — what real HTTP clients did, as data. Five families so far.
 //
 // Why this exists (session 19, 2026-09-07). Since v0.12.0 the home page has carried a paragraph
 // asserting how six real HTTP clients behave against twenty-one content-coding flavors, and cited
@@ -34,6 +34,8 @@ import { crosshostFindings } from './crosshost.js';
 import { authFindings } from './auth.js';
 import { WITNESS_COOKIES, CLIENTS_COOKIES, OBSERVATIONS_COOKIES } from './witness-cookies-data.js';
 import { cookieFindings } from './cookies.js';
+import { WITNESS_SSE, CLIENTS_SSE, REFERENCE_SSE, OBSERVATIONS_SSE } from './witness-sse-data.js';
+import { sseFindings } from './sse.js';
 
 // The keys every row carries whatever its family. Family-specific fields are listed per family below.
 export const COMMON_FIELDS = ['id', 'corpus_id', 'family', 'flavor', 'url', 'client', 'observed', 'badhttp_version_observed', 'status', 'reported_error', 'outcome', 'license'];
@@ -602,9 +604,146 @@ function cookieFamily({ rows }) {
 }
 
 // ---------------------------------------------------------------------------------------------------
+// sse: real SSE client libraries plus a raw-wire control x 14 /sse flavors; the reference is a WHATWG parse of the
+// control's bytes (session 27, 2026-10-05; docs/spec-sse-witness.md).
+
+const SSE_CLASSES = {
+  eventsource: 'Implements the WHATWG EventSource interface: auto-reconnects after the server closes (after retry ms, sending Last-Event-ID), stops on a 204, fails the connection on a Content-Type other than text/event-stream, and surfaces both a clean close and a transport failure as an error event — the interface cannot tell them apart. The expected end of every row but resume is therefore "reconnecting".',
+  'one-shot': 'Iterates ONE response as a stream of events and returns when it ends. No reconnection is part of the library, so on resume it delivers ids 1–3 over one connection and returns, which is its design; whether it checks Content-Type is a library choice the specification does not constrain.',
+  raw: 'The control: curl receiving the bytes with no SSE parser at all. Its control.raw_sha256 is the hash of the bytes the parser derived the reference from.',
+};
+
+const SSE_OUTCOMES = {
+  'as-spec': 'The events delivered equal the reference WHATWG parse of the bytes the control received (after removing the server clock "t" from JSON data), and the row ended as expected for the client\'s class.',
+  'events-differ': 'The row ended as expected but the delivered events differ from the reference: fewer, more, or altered values. diff names the first difference.',
+  'end-differs': 'The events match but the ending does not (a reset reported as a clean end, a stream that never returned, no reconnection where the class reconnects). diff says which.',
+  'both-differ': 'Both the events and the ending differ from the reference.',
+  'harness-timeout': 'The harness\'s 30 s per-row cap fired; the row records whatever was delivered before it.',
+  'request-failed': 'No observation: the first response never carried x-badhttp-version after three attempts, or the transport failed before any response.',
+  control: 'The curl control row: bytes, not events. Its events are the reference parse of those bytes.',
+};
+
+const SSE_READING =
+  'Read outcome as a description of what the library delivered to its caller relative to the reference WHATWG ' +
+  'HTML §9.2.6 parse of the bytes the control received on the same date, and relative to the library\'s CLASS ' +
+  '(client.class). A one-shot library ending "clean" with three events on resume is as-spec for its class: it has ' +
+  'no reconnect and says so. An EventSource-interface library ending "reconnecting" after a clean close is as-spec ' +
+  'for its class: the interface reconnects after every close and cannot distinguish a close from a failure. ' +
+  '"differs" never means defective — on wrong-type, delivering the three events is a choice the specification ' +
+  'leaves to a one-shot library; on error-event, routing a named "error" event to the error callback is what the ' +
+  'EventSource interface does by design. diff on each row names the first difference, events carries what was ' +
+  'delivered (data truncated past 200 bytes, with data_bytes and data_sha256 kept), connections counts every ' +
+  'connection the library opened and what each carried, and end is how the row finished from the caller\'s side. ' +
+  'No library here is scored or ranked, and none is handed a conformance verdict.';
+
+const SSE_FIELDS = ['class', 'connections', 'events', 'events_delivered', 'preamble_events', 'errors', 'end', 'retry_ms_adopted', 'last_event_id_final', 'wall_ms', 'attempts', 'diff', 'reference', 'control'];
+
+/** One row per observation: clients x 14 flavors, plus the control rows. */
+function sseRows() {
+  return OBSERVATIONS_SSE.map((o) => {
+    const c = o.client;
+    const ref = REFERENCE_SSE[o.flavor] || null;
+    return {
+      id: o.id,
+      corpus_id: o.corpus_id,
+      family: 'sse',
+      flavor: o.flavor,
+      url: o.url,
+      client: { id: c.id, name: c.name, version: c.version, platform: c.platform, invocation: c.invocation, role: c.role, class: c.class, library: c.library, connections_counted_by: c.connections_counted_by },
+      observed: WITNESS_SSE.probed,
+      badhttp_version_observed: WITNESS_SSE.badhttp_version_observed,
+      status: o.connections && o.connections[0] ? o.connections[0].status : null,
+      class: c.class,
+      connections: o.connections,
+      events: o.events,
+      events_delivered: o.events_delivered ?? (o.events ? o.events.length : null),
+      events_note: o.events_note,
+      preamble_events: o.preamble_events,
+      errors: o.errors,
+      end: o.end,
+      retry_ms_adopted: o.retry_ms_adopted,
+      last_event_id_final: o.last_event_id_final,
+      wall_ms: o.wall_ms,
+      attempts: o.attempts,
+      reported_error: (o.errors && o.errors[0] && o.errors[0].message) || null,
+      outcome: o.outcome,
+      diff: o.diff,
+      reference: ref ? { events: ref.events.length, raw_sha256: ref.raw_sha256, raw_bytes: ref.raw_bytes, last_event_id_at_eof: ref.last_event_id_at_eof, discarded_pending_data: ref.discarded_pending_data, source: ref.source } : null,
+      control: o.control,
+      oracle: 'the reference WHATWG HTML §9.2.6 parse of the bytes the curl control received for this flavor on the same date (REFERENCE in the /clients sse family block carries the parsed events and the hash of the bytes); the server clock "t" inside JSON data is removed before comparison',
+      license: LICENSE.responses.id,
+    };
+  });
+}
+
+// A library's answer on a flavor: the normalized events it delivered plus how it ended. Counted among clients of the
+// SAME class, as auth counts within a mechanism kind: an EventSource-class "reconnecting" and a one-shot "clean"
+// after the same five events are the same answer in two idioms, not a disagreement.
+export function sseSignature(o) {
+  const ev = (o.events || []).map((e) => `${e.type}#${e.id ?? '-'}:${e.data_bytes > 200 ? `<${e.data_bytes}b ${(e.data_sha256 || '').slice(0, 8)}>` : JSON.stringify(e.data)}`).join(' ');
+  return `${o.events.length} events [${ev}] | ended ${o.end}`;
+}
+
+function sseFamily({ rows }) {
+  const perFlavor = {};
+  for (const o of OBSERVATIONS_SSE) {
+    if (o.client.role !== 'client') continue;
+    const m = (perFlavor[o.flavor] = perFlavor[o.flavor] || new Map());
+    const sig = `${o.client.class}: ${sseSignature(o)}`;
+    m.set(sig, (m.get(sig) || []).concat(o.client.id));
+  }
+  const disagreement = Object.fromEntries(
+    Object.entries(perFlavor).sort((a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0]))
+      .map(([f, m]) => {
+        const byClass = {};
+        for (const [sig, ids] of m) { const cls = sig.split(':')[0]; byClass[cls] = (byClass[cls] || 0) + 1; }
+        return [f, { distinct_answers_within_class: byClass, answers: Object.fromEntries([...m.entries()].sort((a, b) => b[1].length - a[1].length)) }];
+      })
+  );
+  const outcomeCounts = {};
+  for (const o of OBSERVATIONS_SSE) outcomeCounts[o.outcome] = (outcomeCounts[o.outcome] || 0) + 1;
+  const classCounts = {};
+  for (const c of CLIENTS_SSE) classCounts[c.class] = (classCounts[c.class] || 0) + 1;
+  return {
+    what:
+      `What ${CLIENTS_SSE.filter((c) => c.role === 'client').length} real SSE client libraries did with the fourteen /sse flavors, one row per observation, ` +
+      'plus one raw-wire control row per flavor (curl). Each row is one fresh client pointed at GET /sse/{flavor} with default ' +
+      'parameters: every event it delivered, every connection it opened and what that connection carried, every error it ' +
+      'surfaced, and how it ended. The oracle is the reference WHATWG parse of the bytes the control received.',
+    rows: rows.length,
+    flavors: WITNESS_SSE.flavors,
+    observed: WITNESS_SSE.probed,
+    badhttp_version_observed: WITNESS_SSE.badhttp_version_observed,
+    worker_version: WITNESS_SSE.worker_version,
+    clients: CLIENTS_SSE,
+    fields: [...COMMON_FIELDS, ...SSE_FIELDS],
+    class_legend: SSE_CLASSES,
+    outcome_legend: SSE_OUTCOMES,
+    reading_this: SSE_READING,
+    outcome_counts: outcomeCounts,
+    class_counts: classCounts,
+    reference: REFERENCE_SSE,
+    disagreement_by_flavor: disagreement,
+    disagreement_note: 'distinct_answers_within_class is, per flavor and per client class, the number of distinct answers (the normalized events delivered plus how the row ended) among client rows; answers lists them, prefixed by class. Control rows are excluded. The two classes are never compared with each other: an EventSource-interface library ending "reconnecting" and a one-shot library ending "clean" after the same events is the same result in two idioms.',
+    findings: sseFindings(),
+    freshness:
+      `A dated capture, not a live measurement: taken ${WITNESS_SSE.probed} against badhttp version ` +
+      `${WITNESS_SSE.badhttp_version_observed}, with the library versions on each row. Library behaviour changes between ` +
+      `releases and this table does not update itself. Re-run it from ${WITNESS_SSE.capture_scripts} in the source and ` +
+      'the numbers move; the date on every row is how you know whether to trust it.',
+    reproduce:
+      'Point the row\'s library at the row\'s url with a fresh instance and collect every event it delivers (type, id, ' +
+      'data) and how it signals the end; compare with the row\'s events and end. For the reference, capture the bytes ' +
+      'with curl -sS -N --http1.1 and parse them by WHATWG HTML §9.2.6 (scripts/witness-parse-sse.mjs carries ' +
+      'the parser). Pace the calls against the zone limit of 100 per 10 s, and treat a first response without ' +
+      'x-badhttp-version as no observation.',
+  };
+}
+
+// ---------------------------------------------------------------------------------------------------
 
 export function clientRows({ origin }) {
-  return [...compressRows({ origin }), ...crosshostRows(), ...authRows(), ...cookieRows()];
+  return [...compressRows({ origin }), ...crosshostRows(), ...authRows(), ...cookieRows(), ...sseRows()];
 }
 
 export function clientsIndex({ origin }) {
@@ -612,29 +751,34 @@ export function clientsIndex({ origin }) {
   const crosshost = crosshostRows();
   const auth = authRows();
   const cookies = cookieRows();
+  const sse = sseRows();
   return {
     what:
       'What real HTTP clients actually did with this server\'s misbehaviour, as data: one row per ' +
-      'observation, across four families so far — the 21 /compress flavors (six decoding clients and ' +
+      'observation, across five families so far — the 21 /compress flavors (six decoding clients and ' +
       'two non-decoding controls), the 9 /crosshost flavors (eight clients; eight boundaries and a ' +
       'same-origin control), the 18 /auth flavors (the same eight clients, each handed the documented ' +
-      'fake credentials through its own mechanism) and the 17 /cookies setter flavors (the same eight, ' +
-      'each with a fresh jar, through set, echo, delete and echo again). Every row names ' +
+      'fake credentials through its own mechanism), the 17 /cookies setter flavors (the same eight, ' +
+      'each with a fresh jar, through set, echo, delete and echo again) and the 14 /sse flavors (real ' +
+      'SSE client libraries plus a raw-wire control, each row described against a WHATWG parse of the ' +
+      'bytes the control received). Every row names ' +
       'the client and its version, the date, what it received, and what it reported.',
     why:
       'For /compress the home page has claimed these results since v0.12.0 and cited a private ' +
       'repository as the evidence; for /crosshost the family index carried them as prose from ' +
       'v0.17.0 (2026-09-10); for /auth the home page carried a three-client note from v0.9.0 ' +
-      '(2026-08-27); for /cookies the home page carried a three-jar note from v0.6.0 (2026-08-24). Here ' +
-      'are all four as rows. It is also the only data on this service that ' +
+      '(2026-08-27); for /cookies the home page carried a three-jar note from v0.6.0 (2026-08-24); for /sse ' +
+      'the home page carried a one-client note from v0.4.0 (2026-08-23). Here ' +
+      'are all five as rows. It is also the only data on this service that ' +
       'badhttp did not write about itself.',
     jsonl: `${origin}/clients.jsonl`,
-    rows: compress.length + crosshost.length + auth.length + cookies.length,
+    rows: compress.length + crosshost.length + auth.length + cookies.length + sse.length,
     families: {
       compress: compressFamily({ rows: compress }),
       crosshost: crosshostFamily({ rows: crosshost }),
       auth: authFamily({ rows: auth }),
       cookies: cookieFamily({ rows: cookies }),
+      sse: sseFamily({ rows: sse }),
     },
     common_fields: COMMON_FIELDS,
     join: 'corpus_id joins each row to a row of ' + `${origin}/corpus.jsonl` + '; family names the block above whose legend and fields apply',

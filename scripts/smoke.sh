@@ -612,8 +612,8 @@ chk corpusbrzstdae "$(jq -r 'select(.id=="compress.br" or .id=="compress.zstd")|
 # /clients — the witness matrix as data. compress: 8 profiles x 21 flavors; crosshost: 8 clients x 9 flavors; auth: 8 clients x 18 flavors; cookies: 8 clients x 17 setter flavors.
 clh=$(curl -s -D - "$B/clients.jsonl" -o "$T/clients.jsonl")
 chk clientsjsonlhdr "$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^content-type: application/x-ndjson')$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^cache-control:.*no-transform')$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^x-badhttp-license: CC0-1.0')$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^link: <.*>; rel="license"')" "1111"
-chk clientsrows "$(wc -l < "$T/clients.jsonl" | tr -d ' ')" 520
-chk clientsfamilies "$(jq -r .family "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "144auth;168compress;136cookies;72crosshost;"
+chk clientsrows "$(wc -l < "$T/clients.jsonl" | tr -d ' ')" 632
+chk clientsfamilies "$(jq -r .family "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "144auth;168compress;136cookies;72crosshost;112sse;"
 chk clientsrowcount "$(wc -l < "$T/clients.jsonl" | tr -d ' ')" "$(printf '%s\n' "$clh" | tr -d '\r' | sed -n 's/^x-badhttp-rows: //Ip' | tr -d '\r')"
 chk clientsjsonlvalid "$(while IFS= read -r l; do printf '%s' "$l" | jq -e . >/dev/null 2>&1 || echo BAD; done < "$T/clients.jsonl" | grep -c BAD)" 0
 chk clientsids "$(jq -r .id "$T/clients.jsonl" | sort | uniq -d | wc -l | tr -d ' ')" 0
@@ -624,11 +624,11 @@ chk clientsorigin "$(jq -r --arg b "$B" 'select((.url|startswith($b))|not)|.corp
 chk clientshosts "$(jq -r '.url' "$T/clients.jsonl" | sed -E 's#^https?://([^/:]+).*#\1#' | grep -vcE '^(badhttp\.dev|alt\.badhttp\.dev)$')" 0
 # Six decoding clients and two controls: the split is what keeps the site's "six real clients" claim
 # literally true now that eight profiles are published.
-chk clientsroles "$(jq -r '.client.role' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "478client;42control;"
+chk clientsroles "$(jq -r '.client.role' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "576client;56control;"
 # Every /clients row must join to a real /corpus.jsonl row, or the join key is decoration.
 chk clientsjoin "$(comm -23 <(jq -r .corpus_id "$T/clients.jsonl" | sort -u) <(jq -r .id "$T/corpus.jsonl" | sort -u) | wc -l | tr -d ' ')" 0
 cidxc=$(curl -s "$B/clients")
-chk clientsindex "$(printf '%s\n' "$cidxc" | jq -r '[(.rows==520), (.families.compress.rows==168), (.families.crosshost.rows==72), (.families.compress.flavors==21), (.families.crosshost.flavors==9), (.license=="CC0-1.0"), (.families.compress.clients|length==8), (.families.crosshost.clients|length==8), (.jsonl|test("/clients.jsonl$")), (.families.compress.outcome_legend|keys|length==6), (.families.crosshost.outcome_legend|keys|length==5), (.common_fields|length==12)] | join(",")')" "true,true,true,true,true,true,true,true,true,true,true,true"
+chk clientsindex "$(printf '%s\n' "$cidxc" | jq -r '[(.rows==632), (.families.compress.rows==168), (.families.crosshost.rows==72), (.families.compress.flavors==21), (.families.crosshost.flavors==9), (.license=="CC0-1.0"), (.families.compress.clients|length==8), (.families.crosshost.clients|length==8), (.jsonl|test("/clients.jsonl$")), (.families.compress.outcome_legend|keys|length==6), (.families.crosshost.outcome_legend|keys|length==5), (.common_fields|length==12)] | join(",")')" "true,true,true,true,true,true,true,true,true,true,true,true"
 chk clientsauthindex "$(printf '%s\n' "$cidxc" | jq -r '[(.families.auth.rows==144), (.families.auth.flavors==18), (.families.auth.clients|length==8), (.families.auth.outcome_legend|keys|length==5), (.families.auth.mechanism_legend|keys|length==8), (.families.auth.findings|length>=10), ([.families.auth.clients[].requests_counted_by]|all(type=="string" and length>20)), (.families.auth.disagreement_by_flavor|keys|length==18)] | join(",")')" "true,true,true,true,true,true,true,true"
 # The honesty guard: the index must say outright that an outcome is not a verdict, and must name the
 # flavor where "differs" is correct behaviour. If this sentence is ever dropped, the table becomes a
@@ -681,6 +681,27 @@ chk authwitnesspagedate "$(curl -s "$B/" | grep -c "eight real clients on ${awd%
 # The home page's cookies note is rendered from the rows too (v0.20.0 replaced the hand-typed 2026-08-23 note).
 cwd=$(jq -r 'select(.family=="cookies")|.observed' "$T/clients.jsonl" | sort -u | tr -d '\n')
 chk cookieswitnesspagedate "$(curl -s "$B/" | grep -c "eight real clients on ${cwd%%T*} — 136 observations")" 1
+
+# ---- /clients: the sse family (session 27, 2026-10-05; docs/spec-sse-witness.md). Row count, roster and date are
+# pinned so the capture cannot drift silently; every for-all below carries its own floor so it cannot pass on nothing.
+chk clientssseindex "$(printf '%s\n' "$cidxc" | jq -r '[(.families.sse.rows==112), (.families.sse.flavors==14), (.families.sse.clients|length==8), ((.families.sse.clients|map(select(.role=="client"))|length)==7), (.families.sse.outcome_legend|keys|length==7), (.families.sse.class_legend|keys|length==3), (.families.sse.reference|keys|length==14), (.families.sse.findings|length>=10), (.families.sse.observed|startswith("2026-10-05"))] | all')" true
+chk clientsssecount "$(jq -r 'select(.family=="sse")|.id' "$T/clients.jsonl" | wc -l | tr -d ' ')" 112
+chk clientssseshape "$(jq -r 'select(.family=="sse") | [(.class|IN("eventsource","one-shot","raw")), (.outcome|IN("as-spec","events-differ","end-differs","both-differ","harness-timeout","request-failed","control")), (.end|IN("clean","error","reconnecting","stopped","closed-by-harness","harness-timeout")), (.connections|type=="array" and length>=1), (.connections[0].x_badhttp_version|type=="string"), (.events|type=="array"), (.reference.raw_sha256|test("^[0-9a-f]{64}$")), (.license=="CC0-1.0")] | all' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr -d '\n ')" "112true"
+chk clientsssecontrol "$(jq -r 'select(.family=="sse" and .client.role=="control") | [(.control.raw_sha256==.reference.raw_sha256), (.events_delivered==(.events|length)), (.outcome=="control")] | all' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr -d '\n ')" "14true"
+# Non-vacuity floors: the control saw what src/sse.js emits (5/1/1/1 events on ok/cut/drop/big; cut leaves last id 2 with pending data discarded)
+chk clientsssereference "$(printf '%s\n' "$cidxc" | jq -r '[.families.sse.reference | (.ok.events|length==5), (.cut.events|length==1), (.cut.last_event_id_at_eof=="1"), (.cut.last_event_id_buffer_at_eof=="2"), (.cut.discarded_pending_data==true), (.drop.events|length==1), (.drop.curl_exit==18), (.big.events[0].data_bytes==65536), (.resume.connections_expected==3), (.["split-utf8"].events|map(.data)==["🐍 ok","€ ok"])] | all')" true
+# Every client delivered the ok control's five events; every client row landed (attempts recorded; no request-failed rows)
+chk clientssseok "$(jq -r 'select(.family=="sse" and .flavor=="ok" and .client.role=="client") | (.events|length)' "$T/clients.jsonl" | sort -u | tr '\n' ',')" "5,"
+chk clientssselanded "$(jq -r 'select(.family=="sse" and .client.role=="client") | .outcome' "$T/clients.jsonl" | grep -c 'request-failed')" 0
+chk clientssseattempts "$(jq -r 'select(.family=="sse")|.attempts' "$T/clients.jsonl" | sort -u | tr '\n' ',')" "1,"
+# The verdict-word ban over the family's reading and findings, and the no-machine-path rule over every row
+chk clientsssenoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.sse.reading_this, .families.sse.findings[]] | join(" ")' | grep -ciwE '(correctly|incorrectly|conformant|non-compliant|violates|buggy)')" 0
+chk clientsssenopaths "$(jq -c 'select(.family=="sse")' "$T/clients.jsonl" | grep -cE '/Users/|/home/|/private/|localhost|127\.0\.0\.1')" 0
+# The /sse index's witness block and the home page's SSE paragraph are rendered from the rows: date and count pinned to the rows
+ssew=$(curl -s "$B/sse" | jq -c '.witness')
+chk ssewitness "$(printf '%s\n' "$ssew" | jq -r --arg d "$(jq -r 'select(.family=="sse")|.observed' "$T/clients.jsonl" | sort -u | head -1)" --argjson n "$(jq -r 'select(.family=="sse" and .client.role=="client")|.id' "$T/clients.jsonl" | wc -l | tr -d ' ')" '[(.measured==$d), (.observations==$n), (.control_rows==14), (.findings|length>=10), (.data=="https://badhttp.dev/clients.jsonl")] | all')" true
+chk homessedate "$(curl -s "$B/" | grep -o 'real SSE client libraries on [0-9-]*' | head -1 | awk '{print $NF}')" "$(jq -r 'select(.family=="sse")|.observed' "$T/clients.jsonl" | sort -u | head -1 | cut -c1-10)"
+chk homesseold "$(curl -s "$B/" | grep -c 'checked against a spec-conformant client')" 0
 chk clientscors "$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS "$B/clients.jsonl")" 204
 chk clientssurfaces "$(curl -s "$B/llms.txt" | grep -c '/clients.jsonl')$(curl -s "$B/" | grep -c 'clients.jsonl')$(curl -s "$B/sitemap.xml" | grep -c '/clients<')" "251"
 chk openapiclients "$(curl -s "$B/openapi.json" | jq -r '[(.paths|has("/clients")), (.paths|has("/clients.jsonl"))] | join(",")')" "true,true"

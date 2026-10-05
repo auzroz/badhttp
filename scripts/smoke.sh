@@ -693,6 +693,7 @@ chk robotspay "$(curl -s "$B/robots.txt" | grep -c '^Allow: /402/pay')" 3
 # status — re-claim (POST /api/v1/claim) and redeploy with the new hash rather than deleting the check.
 chk index402verify "$(curl -s "$B/.well-known/402index-verify.txt" | tr -d '\n') $(curl -s -o /dev/null -w '%{http_code}' "$B/.well-known/nope.txt")" \
   "91c6b02d9fa38bc02d5f825ecad89da50bfeaf67a2a127d72fbc6e7c04ba477f 404"
+chk agenttoolsverify "$(curl -s "$B/.well-known/agent-tools-verify.txt" | tr -d '\n')" atc_hPrRS_vOAgC0HUAW_HM34JLmoTbpQC5q
 
 # corpuslive: replay every corpus row against production with its own method and headers. This is
 # the guard for the failure class above — a row that documents an endpoint it does not address.

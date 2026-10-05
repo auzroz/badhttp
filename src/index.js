@@ -714,6 +714,14 @@ export default {
           if (seg[1] === '402index-verify.txt') {
             return text('91c6b02d9fa38bc02d5f825ecad89da50bfeaf67a2a127d72fbc6e7c04ba477f\n', 200, { 'cache-control': 'public, max-age=3600' });
           }
+          // agent-tools.cloud domain claim (session 27, 2026-10-05). Their crawler had imported this host from
+          // x402scan as a listing pointing at the HOME PAGE with a made-up MCP url, and graded it "degraded";
+          // editing a listing there requires proving control of the host by serving their claim token as the
+          // whole body of this file. The token is a public verification value (like a DNS TXT record), not a
+          // secret: the API key that edits the listing lives in .env as AGENT_TOOLS_API_KEY, never in source.
+          if (seg[1] === 'agent-tools-verify.txt') {
+            return text('atc_hPrRS_vOAgC0HUAW_HM34JLmoTbpQC5q', 200, { 'cache-control': 'public, max-age=3600' });
+          }
           // funding.json discovery (fundingjson.org v1.1.0). The manifest itself is at /funding.json;
           // this file is the spec's provenance mechanism, naming which manifest URLs this host
           // vouches for. Added session 21 for one reason, stated plainly in the manifest and on

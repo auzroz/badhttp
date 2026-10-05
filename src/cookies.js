@@ -97,8 +97,8 @@ export const COOKIES = {
 // match it (RFC 6265 §5.3: removal is by name+domain+path; __Host-/__Secure- deletions must also
 // satisfy the prefix rules or the deletion itself is rejected). /cookies/delete is built from this
 // table so it cannot drift from the setters. host is the request hostname (for the domain flavor).
-function plantedCookies(host, maxCount) {
-  const list = [
+function plantedList(host, maxCount) {
+  return [
     // badhttp_ok is expired with the Expires idiom; everything else uses Max-Age=0 (the about
     // promises both idioms are exercised).
     ['badhttp_ok', 'Path=/cookies', 'expires'],
@@ -131,7 +131,9 @@ function plantedCookies(host, maxCount) {
     ['badhttp-just-a-value', 'Path=/cookies'],
     ['badhttp_huge', 'Path=/cookies'],
   ];
-  return list.map(([name, attrs, idiom]) => `${name}=gone; ${attrs}; ${idiom === 'expires' ? `Expires=${EPOCH}` : 'Max-Age=0'}`);
+}
+function plantedCookies(host, maxCount) {
+  return plantedList(host, maxCount).map(([name, attrs, idiom]) => `${name}=gone; ${attrs}; ${idiom === 'expires' ? `Expires=${EPOCH}` : 'Max-Age=0'}`);
 }
 
 // The Cookie header split as this server documents it (the bis §5.6-style name/value split applied
@@ -349,9 +351,19 @@ const groups = (flavor, key, only = () => true) => {
   return [...m.entries()].sort((a, b) => b[1].length - a[1].length).map(([k, v]) => `${k} (${cList(v)})`).join('; ');
 };
 const valueHex = (o, n) => { const c = echoed(o, n)[0]; return c ? (c.value == null ? `${c.value_bytes} bytes` : Array.from(new TextEncoder().encode(c.value)).map((b) => b.toString(16).padStart(2, '0')).join(' ')) : 'not returned'; };
-const year = (iso) => (iso && /^\d{4}-/.test(iso) ? Number(iso.slice(0, 4)) : null);
+// jar_entries.expires is an ISO-8601 instant for most jars, the Set-Cookie Expires string verbatim (an HTTP-date) for
+// Python aiohttp, "session", or null when the jar does not expose it. year() reads the first two forms; the others are null.
+const year = (s) => {
+  if (!s || s === 'session') return null;
+  if (/^\d{4}-/.test(s)) return Number(s.slice(0, 4));
+  const t = Date.parse(s);
+  return Number.isNaN(t) ? null : new Date(t).getUTCFullYear();
+};
+const isoDay = (s) => (/^\d{4}-/.test(s) ? s.slice(0, 10) : new Date(Date.parse(s)).toISOString().slice(0, 10));
+const NOT_EXPOSED = 'expiry not exposed by the jar';
 
-export function cookieFindings() {
+// maxCount is LIMITS.cookiesMaxCount in index.js: how many badhttp_many_NN deletions /cookies/delete emits.
+export function cookieFindings(maxCount = 20) {
   const nj = noJarClients();
   const okAll = allJar('ok', (o) => o.outcome === 'all-returned');
   const foldedSplit = allJar('folded', (o) => (o.unplanted_names || []).includes('badhttp_folded_b'));
@@ -368,9 +380,9 @@ export function cookieFindings() {
   const conflictNot = allJar('conflicting-expiry', (o) => hasJar(o) && !returned(o, 'badhttp_conflict'));
   const conflict1970 = allJar('conflicting-expiry', (o) => { const e = entry(o, 'badhttp_conflict'); return !!(e && year(e.expires) === 1970); });
   const badExpOk = allJar('bad-expires', (o) => returned(o, 'badhttp_bad_expires'));
-  const badExpJar = groups('bad-expires', (o) => { const e = entry(o, 'badhttp_bad_expires'); return !o.jar_enumerable ? 'jar not enumerable' : !e ? 'not in the jar' : e.expires === 'session' || e.expires == null ? 'a session cookie' : `expiry recorded as ${e.expires}`; });
+  const badExpJar = groups('bad-expires', (o) => { const e = entry(o, 'badhttp_bad_expires'); return !o.jar_enumerable ? 'jar not enumerable' : !e ? 'not in the jar' : e.expires === 'session' ? 'a session cookie' : e.expires == null ? NOT_EXPOSED : `expiry recorded as ${e.expires}`; });
   const farOk = allJar('far-future', (o) => returned(o, 'badhttp_far_future'));
-  const farJar = groups('far-future', (o) => { const e = entry(o, 'badhttp_far_future'); const y = e ? year(e.expires) : null; return !o.jar_enumerable ? 'jar not enumerable' : !e ? 'not in the jar' : y === 9999 ? 'the year 9999 kept' : y ? `clamped to ${e.expires.slice(0, 10)}` : `expiry ${e.expires}`; });
+  const farJar = groups('far-future', (o) => { const e = entry(o, 'badhttp_far_future'); const y = e ? year(e.expires) : null; return !o.jar_enumerable ? 'jar not enumerable' : !e ? 'not in the jar' : y === 9999 ? 'the year 9999 kept' : y ? `clamped to ${isoDay(e.expires)}` : e.expires === 'session' ? 'a session cookie' : e.expires == null ? NOT_EXPOSED : `expiry ${e.expires}`; });
   const wrongDom = allJar('wrong-domain', (o) => returned(o, 'badhttp_wrong_domain'));
   const psl = allJar('public-suffix', (o) => returned(o, 'badhttp_supercookie'));
   const domBoth = allJar('domain', (o) => o.outcome === 'all-returned');
@@ -386,6 +398,8 @@ export function cookieFindings() {
   const utf8Sig = groups('utf8', (o) => (returned(o, 'badhttp_utf8') ? `bytes ${valueHex(o, 'badhttp_utf8')}` : 'not returned'));
   const utf8Raw = allJar('utf8', (o) => valueHex(o, 'badhttp_utf8') === 'e2 98 83');
   const utf8Raised = allJar('utf8', (o) => o.outcome === 'client-raised');
+  const utf8RaisedRows = cRows('utf8').filter((o) => o.outcome === 'client-raised');
+  const utf8Hop = utf8RaisedRows.length && utf8RaisedRows.every((o) => o.hops && o.hops[0] && o.hops[0].status === utf8RaisedRows[0].hops[0].status && o.hops[0].set_cookie_count === utf8RaisedRows[0].hops[0].set_cookie_count) ? utf8RaisedRows[0].hops[0] : null;
   const utf8RaisedErr = utf8Raised.length ? (cRows('utf8').find((o) => o.outcome === 'client-raised').reported_error || '').slice(0, 120) : '';
   const namelessRet = allJar('nameless', (o) => o.outcome !== 'none-returned');
   const namelessAsName = allJar('nameless', (o) => !!entry(o, 'badhttp-just-a-value'));
@@ -396,6 +410,9 @@ export function cookieFindings() {
   const delClean = jarClients().filter((c) => FLAVOR_LIST_FOR_DELETE.every((f) => { const o = cObs(c.id, f); return !(o && o.after_delete) || o.after_delete_remaining === 0; })).map((c) => c.name);
   const delLeft = jarClients().map((c) => ({ c, left: FLAVOR_LIST_FOR_DELETE.filter((f) => { const o = cObs(c.id, f); return o && o.after_delete && o.after_delete_remaining > 0; }) })).filter((x) => x.left.length).map((x) => `${x.c.name} (${x.left.join(', ')})`);
   const tombstones = jarClients().map((c) => { const names = new Set(); for (const f of FLAVOR_LIST_FOR_DELETE) { const o = cObs(c.id, f); for (const n of (o && o.after_delete_unplanted) || []) names.add(n); } return { c, names: [...names] }; }).filter((x) => x.names.length).map((x) => `${x.c.name} (${x.names.join(', ')})`);
+  const delList = plantedList('badhttp.dev', maxCount);
+  const delExpires = delList.filter((d) => d[2] === 'expires');
+  const delMaxAge = delList.length - delExpires.length;
   const tombstoneOnlyOk = tombstones.length > 0 && jarClients().every((c) => FLAVOR_LIST_FOR_DELETE.every((f) => { const o = cObs(c.id, f); return ((o && o.after_delete_unplanted) || []).every((n) => n === 'badhttp_ok'); }));
   const failed = OBSERVATIONS_COOKIES.filter((o) => o.outcome === 'client-raised' || o.outcome === 'request-failed');
   const pyJar = ['Python urllib.request', 'Python requests', 'Python httpx'];
@@ -406,15 +423,15 @@ export function cookieFindings() {
     `on-redirect (Set-Cookie on the 302 itself): ${ofAll(redirOk)} kept the cookie set on the redirect and presented it on the follow-up${redirNot.length ? `; ${cList(redirNot)} did not` : ''}.`,
     `conflicting-expiry (Expires in 1970 and Max-Age=3600 on one cookie): ${ofAll(conflictOk)} kept the cookie, so Max-Age won${conflictNot.length ? `; ${cList(conflictNot)} dropped it` : ''}${conflict1970.length ? `. ${cList(conflict1970)} nevertheless recorded the 1970 date in the jar entry it exposed while still sending the cookie` : ''}. bad-expires (an ISO 8601 date): ${ofAll(badExpOk)} sent it back; in the jar it is ${badExpJar}.`,
     `far-future (Expires in the year 9999; bis §5.5 recommends a 400-day cap): ${ofAll(farOk)} sent it back; in the jar: ${farJar}.`,
-    `wrong-domain (Domain=example.com) and public-suffix (Domain=dev): ${wrongDom.length ? `${cList(wrongDom)} returned the wrong-domain cookie` : `no client returned the wrong-domain cookie`}; ${psl.length ? `${cList(psl)} returned the supercookie scoped to the whole TLD` : 'no client returned the supercookie scoped to the whole TLD'}. Returning nothing is what §5.3 asks for on both.`,
-    `domain (Domain=.badhttp.dev and Domain=badhttp.dev): ${ofAll(domBoth)} returned both${domEnum.length ? `; of the ${domEnum.length} whose jar the harness could enumerate, ${cSame(domHostOnlyFalse, domEnum) ? 'all' : cList(domHostOnlyFalse)} recorded both as domain cookies (host_only: false), the leading dot making no difference` : ''}. path-prefix (Path=/cookie, one letter short): ${pathSent.length ? `${cList(pathSent)} sent it to /cookies/echo, which §5.1.4 says must not happen` : 'no client sent it to /cookies/echo (correct: /cookie does not path-match /cookies/echo)'}${pathEnum.length ? `; ${cSame(pathStored, pathEnum) ? 'every enumerable jar' : cList(pathStored)} had stored it` : ''}.`,
-    `name-prefixes (__Host- and __Secure-, one valid and one invalid each): ${prefixSig}.${prefixTwo.length && prefixFour.length ? ` The two-cookie answer is the bis §4.1.3 rule; the four-cookie answer is RFC 6265 without prefix rules, and both are conformant to their own specification.` : ''}${cSame(prefixFour, pyJar) ? ' The three clients built on Python\'s http.cookiejar store all four: cookiejar.py contains no prefix rules at all.' : ''}`,
+    `wrong-domain (Domain=example.com) and public-suffix (Domain=dev): ${wrongDom.length ? `${cList(wrongDom)} returned the wrong-domain cookie` : `no client returned the wrong-domain cookie`}; ${psl.length ? `${cList(psl)} returned the supercookie scoped to the whole TLD` : 'no client returned the supercookie scoped to the whole TLD'}. Returning nothing is what §5.3 step 6 requires on wrong-domain; on public-suffix it is what a jar with a public-suffix list does (§5.3 step 5, which says user agents SHOULD use one), and plain RFC 6265 without a list would store it.`,
+    `domain (Domain=.badhttp.dev and Domain=badhttp.dev): ${ofAll(domBoth)} returned both${domEnum.length ? `; of the ${domEnum.length} whose jar the harness could enumerate, ${cSame(domHostOnlyFalse, domEnum) ? 'all' : cList(domHostOnlyFalse)} recorded both as domain cookies (host_only: false), the leading dot making no difference` : ''}. path-prefix (Path=/cookie, one letter short): ${pathSent.length ? `${cList(pathSent)} sent it to /cookies/echo, which §5.1.4 says must not happen` : 'no client sent it to /cookies/echo (/cookie does not path-match /cookies/echo)'}${pathEnum.length ? `; ${cSame(pathStored, pathEnum) ? 'every enumerable jar' : cList(pathStored)} had stored it` : ''}.`,
+    `name-prefixes (__Host- and __Secure-, one valid and one invalid each): ${prefixSig}.${prefixTwo.length && prefixFour.length ? ` The two-cookie answer is the bis §4.1.3 rule; the four-cookie answer is RFC 6265 without prefix rules, so the two answers follow two different specifications.` : ''}${cSame(prefixFour, pyJar) ? ' The three clients built on Python\'s http.cookiejar store all four: cookiejar.py contains no prefix rules at all.' : ''}`,
     `quoted (a DQUOTE-wrapped value with a space, and a semicolon inside quotes): ${quotedSig}.`,
-    `utf8 (a raw ☃, bytes e2 98 83, in the value): ${utf8Sig}${utf8Raised.length ? `; ${cList(utf8Raised)} stored it and then raised while sending it back (${utf8RaisedErr})` : ''}.${utf8Raw.length === JN() ? ' Every jar round-tripped the raw bytes unchanged.' : ''}`,
+    `utf8 (a raw ☃, bytes e2 98 83, in the value): ${utf8Sig}${utf8Raised.length ? `; ${cList(utf8Raised)} raised after the setter response arrived${utf8Hop ? ` (status ${utf8Hop.status}, ${utf8Hop.set_cookie_count} Set-Cookie)` : ''}, with no echo recorded (${utf8RaisedErr})` : ''}.${utf8Raw.length === JN() ? ' Every jar round-tripped the raw bytes unchanged.' : ''}`,
     `nameless (a Set-Cookie with no "=" at all, and one starting with "="): ${namelessRet.length ? `${cList(namelessRet)} sent the no-equals line back bare, which this server reads as a nameless value` : 'no client sent either back'}${namelessAsName.length ? ` — and ${cSame(namelessAsName, namelessRet) ? 'their jars' : `the jars of ${cList(namelessAsName)}`} record it as a cookie NAMED badhttp-just-a-value with no value at all` : ''}; no client sent back the line that starts with "="${namelessRejected.length ? `; ${cList(namelessRejected)} refused both loudly (jar_rejections on the row)` : ''}${namelessNone.length ? `; ${cList(namelessNone)} stored neither and raised nothing` : ''}.${cSame(namelessAsName, pyJar) ? ' http.cookiejar parses a value with no "=" as a name and writes it back without one (the same behaviour v0.6.0 recorded on 2026-08-23), which is why /cookies/delete carries a deletion for that name.' : ''}`,
     `huge (name+value exactly 4096 bytes, the bis §5.6 limit): ${ofAll(hugeOk)} stored and returned it${hugeNot.length ? `; ${cList(hugeNot)} did not` : ''}.`,
     `delete (one expiring Set-Cookie per plantable cookie, exact attributes): after the cleanup, ${delClean.length === JN() ? `every client with a jar` : cList(delClean)} had none of the planted cookies left on any flavor${delLeft.length ? `; still present afterwards: ${delLeft.join('; ')}` : ''}.`,
-    `Also after the cleanup: ${tombstones.length ? `${tombstones.join('; ')} carried a cookie that no flavor in that session had planted — a deletion tombstone from /cookies/delete stored as a live cookie instead of removing one` : 'no client carried a deletion tombstone as a live cookie'}.${tombstoneOnlyOk ? ' badhttp_ok is the one deletion in that list that uses the Expires=1970 idiom; the other forty-four use Max-Age=0 and took effect, so the jar that kept it acted on Max-Age and not on an Expires in the past.' : ''}`,
+    `Also after the cleanup: ${tombstones.length ? `${tombstones.join('; ')} carried a cookie that no flavor in that session had planted — a deletion tombstone from /cookies/delete stored as a live cookie instead of removing one` : 'no client carried a deletion tombstone as a live cookie'}.${tombstoneOnlyOk && delExpires.length === 1 && delExpires[0][0] === 'badhttp_ok' ? ` badhttp_ok is the one deletion in that list that uses the Expires=1970 idiom; the other ${delMaxAge} use Max-Age=0 and took effect, so the jar that kept it acted on Max-Age and not on an Expires in the past.` : ''}`,
     `${failed.length} of ${OBSERVATIONS_COOKIES.length} observations ended in the client raising or the transport failing${failed.length ? `: ${cList(failed.map((o) => `${cName(o.client)} on ${o.flavor}`))}` : ''}. Every other row is four responses this server sent, each read back from the wire with its x-badhttp-version.`,
   ];
 }
@@ -430,20 +447,20 @@ export function cookieWitness() {
       'corpus_id; /clients indexes them with the jar legend, the outcome legend and the per-flavor ' +
       'disagreement. The findings below are a reading of those rows, not a second source.',
     what_this_is:
-      'Eight real HTTP clients, each with a fresh jar per flavor, run through GET /cookies/{flavor}, ' +
+      `Eight real HTTP clients, each with a fresh jar per flavor${noJarClients().length ? ` (${cList(noJarClients())} ${noJarClients().length === 1 ? 'has' : 'have'} no jar at all)` : ''}, run through GET /cookies/{flavor}, ` +
       'GET /cookies/echo, GET /cookies/delete and GET /cookies/echo again on this exact date. It is a DATED ' +
       'CAPTURE, not a live measurement, and it describes WHAT CAME BACK to /cookies/echo — never a verdict ' +
-      'on a client. On wrong-domain, public-suffix and path-prefix, returning nothing is what the ' +
-      'specification asks for; a client with no jar returning nothing anywhere is a capability, not a ' +
+      'on a client. Returning nothing is the specified answer on wrong-domain and path-prefix, and the ' +
+      'recommended one on public-suffix (for a jar with a public-suffix list, §5.3 step 5); a client with no jar returning nothing anywhere is a capability, not a ' +
       'defect, and its rows say jar_kind: no-jar. Where the harness could enumerate the jar, the row also ' +
       'carries what the jar recorded (domain, path, host_only, secure, expires), which is how a cookie ' +
-      'that was stored but correctly not sent is told apart from one that was never stored. Re-run it ' +
+      'that was stored but not sent is told apart from one that was never stored. Re-run it ' +
       'and move the date rather than letting it stale.',
     clients: CLIENTS_COOKIES.map((c) => `${c.name} ${c.version}`),
     findings: cookieFindings(),
     what_the_oracle_cannot_tell_you:
       '/cookies/echo says what one request carried. It cannot say what the jar holds (a cookie stored ' +
-      'and correctly withheld looks the same as one never stored), which is why rows carry jar_entries ' +
+      'and withheld looks the same as one never stored), which is why rows carry jar_entries ' +
       'where the client exposes its jar and jar_enumerable: false where it does not; it cannot say what ' +
       'the client refused loudly, which is why jar_rejections exists; and it cannot see a cookie the ' +
       'client dropped at parse time. Each row is a description of these four responses on one date.',

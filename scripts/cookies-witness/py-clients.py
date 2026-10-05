@@ -42,13 +42,23 @@ def iso(ts):
     except (OverflowError, OSError, ValueError):
         return None
 
-def blen(s):
-    return None if s is None else len(s.encode('utf-8', 'replace'))
+def blen(s, wire='utf-8'):
+    """Length of the value in bytes on the wire. A client hands the harness a str it decoded from the header bytes;
+    re-encoding with the codec the client decoded with recovers the wire length (utf-8 for a client that decodes
+    UTF-8, latin-1 for http.client, utf-8 + surrogateescape for aiohttp). If the str cannot be re-encoded that way
+    the field falls back to the UTF-8 length of the decoded string."""
+    if s is None:
+        return None
+    try:
+        return len(s.encode(*(('utf-8', 'surrogateescape') if wire == 'surrogateescape' else (wire,))))
+    except (UnicodeEncodeError, LookupError):
+        return len(s.encode('utf-8', 'replace'))
 
-def cj_entries(jar):
-    """http.cookiejar iteration (urllib, requests, httpx). host_only = the Set-Cookie carried no Domain attribute."""
+def cj_entries(jar, wire='utf-8'):
+    """http.cookiejar iteration (urllib, requests, httpx). host_only = the Set-Cookie carried no Domain attribute.
+    value_bytes is the wire length per blen(): `wire` is the codec the client decoded the header bytes with."""
     return [{'name': c.name, 'domain': c.domain, 'path': c.path, 'host_only': not c.domain_specified, 'secure': bool(c.secure),
-             'expires': iso(c.expires), 'value_bytes': blen(c.value)} for c in jar]
+             'expires': iso(c.expires), 'value_bytes': blen(c.value, wire)} for c in jar]
 
 class Resp:
     def __init__(self, status, version, text):
@@ -85,7 +95,7 @@ class UrllibCounting(urllib.request.BaseHandler):
     https_response = http_response
 
 class UrllibClient(Client):
-    jar = 'http.cookiejar.CookieJar() default policy (DefaultCookiePolicy, no explicit blocked/allowed domains) behind urllib.request.HTTPCookieProcessor, one fresh jar and opener per flavor'
+    jar = 'http.cookiejar.CookieJar() default policy (DefaultCookiePolicy, no explicit blocked/allowed domains) behind urllib.request.HTTPCookieProcessor, one fresh jar and opener per flavor; jar_entries[].value_bytes is the wire length (http.client decodes header bytes as latin-1, the harness re-encodes the stored str as latin-1)'
     def __init__(self):
         self.hops, self.last_status = [], None
         self.cj = http.cookiejar.CookieJar()
@@ -98,7 +108,7 @@ class UrllibClient(Client):
         except urllib.error.HTTPError as e:  # a non-2xx final response is still a response
             return Resp(e.code, e.headers.get('x-badhttp-version'), e.read().decode('utf-8', 'replace'))
     def entries(self):
-        return cj_entries(self.cj)
+        return cj_entries(self.cj, 'latin-1')
 
 # --- requests ------------------------------------------------------------------------------------
 import requests
@@ -118,7 +128,7 @@ class RequestsCounting(HTTPAdapter):
         return resp
 
 class RequestsClient(Client):
-    jar = 'requests.Session() default RequestsCookieJar (a http.cookiejar.CookieJar subclass, DefaultCookiePolicy), one fresh Session per flavor; trust_env=False'
+    jar = 'requests.Session() default RequestsCookieJar (a http.cookiejar.CookieJar subclass, DefaultCookiePolicy), one fresh Session per flavor; trust_env=False; jar_entries[].value_bytes is the wire length (the response headers come through http.client, which decodes them as latin-1, and the harness re-encodes the stored str as latin-1)'
     def __init__(self):
         self.hops, self.last_status = [], None
         self.s = requests.Session()
@@ -130,7 +140,7 @@ class RequestsClient(Client):
         r = self.s.get(u, allow_redirects=True, timeout=30)
         return Resp(r.status_code, r.headers.get('x-badhttp-version'), r.text)
     def entries(self):
-        return cj_entries(self.s.cookies)
+        return cj_entries(self.s.cookies, 'latin-1')
     def close(self):
         self.s.close()
 
@@ -138,7 +148,7 @@ class RequestsClient(Client):
 import httpx
 
 class HttpxClient(Client):
-    jar = 'httpx.Client() default httpx.Cookies (wraps a http.cookiejar.CookieJar, DefaultCookiePolicy), one fresh Client per flavor; trust_env=False'
+    jar = 'httpx.Client() default httpx.Cookies (wraps a http.cookiejar.CookieJar, DefaultCookiePolicy), one fresh Client per flavor; trust_env=False; jar_entries[].value_bytes is the UTF-8 length of the decoded string (httpx decodes header bytes as ASCII, then UTF-8, then latin-1, and does not say which), so it is the wire length only for ASCII or valid UTF-8 values'
     def __init__(self):
         self.hops, self.last_status = [], None
         def on_request(req):
@@ -182,7 +192,10 @@ class Urllib3Client(Client):
         self.pm.pool_classes_by_scheme = {'http': urllib3.HTTPConnectionPool, 'https': CountingHTTPSPool}
     def get(self, u):
         self.begin()
-        r = self.pm.request('GET', u, redirect=True, retries=urllib3.Retry(total=10, redirect=6))
+        # respect_retry_after_header=False: with the default, urllib3 silently re-sends a 429 that carries Retry-After
+        # and the counting pool would record the edge's 429 as a hop of a row that lands. A 429 now comes back as
+        # the final response (no x-badhttp-version) and run_flavor retries the flavor, visibly.
+        r = self.pm.request('GET', u, redirect=True, retries=urllib3.Retry(total=10, redirect=6, respect_retry_after_header=False))
         return Resp(r.status, r.headers.get('x-badhttp-version'), r.data.decode('utf-8', 'replace'))
     def close(self):
         self.pm.clear()
@@ -191,7 +204,7 @@ class Urllib3Client(Client):
 import aiohttp
 
 class AiohttpClient(Client):
-    jar = 'aiohttp.ClientSession() default aiohttp.CookieJar() (unsafe=False, RFC 6265 domain/path matching with its own date parser), one fresh session per flavor'
+    jar = 'aiohttp.ClientSession() default aiohttp.CookieJar() (unsafe=False, RFC 6265 domain/path matching with its own date parser), one fresh session per flavor; jar_entries[].expires is the jar\'s own recorded expiry (CookieJar._expirations, a private attribute, as an ISO-8601 instant; "session" when the jar recorded none; null if that attribute is missing), never the Morsel\'s Set-Cookie attribute text; value_bytes is the wire length (aiohttp decodes header bytes as UTF-8 with surrogateescape, the harness re-encodes the same way)'
     def __init__(self):
         self.hops, self.last_status = [], None
         self.loop = asyncio.new_event_loop()
@@ -215,13 +228,19 @@ class AiohttpClient(Client):
                 return Resp(r.status, r.headers.get('x-badhttp-version'), text)
         return self.loop.run_until_complete(go())
     def entries(self):
-        """Morsels: expires is aiohttp's string as the Set-Cookie carried it (empty -> null: a Max-Age-only or session
-        cookie has no expires string on the Morsel). host_only from the public CookieJar.host_only_cookies."""
-        host_only = self.s.cookie_jar.host_only_cookies
+        """Morsels from the jar. expires is the jar's OWN recorded expiry, not the Morsel's Set-Cookie attribute text
+        (which is the header as sent: it can say 1970 or 9999 while the jar acted on Max-Age or a clamp): the entry
+        in CookieJar._expirations keyed (domain, path, name), an epoch float, rendered as an ISO-8601 instant;
+        "session" when the jar recorded none; null when the jar has no such table (an aiohttp that dropped it).
+        host_only from the public CookieJar.host_only_cookies."""
+        jar = self.s.cookie_jar
+        host_only = jar.host_only_cookies
+        table = getattr(jar, '_expirations', None)
         out = []
-        for m in self.s.cookie_jar:
+        for m in jar:
+            expires = iso(table.get((m['domain'], m['path'], m.key))) if isinstance(table, dict) else None
             out.append({'name': m.key, 'domain': m['domain'], 'path': m['path'], 'host_only': (m['domain'], m.key) in host_only,
-                        'secure': bool(m['secure']), 'expires': m['expires'] or None, 'value_bytes': blen(m.value)})
+                        'secure': bool(m['secure']), 'expires': expires, 'value_bytes': blen(m.value, 'surrogateescape')})
         return out
     def close(self):
         try:
@@ -321,7 +340,7 @@ profile('requests', f'{requests.__version__} ({PY})', 'requests.Session().get(ur
         (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
 profile('httpx', f'{httpx.__version__} ({PY})', 'httpx.Client(follow_redirects=True).get(url) x4', HttpxClient,
         (httpx.TransportError,))
-profile('urllib3', f'{urllib3.__version__} ({PY})', 'urllib3.PoolManager().request("GET", url, redirect=True) x4, no jar', Urllib3Client,
+profile('urllib3', f'{urllib3.__version__} ({PY})', 'urllib3.PoolManager().request("GET", url, redirect=True, retries=Retry(total=10, redirect=6, respect_retry_after_header=False)) x4, no jar', Urllib3Client,
         (urllib3.exceptions.HTTPError,))
 profile('aiohttp', f'{aiohttp.__version__} ({PY})', 'aiohttp.ClientSession().get(url, allow_redirects=True) x4', AiohttpClient,
         (aiohttp.ClientConnectionError, asyncio.TimeoutError, TimeoutError))

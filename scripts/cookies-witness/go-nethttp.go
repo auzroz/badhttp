@@ -114,8 +114,12 @@ func do(c *http.Client, u string) step {
 	if err != nil {
 		return step{err: err}
 	}
-	b, _ := io.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
+	if err != nil {
+		// a timeout or truncation while reading the body is a transport failure, not an edge page
+		return step{err: err}
+	}
 	return step{status: resp.StatusCode, body: b, vh: resp.Header.Get("X-Badhttp-Version")}
 }
 

@@ -466,7 +466,7 @@ function authFamily({ rows }) {
 }
 
 // ---------------------------------------------------------------------------------------------------
-// cookies: eight clients x 17 setter flavors, each with a fresh jar, through set → echo → delete → echo.
+// cookies: eight clients x 17 setter flavors, each with a fresh jar where the client has one, through set → echo → delete → echo.
 
 // What the client HAS, never what happened. A no-jar client returns nothing on every flavor by construction.
 const COOKIE_JARS = {
@@ -478,15 +478,16 @@ const COOKIE_JARS = {
 const COOKIE_OUTCOMES = {
   'all-returned': 'Every cookie the flavor planted came back on the follow-up to /cookies/echo (the two nameless cookies are matched by value).',
   'some-returned': 'At least one planted cookie came back and at least one did not.',
-  'none-returned': 'None came back. On wrong-domain, public-suffix and path-prefix this is what RFC 6265 asks for; on a no-jar client it is what having no jar means; elsewhere it is the finding.',
+  'none-returned': 'None came back. On wrong-domain and path-prefix this is the specified answer; on public-suffix it is what a jar with a public-suffix list returns (RFC 6265 §5.3 step 5 says user agents SHOULD use one, and plain RFC 6265 without a list would store it); on a no-jar client it is what having no jar means; elsewhere it is the finding.',
   'client-raised': 'The client raised something other than its transport-error type before returning a response.',
   'request-failed': 'The client raised before any usable response reached the caller, or the transport failed.',
 };
 
 const COOKIE_READING =
   'Read outcome as a description of what came back to /cookies/echo relative to what the flavor planted, ' +
-  'never as a verdict on the client. "none-returned" is the CORRECT answer on wrong-domain, public-suffix ' +
-  'and path-prefix and the finding elsewhere, and which is which is a property of the flavor (GET /cookies ' +
+  'never as a verdict on the client. "none-returned" is the specified answer on wrong-domain and path-prefix, ' +
+  'the answer of a jar that uses a public-suffix list on public-suffix (RFC 6265 recommends one; without it the ' +
+  'cookie is stored), and the finding elsewhere, and which is which is a property of the flavor (GET /cookies ' +
   'says so per flavor). A jar_kind of no-jar returns nothing everywhere because there is nothing to return ' +
   'from. unplanted_names lists cookies that came back which this flavor did not set (a comma-splitting jar\'s ' +
   'invented second cookie, a value-with-no-equals stored as a NAME), and after_delete_unplanted lists what ' +
@@ -570,7 +571,7 @@ function cookieFamily({ rows }) {
   return {
     what:
       'What eight HTTP clients did with the seventeen /cookies setter flavors, one row per observation. ' +
-      'Each row is four requests with one fresh jar: the setter (redirects followed), /cookies/echo, ' +
+      'Each row is four requests with one fresh jar where the client has one (requests_made and hops count the setter fetch and its redirects only): the setter (redirects followed), /cookies/echo, ' +
       '/cookies/delete, and /cookies/echo again. The oracle is /cookies/echo — the Cookie header exactly as ' +
       'it reached the Worker — and what the row adds from the harness\'s side is the jar\'s own record where ' +
       'the client exposes one.',
@@ -596,7 +597,7 @@ function cookieFamily({ rows }) {
       `${WITNESS_COOKIES.capture_scripts} in the source and the numbers move; the date on every row is how ` +
       'you know whether to trust it.',
     reproduce:
-      'Start the row\'s client with a fresh jar, GET the row\'s url following redirects, GET /cookies/echo ' +
+      'Start the row\'s client with a fresh jar where it has one, GET the row\'s url following redirects, GET /cookies/echo ' +
       'and compare its cookies with the row\'s echo.cookies; then GET /cookies/delete and /cookies/echo ' +
       'again and compare with after_delete. Pace the calls against the zone limit of 100 per 10 s, and ' +
       'treat a response without x-badhttp-version as no observation.',
@@ -608,13 +609,13 @@ function cookieFamily({ rows }) {
 // control's bytes (session 27, 2026-10-05; docs/spec-sse-witness.md).
 
 const SSE_CLASSES = {
-  eventsource: 'Implements the WHATWG EventSource interface: auto-reconnects after the server closes (after retry ms, sending Last-Event-ID), stops on a 204, fails the connection on a Content-Type other than text/event-stream, and surfaces both a clean close and a transport failure as an error event — the interface cannot tell them apart. The expected end of every row but resume is therefore "reconnecting".',
+  eventsource: 'Implements the WHATWG EventSource interface: auto-reconnects after the server closes (after retry ms, sending Last-Event-ID), stops on a 204, fails the connection on a Content-Type other than text/event-stream, and surfaces both a clean close and a transport failure as an error event — the interface cannot tell them apart. The expected end is therefore "reconnecting" after a clean server close, "reconnecting" or "error" after drop, "error" with no events on wrong-type, and "stopped" on resume.',
   'one-shot': 'Iterates ONE response as a stream of events and returns when it ends. No reconnection is part of the library, so on resume it delivers ids 1–3 over one connection and returns, which is its design; whether it checks Content-Type is a library choice the specification does not constrain.',
   raw: 'The control: curl receiving the bytes with no SSE parser at all. Its control.raw_sha256 is the hash of the bytes the parser derived the reference from.',
 };
 
 const SSE_OUTCOMES = {
-  'as-spec': 'The events delivered equal the reference WHATWG parse of the bytes the control received (after removing the server clock "t" from JSON data), and the row ended as expected for the client\'s class.',
+  'as-spec': 'The events delivered are what the client\'s class is expected to deliver, and the row ended as expected for the class. Expected events are the reference WHATWG parse of the bytes the control received (after removing the server clock "t" from JSON data), except that the EventSource interface delivers nothing on wrong-type and, on resume, also the events 4-6 of the documented later connections, and a one-shot library on wrong-type may deliver either.',
   'events-differ': 'The row ended as expected but the delivered events differ from the reference: fewer, more, or altered values. diff names the first difference.',
   'end-differs': 'The events match but the ending does not (a reset reported as a clean end, a stream that never returned, no reconnection where the class reconnects). diff says which.',
   'both-differ': 'Both the events and the ending differ from the reference.',
@@ -632,11 +633,12 @@ const SSE_READING =
   '"differs" never means defective — on wrong-type, delivering the three events is a choice the specification ' +
   'leaves to a one-shot library; on error-event, routing a named "error" event to the error callback is what the ' +
   'EventSource interface does by design. diff on each row names the first difference, events carries what was ' +
-  'delivered (data truncated past 200 bytes, with data_bytes and data_sha256 kept), connections counts every ' +
+  'delivered (data as delivered, with the server clock "t" left in; truncated past 200 bytes, where data_bytes is the ' +
+  'length of the full data and data_sha256 its hash; for data of 200 bytes or less data_sha256 is null), connections counts every ' +
   'connection the library opened and what each carried, and end is how the row finished from the caller\'s side. ' +
   'No library here is scored or ranked, and none is handed a conformance verdict.';
 
-const SSE_FIELDS = ['class', 'connections', 'events', 'events_delivered', 'preamble_events', 'errors', 'end', 'retry_ms_adopted', 'last_event_id_final', 'wall_ms', 'attempts', 'diff', 'reference', 'control'];
+const SSE_FIELDS = ['class', 'connections', 'events', 'events_delivered', 'events_note', 'preamble_events', 'errors', 'end', 'retry_ms_adopted', 'last_event_id_final', 'wall_ms', 'attempts', 'diff', 'reference', 'control', 'oracle'];
 
 /** One row per observation: clients x 14 flavors, plus the control rows. */
 function sseRows() {
@@ -657,7 +659,7 @@ function sseRows() {
       connections: o.connections,
       events: o.events,
       events_delivered: o.events_delivered ?? (o.events ? o.events.length : null),
-      events_note: o.events_note,
+      events_note: o.events_note ?? null,
       preamble_events: o.preamble_events,
       errors: o.errors,
       end: o.end,
@@ -669,7 +671,7 @@ function sseRows() {
       outcome: o.outcome,
       diff: o.diff,
       reference: ref ? { events: ref.events.length, raw_sha256: ref.raw_sha256, raw_bytes: ref.raw_bytes, last_event_id_at_eof: ref.last_event_id_at_eof, discarded_pending_data: ref.discarded_pending_data, source: ref.source } : null,
-      control: o.control,
+      control: o.control ?? null,
       oracle: 'the reference WHATWG HTML §9.2.6 parse of the bytes the curl control received for this flavor on the same date (REFERENCE in the /clients sse family block carries the parsed events and the hash of the bytes); the server clock "t" inside JSON data is removed before comparison',
       license: LICENSE.responses.id,
     };
@@ -679,9 +681,18 @@ function sseRows() {
 // A library's answer on a flavor: the normalized events it delivered plus how it ended. Counted among clients of the
 // SAME class, as auth counts within a mechanism kind: an EventSource-class "reconnecting" and a one-shot "clean"
 // after the same five events are the same answer in two idioms, not a disagreement.
+// The server clock "t" inside JSON data is removed before comparing (the same normalization the generator applies), and the
+// retry-only preamble events are left out, as the outcome comparison leaves them out.
+const sseNormData = (d) => {
+  if (typeof d === 'string' && d.startsWith('{') && d.includes('"t"')) {
+    try { const x = JSON.parse(d); if (x && typeof x === 'object' && 't' in x) { delete x.t; return JSON.stringify(x); } } catch { /* not JSON: verbatim */ }
+  }
+  return d;
+};
 export function sseSignature(o) {
-  const ev = (o.events || []).map((e) => `${e.type}#${e.id ?? '-'}:${e.data_bytes > 200 ? `<${e.data_bytes}b ${(e.data_sha256 || '').slice(0, 8)}>` : JSON.stringify(e.data)}`).join(' ');
-  return `${o.events.length} events [${ev}] | ended ${o.end}`;
+  const evs = (o.events || []).filter((e) => !e.preamble);
+  const ev = evs.map((e) => `${e.type}#${e.id ?? '-'}:${e.data_bytes > 200 ? `<${e.data_bytes}b ${(e.data_sha256 || '').slice(0, 8)}>` : JSON.stringify(sseNormData(e.data))}`).join(' ');
+  return `${evs.length} events [${ev}] | ended ${o.end}`;
 }
 
 function sseFamily({ rows }) {
@@ -724,7 +735,7 @@ function sseFamily({ rows }) {
     class_counts: classCounts,
     reference: REFERENCE_SSE,
     disagreement_by_flavor: disagreement,
-    disagreement_note: 'distinct_answers_within_class is, per flavor and per client class, the number of distinct answers (the normalized events delivered plus how the row ended) among client rows; answers lists them, prefixed by class. Control rows are excluded. The two classes are never compared with each other: an EventSource-interface library ending "reconnecting" and a one-shot library ending "clean" after the same events is the same result in two idioms.',
+    disagreement_note: 'distinct_answers_within_class is, per flavor and per client class, the number of distinct answers (the events delivered, with the server clock "t" removed and the retry-only opening events left out, plus how the row ended) among client rows; answers lists them, prefixed by class. Control rows are excluded. The two classes are never compared with each other: an EventSource-interface library ending "reconnecting" and a one-shot library ending "clean" after the same events is the same result in two idioms.',
     findings: sseFindings(),
     freshness:
       `A dated capture, not a live measurement: taken ${WITNESS_SSE.probed} against badhttp version ` +
@@ -759,7 +770,7 @@ export function clientsIndex({ origin }) {
       'two non-decoding controls), the 9 /crosshost flavors (eight clients; eight boundaries and a ' +
       'same-origin control), the 18 /auth flavors (the same eight clients, each handed the documented ' +
       'fake credentials through its own mechanism), the 17 /cookies setter flavors (the same eight, ' +
-      'each with a fresh jar, through set, echo, delete and echo again) and the 14 /sse flavors (real ' +
+      'each with a fresh jar where the client has one, through set, echo, delete and echo again) and the 14 /sse flavors (real ' +
       'SSE client libraries plus a raw-wire control, each row described against a WHATWG parse of the ' +
       'bytes the control received). Every row names ' +
       'the client and its version, the date, what it received, and what it reported.',

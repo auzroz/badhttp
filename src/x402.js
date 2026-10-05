@@ -67,6 +67,7 @@ export const VERIFIED = {
   first_external_payment: 'On 2026-09-01 at 21:32:11 UTC a payer that is not this project settled /402/pay/base for the first time: 0.01 USDC on Base mainnet, tx 0x645b92cd93250785c5208821f22328087389803ed2178566e871f2edeed5686a, from 0x54e163e9b8edda194d83f46add921bfa5fc5f4e0 — the paying scout of nohumans.directory, whose registry probes listed x402 endpoints with real money (user agent nohumans-scout/1.0). Booked as revenue on /books with its tx hash; the first revenue this site has earned',
   second_external_payer: 'On 2026-09-24 between 19:23:41 and 22:17:01 UTC a second payer that is not this project settled /402/pay/base five times, 0.01 USDC each, from 0x556d8a86991b56646f98040c8c8298c5053d0484 (tx 0xfd6bbfa2…, 0x62d951ac…, 0xee38d4df…, 0x09fcc3e1…, 0xe3e7b9a4…; full hashes on /books). Zone analytics show five matching 200s from the US with an EMPTY user agent, and the same address paid dozens of other x402 endpoints in bursts the next day, so this reads as an automated buyer walking a registry rather than a person; which registry, and whether it paid with the v2 header or the v1 body, is not knowable here. nohumans.directory\'s scout also paid a second time on 2026-09-22 (tx 0x74276696…). All six are booked as revenue with their tx hashes',
   first_external_testnet_payment: 'On 2026-09-16 at 08:51:40 UTC a payer that is not this project settled /402/pay (Base Sepolia, test USDC, no dollar value) for the first time: 0.01 test USDC, tx 0x3c4d55346397bc2765f838f7a5741142d317df7156fd5867b1d756977e1e58b2, from 0x4f26bcacaf89aad3bb6b0c6858523b84a7ae7776 (the authorizer of the on-chain transfer; the time is the block timestamp). Cloudflare zone analytics show the matching 200 on /402/pay with user agent curl/8.21.0; they log path, status, time and user agent but no request headers or body, and this server keeps no request logs of its own, so whether the payment rode the v2 PAYMENT-SIGNATURE header or the v1 X-PAYMENT body is not known. Not revenue — testnet USDC has no value — and not booked; recorded because it is the first settlement anyone but this project or nohumans.directory has ever completed against this host',
+  second_external_testnet_payer: 'On 2026-10-05 a second payer that is not this project settled /402/pay/base-sepolia three times (13:54:08, 14:05:44 and 15:15:40 UTC, block timestamps), 0.01 test USDC each, from 0xb24854b51f81649a624e59e17ac2b950e911a5bc (tx 0x9459d40f…, 0xae8ae5a5…, 0x1e6c13c8… on Base Sepolia). Zone analytics show three matching 200s on /402/pay/base-sepolia from Iraq with the user agent "node". Not revenue, not booked; recorded as the second stranger to complete a testnet settlement here',
   exercised: 'SETTLEMENT, end to end on BOTH networks, both client generations against production (2026-08-28). Base Sepolia (test USDC): v2 official @x402/fetch 2.23.0 — tx 0xf35d92c571e4af086b8cf01d87e242e94d6406fff46c5a3c15cbcf787ec31a0c; v1 legacy x402-fetch 1.2.0 via the body and X-PAYMENT — tx 0x0b6b47a003f84096bf59971d665509be2ba54ee467d70dec7c6e5450dffacd62 (both settled by x402.org). Base mainnet (real USDC, a self-test: the payer is project-controlled and the 0.02 USDC moved between our own addresses — booked on /books as working capital, not revenue): v2 tx 0x8a331a0a28a26d290984c34bd12ae03bdc31603856b4e46bace3d2045cddc089; v1 tx 0x629b1a478e88c8be043ee0e8ebac67169a386192fde388b9a616fc850b5010b8 (both settled by xpay). Receipts arrived in PAYMENT-RESPONSE (v2) and X-PAYMENT-RESPONSE (v1) and decoded success:true every time. 2026-10-05: PayAI moved to the front of the mainnet facilitator lists and settled a v2 self-test the same minute — tx 0x9eed7b72bdd445317b1a59e5c7cc12f9a44b857132dcc743121b366261e6ca75 (0.01 USDC between project addresses, booked as a labeled transfer, not revenue)',
   catalogues: 'Listed in PayAI\'s public Bazaar (GET https://facilitator.payai.network/discovery/resources?payTo=<receive address>) since 2026-10-05T02:48:53Z, written by that facilitator when it settled the self-test above — its documented and only route in ("there is no registration form, account, or manual submission"). NOT in Coinbase\'s CDP Bazaar (34,325 resources on 2026-10-05): a resource enters it only through a payment settled by the CDP facilitator, which needs a CDP API key this project does not hold. Also listed, by registration, on x402scan, nohumans.directory (paid-verified), x402-list.com and 402index.io. Why it matters: the anonymous buyer of 2026-09-24 paid 92 sellers in two days, 81 of them on x402scan, 66 in the CDP Bazaar, 23 in PayAI\'s',
   not_yet_exercised: 'a v1 (X-PAYMENT) payment known to be from anyone other than this project; a direct USDC transfer (a donation) rather than an x402 settlement; a payment for any amount other than the default 0.01 (every external settlement so far has been the default)',
@@ -203,7 +204,10 @@ function sameCore(a, b) {
 function checkExactEvmPayload(payload, req) {
   const inner = payload.payload;
   const a = inner && inner.authorization;
-  if (typeof inner.signature !== 'string' || !/^0x[0-9a-fA-F]{130}$/.test(inner.signature)) return 'payload.signature must be a 65-byte hex signature';
+  // 65 bytes for an EOA's ECDSA signature; longer for a smart wallet's EIP-1271 or EIP-6492-wrapped signature, which the
+  // facilitator validates against the contract. Session 28: the old exact-65 check turned smart-wallet payers away locally.
+  // The 16 KB header cap above already bounds the length.
+  if (typeof inner.signature !== 'string' || !/^0x(?:[0-9a-fA-F]{2}){65,}$/.test(inner.signature)) return 'payload.signature must be hex of at least 65 bytes (65 for an EOA; longer for an EIP-1271/EIP-6492 smart-wallet signature)';
   if (!a || typeof a !== 'object') return 'payload.authorization is missing';
   for (const k of ['from', 'to', 'value', 'validAfter', 'validBefore', 'nonce']) if (typeof a[k] !== 'string') return `payload.authorization.${k} must be a string`;
   if (!/^0x[0-9a-fA-F]{40}$/.test(a.from) || !/^0x[0-9a-fA-F]{40}$/.test(a.to)) return 'payload.authorization.from/to must be addresses';
@@ -537,23 +541,41 @@ async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env,
   const facilitators = facilitatorsFor(network, env, version);
   let facilitator;
   let verify;
+  let settled;
   const verifyErrors = [];
   for (const f of facilitators) {
+    let v;
     try {
-      const v = await callFacilitator(f, '/verify', body, X402_LIMITS.verifyTimeoutMs, env);
+      v = await callFacilitator(f, '/verify', body, X402_LIMITS.verifyTimeoutMs, env);
       if (v.isValid === false && FACILITATOR_SIDE_REJECTION.test(String(v.invalidReason || ''))) {
         verifyErrors.push(`${f}: ${String(v.invalidReason).slice(0, 200)}`);
         continue;
       }
-      verify = v;
-      facilitator = f;
-      break;
     } catch (e) {
       verifyErrors.push(`${f}: ${String(e.message).slice(0, 200)}`);
       if (e.terminal) {
         const error = 'facilitator_rejected_payload';
         return respond402({ ...pr, error }, humanBody({ ...pr, error }, { facilitator: f, detail: String(e.message).slice(0, 200), charged: false }));
       }
+      continue;
+    }
+    verify = v;
+    facilitator = f;
+    if (!verify.isValid) break; // the payer's problem (balance, signature, nonce): answered below, never failed over
+    try {
+      settled = await callFacilitator(f, '/settle', body, X402_LIMITS.settleTimeoutMs, env);
+      break;
+    } catch (e) {
+      // A 401/403/429 at /settle means this facilitator did not take the request (our credentials or its rate limit, after
+      // a verify it accepted): nothing was broadcast, so the next facilitator verifies and settles instead (session 28;
+      // before this, failover existed only at /verify). Any other failure after a successful verify is unknown territory.
+      if (e.status === 401 || e.status === 403 || e.status === 429) {
+        verifyErrors.push(`${f}: settle ${String(e.message).slice(0, 200)}`);
+        verify = undefined;
+        facilitator = undefined;
+        continue;
+      }
+      return json({ error: 'settlement outcome unknown', scenario: '/402/pay', facilitator, message: String(e.message).slice(0, 200), charged: 'unknown', hint: `check ${addressUrl}; do not re-sign until you have` }, 502);
     }
   }
   if (!facilitator) {
@@ -572,14 +594,7 @@ async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env,
       charged: alreadyUsed(error) ? `probably yes, by an earlier attempt with this same authorization; check ${addressUrl}` : false,
     }));
   }
-  let settled;
-  try {
-    settled = await callFacilitator(facilitator, '/settle', body, X402_LIMITS.settleTimeoutMs, env);
-  } catch (e) {
-    // The settle call failed or timed out after verification passed. The authorization may or may not have been broadcast.
-    return json({ error: 'settlement outcome unknown', scenario: '/402/pay', facilitator, message: String(e.message).slice(0, 200), charged: 'unknown', hint: `check ${addressUrl}; do not re-sign until you have` }, 502);
-  }
-  const tx = typeof settled.transaction === 'string' && /^0x[0-9a-fA-F]{64}$/.test(settled.transaction) ? settled.transaction : undefined;
+  const tx =typeof settled.transaction === 'string' && /^0x[0-9a-fA-F]{64}$/.test(settled.transaction) ? settled.transaction : undefined;
   if (!settled.success) {
     const error = String(settled.errorReason || 'settlement_failed').slice(0, 100);
     if (error === 'settlement_pending' && tx) {

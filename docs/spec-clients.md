@@ -22,10 +22,10 @@ the finding.** It is the only data in this repository that this project did not 
 
 | Route | Shape |
 |---|---|
-| `GET /clients.jsonl` | NDJSON rows, one per observation — 168 for `/compress` at v0.14.0, 240 in two families since v0.18.0 (see the second-family section). Headers mirror `/corpus.jsonl`: `application/x-ndjson`, `no-transform`, `x-badhttp-license: CC0-1.0`, `x-badhttp-rows`, `link: rel=license`. |
+| `GET /clients.jsonl` | NDJSON rows, one per observation — 168 for `/compress` at v0.14.0, 240 in two families at v0.18.0, 632 in five families since v0.22.0 (`/compress` 168, `/crosshost` 72, `/auth` 144, `/cookies` 136, `/sse` 112; one section per family below). Headers mirror `/corpus.jsonl`: `application/x-ndjson`, `no-transform`, `x-badhttp-license: CC0-1.0`, `x-badhttp-rows`, `link: rel=license`. |
 | `GET /clients` | JSON index: roster, outcome legend, `reading_this`, per-role counts, per-flavor disagreement, freshness, reproduce. |
 
-8 profiles × 21 flavors = 168. `corpus_id` on every row joins to a `/corpus.jsonl` row. As of v0.18.0 the file has 240 rows in two families; the 72 `/crosshost` rows are documented in the 2026-09-17 section below.
+8 profiles × 21 flavors = 168. `corpus_id` on every row joins to a `/corpus.jsonl` row. As of v0.18.0 the file had 240 rows in two families (it now has 632 in five, see above); the 72 `/crosshost` rows are documented in the 2026-09-17 section below.
 
 **No HTML page.** The data is the asset; an eight-column matrix that stays readable in both themes
 is a design problem, and design problems are how sessions end at 80%. Deferred deliberately.
@@ -351,8 +351,8 @@ stream is to be interpreted. The curl control captures each flavor's bytes (`raw
 capture; `raw_sha256` on the served rows), and `scripts/witness-parse-sse.mjs` runs a reference implementation
 of §9.2.6 over them to produce the **reference parse** every client row is compared against — so no expected
 value is typed anywhere, and a change to `src/sse.js` that the control does not reproduce makes the generator
-refuse (floors on the reference: 5/1/1/1 events on ok/cut/drop/big, last id `2` with pending data discarded on
-cut). The one stated exception is `/sse/resume`'s later connections (ids 4–6, then 204), which curl cannot
+refuse (floors on the reference: 5/1/1/1 events on ok/cut/drop/big, pending data discarded on cut, with the
+last event ID string `1` and the buffer `2`: the `id: 2` line was read but no blank line followed). The one stated exception is `/sse/resume`'s later connections (ids 4–6, then 204), which curl cannot
 reconnect to witness; the reference says so. Tick events carry the server clock inside JSON data; the parser
 removes `t` before comparing.
 
@@ -388,5 +388,5 @@ rows' date.
 
 `scripts/sse-witness/{all.sh,curl.sh,node-clients.mjs,py-clients.py,go-sse.go}`, run in sequence against one IP
 (never while smoke runs); `docs/probe-sse-clients-2026-10-05.jsonl` with its `.log` beside it;
-`node scripts/witness-parse-sse.mjs <capture>` regenerates `src/witness-sse-data.js`. The findings prose in
+`node scripts/witness-parse-sse.mjs <capture>` regenerates `src/witness-sse-data.js` (and refuses a row in which ANY connection lacks `x-badhttp-version`). The findings prose in
 `src/sse.js` is computed, but its gated explanations must be re-read against a new matrix.

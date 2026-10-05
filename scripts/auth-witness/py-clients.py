@@ -115,6 +115,17 @@ def run_profile(name, version, invocation, plan, fetch, transport_errors):
             break
         time.sleep(1.2)
 
+def keep_counters(e, hops):
+    """When a client raises, its counting layer still holds what it saw: attach it to the exception so the row
+    carries hops, requests_made and the last status instead of nulls the generator refuses."""
+    try:
+        e.badhttp_requests = len(hops)
+        e.badhttp_hops = [dict(h) for h in hops]
+        seen = [h['status'] for h in hops if h['status'] is not None]
+        e.badhttp_last_status = seen[-1] if seen else None
+    except Exception:
+        pass
+
 def challenge_of(headers):
     for k in ('www-authenticate', 'proxy-authenticate'):
         v = headers.get(k)
@@ -246,7 +257,11 @@ def fetch_requests(f, u, cfg):
         s.trust_env = False  # no ambient proxy/netrc
         ad = CountingAdapter()
         s.mount('https://', ad); s.mount('http://', ad)
-        r = s.get(u, auth=auth, headers=headers, allow_redirects=True, timeout=30)
+        try:
+            r = s.get(u, auth=auth, headers=headers, allow_redirects=True, timeout=30)
+        except Exception as e:
+            keep_counters(e, ad.hops)
+            raise
         hops = sum(1 for h in r.history if 300 <= h.status_code < 400)
         return {'final_status': r.status_code, 'requests_made': len(ad.hops), 'hops': ad.hops, 'redirects_followed': hops, 'final_url': r.url,
                 'version_header': r.headers.get('x-badhttp-version'), 'challenge_seen': challenge_of(r.headers), 'body_text': r.text}
@@ -284,7 +299,11 @@ def fetch_httpx(f, u, cfg):
         if sent and sent[-1]['status'] is None:
             sent[-1]['status'] = resp.status_code
     with httpx.Client(follow_redirects=True, timeout=30, trust_env=False, event_hooks={'request': [on_request], 'response': [on_response]}) as c:
-        r = c.get(u, auth=auth, headers=headers)
+        try:
+            r = c.get(u, auth=auth, headers=headers)
+        except Exception as e:
+            keep_counters(e, sent)
+            raise
         hops = sum(1 for h in r.history if 300 <= h.status_code < 400)
         return {'final_status': r.status_code, 'requests_made': len(sent), 'hops': sent, 'redirects_followed': hops, 'final_url': str(r.url),
                 'version_header': r.headers.get('x-badhttp-version'), 'challenge_seen': challenge_of(r.headers), 'body_text': r.text}
@@ -325,7 +344,14 @@ def fetch_urllib3(f, u, cfg):
     CountingHTTPSPool.hops = []
     http = urllib3.PoolManager(timeout=30)
     http.pool_classes_by_scheme = {'http': urllib3.HTTPConnectionPool, 'https': CountingHTTPSPool}
-    r = http.request('GET', u, headers=headers, redirect=True, retries=urllib3.Retry(total=10, redirect=6))
+    # respect_retry_after_header=False: with the default, urllib3 silently re-sends a 429 that carries Retry-After
+    # (the counting pool would then record the edge's 429 as a hop of a row that lands). A 429 comes back as the
+    # final response, has no x-badhttp-version, and is retried below by the harness, visibly and not counted.
+    try:
+        r = http.request('GET', u, headers=headers, redirect=True, retries=urllib3.Retry(total=10, redirect=6, respect_retry_after_header=False))
+    except Exception as e:
+        keep_counters(e, CountingHTTPSPool.hops)
+        raise
     hops = sum(1 for x in (r.retries.history if r.retries else ()) if x.redirect_location)
     # r.url after a redirect is the raw Location ('/auth/basic', relative); derive the absolute final url from the hops.
     from urllib.parse import urljoin
@@ -336,7 +362,7 @@ def fetch_urllib3(f, u, cfg):
     return {'final_status': r.status, 'requests_made': len(CountingHTTPSPool.hops), 'hops': list(CountingHTTPSPool.hops), 'redirects_followed': hops, 'final_url': final_url,
             'version_header': r.headers.get('x-badhttp-version'), 'challenge_seen': challenge_of(r.headers), 'body_text': r.data.decode('utf-8', 'replace')}
 
-run_profile('urllib3', f'{urllib3.__version__} ({PY})', 'urllib3.PoolManager().request("GET", url, headers=<mechanism>, redirect=True)', plan_urllib3, fetch_urllib3,
+run_profile('urllib3', f'{urllib3.__version__} ({PY})', 'urllib3.PoolManager().request("GET", url, headers=<mechanism>, redirect=True, retries=Retry(total=10, redirect=6, respect_retry_after_header=False))', plan_urllib3, fetch_urllib3,
             (urllib3.exceptions.HTTPError,))
 
 # --- aiohttp -------------------------------------------------------------------------------------
@@ -375,8 +401,8 @@ class CountingMiddleware:
 
 def fetch_aiohttp(f, u, cfg):
     mode, pw = cfg
+    cnt = CountingMiddleware()
     async def go():
-        cnt = CountingMiddleware()
         mws = ((aiohttp.DigestAuthMiddleware(USER, pw),) if mode == 'digest' else ()) + (cnt,)
         async with aiohttp.ClientSession(middlewares=mws) as s:
             auth = aiohttp.BasicAuth(USER, pw) if mode == 'basic' else None
@@ -385,7 +411,11 @@ def fetch_aiohttp(f, u, cfg):
                 text = await r.text()
                 return {'final_status': r.status, 'requests_made': len(cnt.hops), 'hops': cnt.hops, 'redirects_followed': len(r.history), 'final_url': str(r.url),
                         'version_header': r.headers.get('x-badhttp-version'), 'challenge_seen': challenge_of(r.headers), 'body_text': text}
-    return asyncio.run(go())
+    try:
+        return asyncio.run(go())
+    except Exception as e:
+        keep_counters(e, cnt.hops)
+        raise
 
 run_profile('aiohttp', f'{aiohttp.__version__} ({PY})', 'aiohttp.ClientSession(<mechanism>).get(url, allow_redirects=True)', plan_aiohttp, fetch_aiohttp,
             (aiohttp.ClientConnectionError, asyncio.TimeoutError, TimeoutError))

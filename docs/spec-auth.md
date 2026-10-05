@@ -22,7 +22,8 @@ and retry state is the state under test.
   "The test credentials are public and fake: user 'agent', password 'correct' (Bearer:
   badhttp-token-ok). Never send real credentials or point a production credential store at badhttp —
   nothing here is protected, and anything received is compared in memory, then discarded: never
-  stored, logged, or echoed." The constant is verbatim in every /auth JSON body (the machine
+  stored, logged, or echoed (the one exception: a successful Digest's Authentication-Info repeats your
+  cnonce and nc, as RFC 7616 §3.5 requires)." The constant is verbatim in every /auth JSON body (the machine
   surface); the HTML home page and llms.txt carry equivalent wording integrated into their prose
   (resolution on the record — "verbatim on every surface" was the earlier draft's wording).
 - **No-echo invariant:** no /auth response ever reflects any part of a received Authorization /

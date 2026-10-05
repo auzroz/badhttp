@@ -323,8 +323,8 @@ func (c *counting) RoundTrip(req *http.Request) (*http.Response, error) {
 	r.protos[resp.Proto] = true
 	r.mu.Unlock()
 	cs := r.addConn(rec)
-	if cs.rec.N == 1 && rec.XBadhttpVersion == "" {
-		r.stop() // Cloudflare's rate limit (or something that is not badhttp): not an observation
+	if rec.XBadhttpVersion == "" {
+		r.stop() // Cloudflare's rate limit (or something that is not badhttp), on any connection: not an observation
 	}
 	resp.Body = &body{rc: resp.Body, r: r, cs: cs}
 	return resp, nil
@@ -552,7 +552,32 @@ func (r *run) build(cm clientMeta, attempt int, probed time.Time, wall time.Dura
 			out.Client.ConnectionsCountedBy += "; OBSERVED protocol " + p + ", which could not be forced to HTTP/1.1"
 		}
 	}
-	return out, len(out.Connections) > 0 && out.Connections[0].XBadhttpVersion != ""
+	// every connection must carry x-badhttp-version: an edge 429 on a later connection (resume reconnects) is not the
+	// client's outcome either
+	return out, len(out.Connections) > 0 && unversionedConn(out.Connections) < 0
+}
+
+// unversionedConn is the index of the first connection without x-badhttp-version, or -1 when every one has it.
+func unversionedConn(conns []connRec) int {
+	for i, c := range conns {
+		if c.XBadhttpVersion == "" {
+			return i
+		}
+	}
+	return -1
+}
+
+// statusOfBad is the status of the first connection lacking x-badhttp-version, else of the first connection, else 0;
+// n is that connection's 1-based number.
+func statusOfBad(conns []connRec) (status, n int) {
+	if len(conns) == 0 {
+		return 0, 1
+	}
+	i := unversionedConn(conns)
+	if i < 0 {
+		i = 0
+	}
+	return conns[i].Status, i + 1
 }
 
 // ---------- versions ----------
@@ -640,26 +665,20 @@ func main() {
 				out, versioned := r.build(c.meta, attempt, probed, wall)
 				r.cancel()
 				if !versioned && !timedOut && attempt < 3 {
-					st := 0
-					if len(out.Connections) > 0 {
-						st = out.Connections[0].Status
-					}
-					fmt.Fprintf(os.Stderr, "%s %s: no x-badhttp-version (status %d); retrying after 12 s\n", c.meta.ID, f, st)
+					st, bn := statusOfBad(out.Connections)
+					fmt.Fprintf(os.Stderr, "%s %s: no x-badhttp-version on connection %d (status %d); retrying after 12 s\n", c.meta.ID, f, bn, st)
 					time.Sleep(12 * time.Second)
 					continue
 				}
 				if !versioned {
 					// never an observation: keep the connections as evidence, drop what was parsed from a response that is not this server's
-					st := 0
-					if len(out.Connections) > 0 {
-						st = out.Connections[0].Status
-					}
+					st, bn := statusOfBad(out.Connections)
 					out.Events, out.EventsDelivered = []eventRec{}, 0
 					out.RetryMsAdopted, out.LastEventIDFin = nil, nil
 					if !timedOut {
 						out.End = "error"
 					}
-					out.Errors = append(out.Errors, errRec{Message: fmt.Sprintf("no x-badhttp-version on the first response after %d attempts (last status %d): not an observation", attempt, st)})
+					out.Errors = append(out.Errors, errRec{Message: fmt.Sprintf("no x-badhttp-version on connection %d after %d attempts (last status %d): not an observation", bn, attempt, st)})
 				}
 				line, err := json.Marshal(out)
 				if err == nil {

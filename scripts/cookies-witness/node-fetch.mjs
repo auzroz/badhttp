@@ -33,6 +33,10 @@ const ORDER = process.env.COOKIE_FLAVORS ? process.env.COOKIE_FLAVORS.split(/[ ,
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const version = `node ${process.version} / undici ${process.versions.undici} / tough-cookie ${toughVersion}`;
 const bytes = (s) => Buffer.byteLength(String(s ?? ''), 'utf8');
+// A Set-Cookie string from fetch() is the header bytes decoded as latin-1 (a ByteString), so the jar holds that
+// string: its wire length is the latin-1 length, not the UTF-8 length of the decoded characters. Anything outside
+// latin-1 cannot have come from the wire that way and falls back to the UTF-8 length.
+const wireBytes = (s) => { const t = String(s ?? ''); return /^[\u0000-\u00ff]*$/.test(t) ? Buffer.from(t, 'latin1').length : Buffer.byteLength(t, 'utf8'); };
 const short = (e) => String(e && e.message ? e.message : e).replace(/\s+/g, ' ').slice(0, 200);
 const MAX_HOPS = 6;
 
@@ -72,7 +76,7 @@ async function run(f) {
   const all = await jar.store.getAllCookies();
   const entries = all.map((c) => {
     const t = c.expiryTime();
-    return { name: c.key, domain: c.domain, path: c.path, host_only: !!c.hostOnly, secure: !!c.secure, expires: Number.isFinite(t) ? new Date(t).toISOString() : 'session', value_bytes: bytes(c.value) };
+    return { name: c.key, domain: c.domain, path: c.path, host_only: !!c.hostOnly, secure: !!c.secure, expires: Number.isFinite(t) ? new Date(t).toISOString() : 'session', value_bytes: wireBytes(c.value) };
   });
   await sleep(200);
   // 2: echo
@@ -103,7 +107,7 @@ for (const f of ORDER) {
     client: 'undici', client_version: version, platform: `node ${process.platform}/${process.arch}`,
     invocation: "fetch(url, {headers: {Cookie: await jar.getCookieString(url)}, redirect: 'manual'}) x4 per flavor, harness follows <= 6 redirects and feeds response.headers.getSetCookie() to jar.setCookie(str, url); tough-cookie installed with npm and loaded via createRequire from $COOKIE_NODEMODS",
     flavor: f, url: `${B}/cookies/${f}`, jar_kind: 'harness-jar',
-    jar: `tough-cookie ${toughVersion} CookieJar, default options (MemoryCookieStore, rejectPublicSuffixes true, looseMode false, allowSpecialUseDomain true); a fresh jar per flavor; the harness, not fetch, copies Set-Cookie into the jar and the jar into Cookie`,
+    jar: `tough-cookie ${toughVersion} CookieJar, default options (MemoryCookieStore, rejectPublicSuffixes true, looseMode false, allowSpecialUseDomain true); a fresh jar per flavor; the harness, not fetch, copies Set-Cookie into the jar and the jar into Cookie; jar_entries[].value_bytes is the wire length (fetch hands over the header bytes decoded as latin-1, so the stored string is measured as latin-1)`,
   };
   for (let attempt = 1; attempt <= 3; attempt++) {
     let out;

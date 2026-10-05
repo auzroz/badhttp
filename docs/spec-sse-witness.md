@@ -78,7 +78,7 @@ library is closed by the harness as soon as it has signalled the end of its FIRS
 `resume` says `retry: 30000`, so letting the reconnect happen would cost 30 s a row for one more 204; the row
 records `end: reconnecting`, which is the library's state at that moment, and `resume` — `retry: 1000` — is the
 flavor that lets the reconnect path run: the harness lets it reconnect until the 204 and caps connections at 6). A response without
-`x-badhttp-version` on the first connection is Cloudflare's rate limit, not an observation: retry the row after
+`x-badhttp-version` on ANY connection of a row (the first, or a reconnection) is Cloudflare's rate limit, not an observation: retry the row after
 a 12 s pause, `attempts` ≤ 3, and record a `request-failed` row only if it never clears.
 
 **The control.** `curl -sS -N --http1.1 --max-time 30` captures each flavor's body byte-for-byte (`raw_base64` in
@@ -91,7 +91,16 @@ only (curl does not reconnect); the reference for the later connections is the f
 
 **Normalization before comparison.** Tick events carry `"t":<ms>` (the server's clock) inside JSON data; the
 parser removes the `t` key from any JSON-shaped data before comparing, so "same event" never depends on
-timing. `big` is compared by `data_bytes` and `data_sha256`.
+timing. `big` is compared by `data_bytes` and `data_sha256`. The removal is internal to the comparison: the served
+`data` is the string as delivered (the clock included), `data_bytes` is the byte length of that data, and
+`data_sha256` is the hash of the full data and appears only past 200 bytes (null for smaller data). The same
+holds for the control rows and for `reference`, which carry the reference parse's data as parsed.
+
+**The opening `retry:` block.** Some libraries deliver an empty event for the stream's opening `retry: 30000` block,
+which the specification dispatches nothing for. The comparison drops a delivered event with empty data, no id
+change from the event before it, and that is not the last event delivered; it counts them in `preamble_events`
+and marks them `preamble: true` on the row. An empty event at the very end of a stream is the stream's tail, not
+its opening, and stays in the comparison.
 
 ## Row shape (one NDJSON line per (client, flavor); line 1 of the file is provenance)
 
@@ -106,10 +115,11 @@ timing. `big` is compared by `data_bytes` and `data_sha256`.
   "errors": [{"message":"...","had_data":false,"ready_state_after":"connecting"}],
   "end": "reconnecting",
   "retry_ms_adopted": 30000, "last_event_id_final": "5", "wall_ms": 1234,
-  "control": {"raw_bytes": 412, "raw_sha256": "...", "curl_exit": 0}      // control rows only
+  "control": {"raw_bytes": 412, "raw_sha256": "...", "curl_exit": 0}      // null on client rows
 }
 ```
-The parser adds `outcome`, `diff`, `reference` (the reference parse, normalized) and `license: "CC0-1.0"`.
+The parser adds `outcome`, `diff`, `reference` (a summary of the reference parse) and `license: "CC0-1.0"`. Every
+served row carries every declared field (`events_note` and `control` are null on client rows).
 
 ## `outcome` (assigned by the parser; a description relative to the WHATWG processing model, never a verdict)
 
@@ -121,8 +131,10 @@ the three events + `clean` (both described; a one-shot library is under no spec 
 and the row says which it did), `clean` after three events on `resume` (it does not reconnect — the row's
 `connections` is 1 and `diff` says "no reconnection").
 
-- `as-spec` — delivered events equal the reference parse (after normalization) and `end` is the expected one
-  for the client's class.
+- `as-spec` — delivered events are what the client's class is expected to deliver and `end` is the expected one
+  for the class. Expected events are the reference parse (after normalization), except that the `eventsource`
+  interface delivers nothing on `wrong-type` and, on `resume`, also the events 4–6 of the documented later
+  connections, and a one-shot library on `wrong-type` may deliver either.
 - `events-differ` — `end` as expected, events not: fewer (`cut` partial discarded vs delivered; `cr` yielding
   nothing), more (the partial event delivered on `cut`), or altered (`\r` kept on `crlf`, U+FFFD on
   `split-utf8`, a leading space kept on `no-space`, lines dropped on `multiline`, the BOM in the first value on
@@ -134,7 +146,9 @@ and the row says which it did), `clean` after three events on `resume` (it does 
 - `request-failed` — no observation (rate limit never cleared, DNS, TLS).
 
 `disagreement_by_flavor` counts distinct `(events, end)` answers among clients of the SAME class, as the auth
-family counts within a mechanism kind.
+family counts within a mechanism kind. The events in an answer are the delivered events with the server clock
+removed and the `preamble` events left out, so a flavor on which every client row is `as-spec` shows one answer
+per class.
 
 ## What the rows cannot say, stated on the index
 

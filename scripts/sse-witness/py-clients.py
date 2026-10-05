@@ -278,7 +278,8 @@ class AiohttpSse(Client):
     invocation = ('HTTP/1.1 (aiohttp speaks nothing else): async with aiohttp_sse_client.client.EventSource(url, session=aiohttp.ClientSession(trace_configs=[...], trust_env=False), on_error=...) as es: '
                   'async for event in es; one fresh session per flavor; the harness cancels the iteration when the library signals the end of its '
                   'first connection (every flavor but resume); retry_ms_adopted and last_event_id_final are read from the private '
-                  '_reconnection_time and _last_event_id (the library has no public accessor)')
+                  '_reconnection_time and _last_event_id (the library has no public accessor); retry_ms_adopted is null unless a valid retry: field '
+                  'was applied (the harness wraps the private _process_field to see that), because _reconnection_time otherwise holds the library\'s own 5 s default')
     counted_by = 'aiohttp TraceConfig (on_request_start, on_request_end, on_request_exception): each request the session issues is one connection, the library\'s own reconnects included'
 
     def run(self, url, flavor, obs):
@@ -304,7 +305,7 @@ class AiohttpSse(Client):
         session = aiohttp.ClientSession(trace_configs=[trace], trust_env=False,
                                         timeout=aiohttp.ClientTimeout(total=None, sock_connect=10, sock_read=30))
         stop = asyncio.Event()
-        box = {}
+        box = {'adopted': False}
 
         def on_error():
             es = box['es']
@@ -312,12 +313,27 @@ class AiohttpSse(Client):
             c = obs.conns[-1] if obs.conns else None
             if c and c['status'] == 200 and c['ended'] is None and es.ready_state == 0:
                 c['ended'] = 'server-closed'  # the body ran out; this is the reconnect path
-                obs.retry = int(es._reconnection_time.total_seconds() * 1000)
+                # _reconnection_time starts at the library's own 5 s default and is reset to it on every connect, so it
+                # is the server's value only if a valid retry: field was applied on this connection (see the spy below);
+                # otherwise nothing was adopted and the row says null, as the Go harness does for its library default.
+                if box['adopted']:
+                    obs.retry = int(es._reconnection_time.total_seconds() * 1000)
+                    box['adopted'] = False
                 if flavor != 'resume' or len(obs.conns) >= MAX_CONNS:
                     stop.set()
 
         es = sse_client.EventSource(url, session=session, on_error=on_error)
         box['es'] = es
+        _process_field = es._process_field
+        def spy(field_name, field_value):
+            if field_name == 'retry':
+                try:
+                    int(field_value)
+                    box['adopted'] = True  # the library applies exactly the values int() accepts
+                except ValueError:
+                    pass
+            return _process_field(field_name, field_value)
+        es._process_field = spy
 
         async def consume():
             # ready_state is read where the error is raised: the library's own __aexit__ would otherwise mark it closed first
@@ -392,17 +408,22 @@ def run_flavor(cli, f):
         cli.run(url, f, obs)
         wall = int((time.monotonic() - t0) * 1000)
         first = obs.conns[0] if obs.conns else None
-        if first and first['x_badhttp_version']:
+        # every connection must carry x-badhttp-version: an edge 429 on a later connection (resume reconnects) is not
+        # the client's outcome, so the whole row is retried
+        unversioned = next((c for c in obs.conns if not c['x_badhttp_version']), None)
+        if first and unversioned is None:
             emit(build(cli, f, obs, attempt, wall, probed))
             log(f'{cli.id} {f}: {len(obs.events)} events, {len(obs.conns)} connections, end {obs.end} ok')
             return
-        status = first['status'] if first and first['status'] is not None else 'none'
+        bad = unversioned or first
+        status = bad['status'] if bad and bad['status'] is not None else 'none'
+        where = f"connection {bad['n']}" if bad else 'any connection'
         if attempt < 3:
-            log(f'{cli.id} {f}: no x-badhttp-version (status {status}); retrying after {RETRY_PAUSE} s')
+            log(f'{cli.id} {f}: no x-badhttp-version on {where} (status {status}); retrying after {RETRY_PAUSE} s')
             time.sleep(RETRY_PAUSE)
             continue
         emit(build(cli, f, obs, attempt, wall, probed,
-                   failed=f'no x-badhttp-version on the first connection after 3 attempts (status {status})'))
+                   failed=f'no x-badhttp-version on {where} after 3 attempts (status {status})'))
         log(f'{cli.id} {f}: FAILED, no badhttp response after 3 attempts')
 
 def main():

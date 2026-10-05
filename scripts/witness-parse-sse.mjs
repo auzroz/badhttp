@@ -20,8 +20,8 @@
 // are banned from every string this file emits (smoke greps for them).
 //
 // Refusals (the generator exits non-zero rather than emit): a client missing a flavor, a flavor missing a control
-// row, a row whose first connection has no x-badhttp-version, a row carrying a machine path or a hostname other than
-// badhttp.dev, a control whose raw bytes do not hash to its raw_sha256, an end value outside the vocabulary.
+// row, a row where ANY connection has no x-badhttp-version, a row carrying a machine path or a hostname other than
+// badhttp.dev (compared exactly, port ignored), a control whose raw bytes do not hash to its raw_sha256, an end value outside the vocabulary.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -37,7 +37,7 @@ const ENDS = ['clean', 'error', 'reconnecting', 'stopped', 'closed-by-harness', 
 const CONN_ENDS = ['server-closed', 'reset', 'client-closed', 'harness-timeout', 'status-204', 'error', 'refused'];
 const CLEAN_CLOSE = ['ok', 'stall', 'cut', 'crlf', 'cr', 'no-space', 'multiline', 'comments', 'split-utf8', 'error-event', 'big'];
 const VERDICT_WORDS = /\b(correctly|incorrectly|conformant|non-compliant|noncompliant|violates|buggy|broken client|wrong client|passes|fails the spec)\b/i;
-const MACHINE = /\/Users\/|\/home\/|\/private\/|\/tmp\/|C:\\\\|localhost|127\.0\.0\.1/;
+const MACHINE = /\/(Users|home|private|tmp|Volumes|var|opt|Library)\/|[A-Za-z]:\\\\|file:\/\/|localhost|127\.0\.0\.1/;
 
 // ---------- the reference parser: WHATWG HTML §9.2.6, byte-faithful ----------
 // Lines end at CRLF, LF or CR; one leading BOM is stripped; a field is `name: value` with exactly one leading
@@ -46,12 +46,12 @@ const MACHINE = /\/Users\/|\/home\/|\/private\/|\/tmp\/|C:\\\\|localhost|127\.0\
 // non-empty (type defaults to "message"); `id` sets the last event ID the moment the line is read (so an
 // unterminated event's id still sticks); at EOF pending data is DISCARDED.
 export function whatwgParse(bytes) {
-  let text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+  // TextDecoder (ignoreBOM: false, the default) removes exactly one leading BOM; a second one is ordinary text.
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
   const lines = text.split(/\r\n|\r|\n/);
   // split() leaves a trailing "" when the text ends in a line ending; a genuinely unterminated last line is kept.
   const endedWithEol = /(\r\n|\r|\n)$/.test(text);
-  if (endedWithEol) lines.pop();
+  if (endedWithEol || text === '') lines.pop(); // an empty stream has no lines, so nothing is pending
   const events = [];
   // Two id variables, as the spec has them: the "last event ID buffer" is set the moment an id line is read; the
   // "last event ID string" (what a reconnect sends as Last-Event-ID, and what each event carries) is set from the
@@ -100,7 +100,9 @@ export function normData(d) {
 }
 const sha = (buf) => createHash('sha256').update(buf).digest('hex');
 // Every normalized event carries a SHA-256 of its (normalized) data: the harness supplies one for data it truncated,
-// the reference computes one from the full bytes, so long data compares by length and hash on both sides.
+// the reference computes one from the full bytes, so long data compares by length and hash on both sides. These
+// normalized values are INTERNAL to the comparison (same() reads data for small events and length + hash for large
+// ones); the rows and the reference are served by serveEvent() below, which describes the string actually served.
 const norm = (e) => { const data = normData(e.data); const data_bytes = e.data_bytes ?? Buffer.byteLength(e.data || '', 'utf8'); return { type: e.type || 'message', id: e.id == null || e.id === '' ? null : String(e.id), data, data_bytes, data_sha256: e.data_sha256 ?? sha(Buffer.from(data_bytes > 200 ? (e.data || '') : data, 'utf8')) }; };
 
 if (isMain) main();
@@ -120,11 +122,11 @@ for (const r of rows) {
   if (!CLASSES.includes(r.client.class)) bad(`client ${r.client.id} has class ${r.client.class}`);
   if (!ENDS.includes(r.end)) bad(`${r.client.id}/${r.flavor}: end "${r.end}" not in vocabulary`);
   for (const c of r.connections || []) if (!CONN_ENDS.includes(c.ended)) bad(`${r.client.id}/${r.flavor}: connection ended "${c.ended}" not in vocabulary`);
-  const first = (r.connections || [])[0];
-  if (!first || !first.x_badhttp_version) bad(`${r.client.id}/${r.flavor}: first connection has no x-badhttp-version (did not land)`);
+  const conns = r.connections || [];
+  if (!conns.length) bad(`${r.client.id}/${r.flavor}: no connection recorded (did not land)`);
+  conns.forEach((c, i) => { if (!c.x_badhttp_version) bad(`${r.client.id}/${r.flavor}: connection ${i + 1} of ${conns.length} has no x-badhttp-version (did not land, or an edge response was recorded as the client's)`); });
   if (MACHINE.test(JSON.stringify(r))) bad(`${r.client.id}/${r.flavor}: row carries a machine path or local host`);
-  const hosts = JSON.stringify(r).match(/https?:\/\/([a-z0-9.-]+)/gi) || [];
-  for (const h of hosts) if (!/^https?:\/\/(alt\.)?badhttp\.dev/.test(h)) bad(`${r.client.id}/${r.flavor}: foreign host ${h}`);
+  for (const m of JSON.stringify(r).matchAll(/https?:\/\/([a-z0-9.:-]+)/gi)) if (!['badhttp.dev', 'alt.badhttp.dev'].includes(m[1].toLowerCase().replace(/:\d+$/, ''))) bad(`${r.client.id}/${r.flavor}: foreign host ${m[1]}`);
   if (!clients.has(r.client.id)) clients.set(r.client.id, { ...r.client, flavors: new Set() });
   clients.get(r.client.id).flavors.add(r.flavor);
 }
@@ -140,17 +142,20 @@ const BADHTTP_VERSION = [...versions][0];
 
 // ---------- the reference, from the control's bytes ----------
 const REFERENCE = {};
+const RAW_REF = {}; // flavor -> { events, later } exactly as the reference parse yielded them (data with the server clock), for serving
 for (const r of control) {
   if (!r.control || !r.control.raw_base64) bad(`control ${r.flavor} carries no raw_base64`);
   const raw = Buffer.from(r.control.raw_base64, 'base64');
   if (sha(raw) !== r.control.raw_sha256) bad(`control ${r.flavor}: raw bytes do not hash to raw_sha256`);
   const parsed = whatwgParse(raw);
-  const events = parsed.events.map((e) => norm({ ...e, data_bytes: Buffer.byteLength(e.data, 'utf8') }));
+  RAW_REF[r.flavor] = { events: parsed.events.map((e) => ({ ...e, data_bytes: Buffer.byteLength(e.data, 'utf8') })), later: null };
+  const events = RAW_REF[r.flavor].events.map((e) => norm(e));
   const ref = { flavor: r.flavor, source: 'reference WHATWG parse of the bytes the control received', raw_bytes: raw.length, raw_sha256: r.control.raw_sha256, events, last_event_id_at_eof: parsed.lastEventIdAtEof, last_event_id_buffer_at_eof: parsed.lastEventIdBufferAtEof, retry_ms: parsed.retry, discarded_pending_data: parsed.discardedPending, curl_exit: r.control.curl_exit, connections_expected: 1 };
   if (r.flavor === 'resume') {
     // The control sees connection 1 (ids 1–3). Connections 2 and 3 come from the flavor's documented sequence.
     ref.source += '; connections 2 and 3 (ids 4–6, then 204) from the documented sequence of /sse/resume, which curl does not reconnect to witness';
-    ref.events_later_connections = [4, 5, 6].map((n) => norm({ type: 'tick', id: String(n), data: `{"n":${n}}` }));
+    RAW_REF[r.flavor].later = [4, 5, 6].map((n) => ({ type: 'tick', id: String(n), data: `{"n":${n}}` }));
+    ref.events_later_connections = RAW_REF[r.flavor].later.map((e) => norm(e));
     ref.connections_expected = 3;
   }
   REFERENCE[r.flavor] = ref;
@@ -182,17 +187,29 @@ function expectedEvents(cls, flavor) {
 }
 const same = (a, b) => a.type === b.type && (a.id ?? null) === (b.id ?? null) && (a.data_bytes > 200 || b.data_bytes > 200 ? a.data_bytes === b.data_bytes && a.data_sha256 === b.data_sha256 : a.data === b.data);
 const show = (e) => `${e.type}#${e.id ?? '-'}:${e.data_bytes > 200 ? `<${e.data_bytes} bytes>` : JSON.stringify(e.data)}`;
+// What is SERVED for an event describes the string served next to it: data as delivered (the server clock "t" included;
+// truncated past 200 bytes), data_bytes the byte length of the data as delivered, data_sha256 the hash of the full data and
+// present only past 200 bytes (null for small data, where the data itself is the evidence). Normalization (the "t" removal)
+// is internal to the comparison and never described by a served field.
+const serveEvent = (e) => {
+  const n = norm(e);
+  const delivered = e.data_bytes ?? Buffer.byteLength(e.data || '', 'utf8');
+  const big = delivered > 200;
+  return { type: n.type, id: n.id, data: big ? (e.data || '').slice(0, 64) + '…' : e.data, data_bytes: delivered, data_sha256: big ? (e.data_sha256 ?? sha(Buffer.from(e.data || '', 'utf8'))) : null };
+};
 
 // Several libraries dispatch an EVENT for the stream's opening "retry: 30000" block, which the spec dispatches nothing
 // for (no data buffer). Counting that on every flavor would hide every other difference behind one cause, so the
-// comparison drops a delivered event that has empty data AND no id change from the event before it (null at the start),
-// counts it in preamble_events, and the findings report which libraries do it. no-space's two empty events keep their
-// own ids (3, 4) and are never dropped by this rule.
+// comparison drops a delivered event that has empty data AND no id change from the event before it (null at the start)
+// AND is not the last event delivered (an opening block is followed by the stream's events, or opens a later
+// connection that delivers more; an empty event at the very end is the stream's tail, not its opening, and is kept
+// so the comparison reports it). It counts the dropped ones in preamble_events, and the findings report which
+// libraries do it. no-space's two empty events keep their own ids (3, 4) and are never dropped by this rule.
 function stripPreamble(events) {
   const kept = []; const droppedIdx = []; let prevId = null;
   events.forEach((e, i) => {
     const id = e.id == null ? null : String(e.id);
-    if ((e.data === '' || e.data == null) && id === prevId) { droppedIdx.push(i); return; }
+    if ((e.data === '' || e.data == null) && id === prevId && (i === 0 || i < events.length - 1)) { droppedIdx.push(i); return; }
     kept.push(e); prevId = id;
   });
   return { kept, dropped: droppedIdx.length, droppedIdx };
@@ -231,11 +248,11 @@ const OBS = rows.map((r) => {
     o.events_delivered = REFERENCE[r.flavor].events.length;
     o.events_note = 'the control parses nothing: these are the reference WHATWG parse of the bytes it received';
   }
-  const evSource = r.client.role === 'control' ? REFERENCE[r.flavor].events.map((e) => ({ ...e })) : (r.events || []);
+  const evSource = r.client.role === 'control' ? RAW_REF[r.flavor].events : (r.events || []);
   const pre = new Set(r.__preambleIdx || []); delete o.__preambleIdx;
-  // Served events keep the data as delivered (truncated past 200 bytes) plus the normalized hash; a preamble event
+  // Served events keep the data as delivered (truncated past 200 bytes) and, past 200 bytes, the hash of the full data; a preamble event
   // (the retry-only opening block) is marked so readers and the findings can skip it the way the comparison did.
-  o.events = evSource.map((e, i) => { const n = norm(e); const out = { type: n.type, id: n.id, data: n.data_bytes > 200 ? (e.data || '').slice(0, 64) + '…' : e.data, data_bytes: n.data_bytes, data_sha256: n.data_sha256 }; if (pre.has(i)) out.preamble = true; return out; });
+  o.events = evSource.map((e, i) => { const out = serveEvent(e); if (pre.has(i)) out.preamble = true; return out; });
   o.outcome = outcome; o.diff = diff;
   if (VERDICT_WORDS.test(JSON.stringify(o))) bad(`${r.client.id}/${r.flavor}: a verdict word reached a row`);
   return o;
@@ -258,7 +275,8 @@ const header = `// GENERATED by scripts/witness-parse-sse.mjs from ${witness.sou
 // row's outcome describes what the client delivered relative to that, for the client's class. Never a verdict.
 `;
 const lit = (name, v) => `export const ${name} = ${JSON.stringify(v, null, 2)};\n`;
-writeFileSync(OUT, `${header}\n${lit('WITNESS_SSE', witness)}\n${lit('CLIENTS_SSE', CLIENTS)}\n${lit('REFERENCE_SSE', REFERENCE)}\n${lit('OBSERVATIONS_SSE', OBS)}`);
+const REFERENCE_OUT = Object.fromEntries(Object.entries(REFERENCE).map(([f, ref]) => [f, { ...ref, events: RAW_REF[f].events.map(serveEvent), ...(RAW_REF[f].later ? { events_later_connections: RAW_REF[f].later.map(serveEvent) } : {}) }]));
+writeFileSync(OUT, `${header}\n${lit('WITNESS_SSE', witness)}\n${lit('CLIENTS_SSE', CLIENTS)}\n${lit('REFERENCE_SSE', REFERENCE_OUT)}\n${lit('OBSERVATIONS_SSE', OBS)}`);
 const counts = {};
 for (const o of OBS) counts[o.outcome] = (counts[o.outcome] || 0) + 1;
 console.log(`wrote ${OUT}: ${OBS.length} rows (${CLIENTS.length} roster entries x ${FLAVOR_ORDER.length} flavors), badhttp ${BADHTTP_VERSION}, outcomes ${JSON.stringify(counts)}`);

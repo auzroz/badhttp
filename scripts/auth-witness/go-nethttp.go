@@ -14,11 +14,15 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync/atomic"
 	"time"
 )
+
+// Error text can carry the resolver's or the local address; keep the kind of failure, not the machine's addresses.
+var addrRe = regexp.MustCompile(`(\b[0-9]{1,3}(\.[0-9]{1,3}){3}(:[0-9]+)?)|(\[[0-9a-fA-F:]+\](:[0-9]+)?)`)
 
 var order = []string{"basic", "bearer", "digest", "digest-sha256", "none", "bare-scheme", "unknown-scheme", "token68", "multi", "case", "quoted", "utf8", "always-401", "accept-any", "forbidden", "stale", "proxy", "redirect"}
 
@@ -116,8 +120,21 @@ func main() {
 				}
 				continue
 			}
-			body, _ := io.ReadAll(resp.Body)
+			body, rerr := io.ReadAll(resp.Body)
 			resp.Body.Close()
+			if rerr != nil {
+				// a timeout or truncation while reading the body is a transport failure, recorded as one (and retried
+				// as one), not folded into "not an oracle response"
+				out["client_error"] = addrRe.ReplaceAllString(rerr.Error(), "<addr>")
+				out["final_status"], out["redirects_followed"], out["final_url"], out["challenge_seen"], out["oracle"], out["version_header"] = nil, hops, nil, nil, nil, nil
+				if attempt == 3 {
+					enc.Encode(out)
+					fmt.Fprintln(os.Stderr, "go", f, "FAILED:", rerr)
+				} else {
+					time.Sleep(12 * time.Second)
+				}
+				continue
+			}
 			vh := resp.Header.Get("X-Badhttp-Version")
 			var oracle map[string]any
 			jsonOK := json.Unmarshal(body, &oracle) == nil

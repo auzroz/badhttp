@@ -13,8 +13,11 @@ VER=$(curl -s "$B/health" | jq -r .version)
 jq -nc --arg probed "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg ver "$VER" --arg wv "${WORKER_VERSION:-}" --arg b "$B" \
   '{capture:"auth", probed:$probed, badhttp_version_observed:$ver, worker_version:(if $wv=="" then null else $wv end), base:$b, flavors_run:18, clients_run:8, scripts:"scripts/auth-witness/", note:"One line per (client, flavor). The oracle field is the final /auth response body minus its constant warning/hint/credentials prose (it never echoes a credential); mechanism_kind and mechanism say how the documented fake credentials were handed to the client for that flavor; hops is, per request the client sent, its status and whether Authorization/Proxy-Authorization was present (never a value); the rest is what the harness observed on its own side."}' > "$OUT"
 LOG="${OUT%.jsonl}.log"; : > "$LOG"
-bash scripts/auth-witness/curl.sh "$B" >> "$OUT" 2>> "$LOG"; sleep 3
-go run scripts/auth-witness/go-nethttp.go "$B" >> "$OUT" 2>> "$LOG"; sleep 3
-node scripts/auth-witness/node-fetch.mjs "$B" >> "$OUT" 2>> "$LOG"; sleep 3
-"$PY" scripts/auth-witness/py-clients.py "$B" >> "$OUT" 2>> "$LOG"
+# A harness exits non-zero only when it could not run at all (missing module, bad flavor list, crash): the rows it
+# writes for a client that failed to answer are still exit 0. Stop loudly rather than publish a partial capture.
+fail() { echo "FAILED: $1 exited with status $2; the capture in $OUT is incomplete and must not be published" | tee -a "$LOG" >&2; exit 1; }
+bash scripts/auth-witness/curl.sh "$B" >> "$OUT" 2>> "$LOG" || fail curl.sh $?; sleep 3
+go run scripts/auth-witness/go-nethttp.go "$B" >> "$OUT" 2>> "$LOG" || fail go-nethttp.go $?; sleep 3
+node scripts/auth-witness/node-fetch.mjs "$B" >> "$OUT" 2>> "$LOG" || fail node-fetch.mjs $?; sleep 3
+"$PY" scripts/auth-witness/py-clients.py "$B" >> "$OUT" 2>> "$LOG" || fail py-clients.py $?
 echo "wrote $OUT: $(($(wc -l < "$OUT") - 1)) observations; log $LOG: $(grep -c ' ok$' "$LOG") ok, $(grep -c 'retrying' "$LOG") retries, $(grep -c 'FAILED' "$LOG") failed"

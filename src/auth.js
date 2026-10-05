@@ -21,7 +21,8 @@ const REALM = 'badhttp';
 export const AUTH_WARNING =
   "The test credentials are public and fake: user 'agent', password 'correct' (Bearer: badhttp-token-ok). " +
   'Never send real credentials or point a production credential store at badhttp — nothing here is protected, ' +
-  'and anything received is compared in memory, then discarded: never stored, logged, or echoed.';
+  'and anything received is compared in memory, then discarded: never stored, logged, or echoed ' +
+  '(the one exception: a successful Digest\'s Authentication-Info repeats your cnonce and nc, as RFC 7616 §3.5 requires).';
 
 export const AUTH = {
   'basic': {
@@ -307,7 +308,7 @@ export function authFindings() {
   const bearerOk = where('bearer', (o) => o.outcome === 'authenticated' && o.requests_made === 1);
   const raisedRows = OBSERVATIONS_AUTH.filter((o) => o.outcome === 'client-raised');
   return [
-    `Whether credentials go out before any challenge is read from hops, and it follows the mechanism, not the client: on basic, ${list(first)} sent them on their first request; ${list(waited)} sent nothing until the 401 arrived. On none — a 401 with no WWW-Authenticate at all — that decides everything: ${list(noneAuth)} authenticated and ${list(noneNot)} could not, because there was no challenge to answer.${same(waited, ['Python urllib.request']) ? ' urllib\'s HTTPBasicAuthHandler is the only challenge-driven Basic mechanism in this roster; every other client\'s Basic option sets the header before the first request (the stdlib also offers HTTPPasswordMgrWithPriorAuth for that form, not used here).' : ''}`,
+    `Whether credentials go out before any challenge is read from hops, and it follows the mechanism, not the client: on basic, ${list(first)} sent them on their first request; ${list(waited)} sent nothing until the 401 arrived. On none — a 401 with no WWW-Authenticate at all — that decides everything: ${list(noneAuth)} authenticated and ${list(noneNot)} could not, because there was no challenge to answer.${same(waited, ['Python urllib.request']) ? ` urllib\'s HTTPBasicAuthHandler is the only Basic-only challenge handler in this roster, and every other client\'s Basic option${first.includes('curl') ? ' (curl\'s -u included)' : ''} sets the header before the first request (the stdlib also offers HTTPPasswordMgrWithPriorAuth for that form, not used here)${same(where('bare-scheme', (o) => o.mechanism_kind === 'any-handler' && o.sent_credentials_first === false), ['curl']) ? '; curl --anyauth, used on the parser flavors, also waits for the challenge' : ''}.` : ''}`,
     `digest: ${list(digestOk)} completed the MD5 challenge${digestSeq.length === 1 ? ` (${digestSeq[0]}: a probe without credentials, then the answer)` : ''}. ${list(noDigest)} have no Digest mechanism at all and were sent with no credentials, so their 401 there is a capability of the library, not a bug in it.${same(noDigest, ['Go net/http', 'Node fetch (undici)', 'Python urllib3']) ? ' net/http, fetch and urllib3 contain no challenge handling of any kind: a 401 is returned to the caller as an ordinary response, and nothing in those libraries reads WWW-Authenticate.' : ''}`,
     `digest-sha256: ${list(shaOk)} completed the SHA-256 challenge${shaRaised.length ? `; ${list(shaRaised)} raised instead of returning a response` : ''}${shaRefused.length ? `; ${list(shaRefused)} handed the 401 back` : ''}. The three clients without a Digest mechanism receive the 401 here as on digest.`,
     `stale: ${list(staleOk)} retried on stale=true and reached the 200 (generations: 2)${staleNot.length ? `; ${list(staleNot)} handed the stale=true 401 back to the caller after the one retry each allows per call` : ''}.${same(staleNot, ['Python requests', 'Python httpx', 'Python aiohttp']) ? ' None of the three reads the stale parameter: each answers exactly one Digest challenge per call, and the second 401 — which promises the credentials were right — consumes that budget. All three complete the dance on a reused auth object that already holds a nonce, which is why the harness used a fresh one per row.' : ''}`,
@@ -372,7 +373,7 @@ export async function handleAuth({ seg, url, request, json, withBase }) {
         basic: { user: USER, password: PASS },
         utf8: { user: USER, password: PASS_UTF8 },
         bearer: { ok: TOKEN_OK, limited: TOKEN_LIMITED },
-        note: 'These are the only values any /auth flavor ever accepts.',
+        note: 'These are the only values any checking /auth flavor accepts; /auth/accept-any returns authenticated:true for any non-empty Authorization header without checking it.',
       },
       warning: AUTH_WARNING,
       witness: authWitness(),

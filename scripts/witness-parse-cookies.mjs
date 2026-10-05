@@ -17,10 +17,14 @@
 // than badhttp.dev), and the generator refuses to emit if one does.
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { isAbsolute } from 'node:path';
 
 const SRC = process.argv[2];
 if (!SRC) throw new Error('usage: node scripts/witness-parse-cookies.mjs <capture.jsonl>');
 const OUT = 'src/witness-cookies-data.js';
+// source_file and run_log are written into the committed data file, so the capture path must be repo-relative:
+// an absolute path would write the capturing machine's directory into it.
+if (isAbsolute(SRC) || SRC.split(/[\\/]/).includes('..')) throw new Error(`refusing to emit: ${SRC} must be a repo-relative path (the path is written into ${OUT})`);
 
 const ROSTER = {
   curl: { name: 'curl' },
@@ -64,7 +68,8 @@ const NAMELESS_VALUES = ['badhttp-just-a-value', 'badhttp_empty_name'];
 export const NEGATIVE_FLAVORS = ['wrong-domain', 'public-suffix', 'path-prefix'];
 
 // Anything from the capturing machine: home directories, temp paths, other hostnames.
-const FORBIDDEN = [/\/Users\//, /\/home\//, /\/private\/tmp/, /\/tmp\//, /\bC:\\/, /localhost/, /127\.0\.0\.1/];
+const FORBIDDEN = [/\/Users\//, /\/Volumes\//, /\/home\//, /\/private\/tmp/, /\/var\/folders\//, /\/tmp\//, /\bC:\\/, /file:\/\//, /localhost/, /127\.0\.0\.1/];
+const ALLOWED_HOSTS = ['badhttp.dev', 'alt.badhttp.dev'];
 
 const nameOf = (setCookie) => {
   const first = setCookie.split(';')[0];
@@ -77,7 +82,7 @@ const nameOf = (setCookie) => {
  * captured columns, exhaustive: any shape outside these throws rather than being binned.
  *  request-failed   transport failure; the client returned nothing usable
  *  client-raised    the client raised something other than its transport-error type
- *  all-returned     every planted name (value, for the nameless pair) came back on the echo
+ *  all-returned     every planted cookie came back on the echo, matched one-to-one (by value for the nameless pair, once per copy of a duplicated name)
  *  some-returned    at least one but not all
  *  none-returned    none of them
  */
@@ -89,12 +94,19 @@ function classify(o, planted, lineNo) {
   }
   if (o.echo.status !== 200) throw new Error(`line ${lineNo}: echo status ${o.echo.status}`);
   const got = o.echo.cookies;
-  const matched = planted.filter((n) => (n === '' ? got.some((c) => c.name === '' && NAMELESS_VALUES.includes(c.value)) : got.some((c) => c.name === n)));
-  // duplicate plants the same name twice; count distinct names for all/some
-  const distinctPlanted = [...new Set(planted)];
-  const distinctMatched = [...new Set(matched)];
-  if (distinctMatched.length === 0) return 'none-returned';
-  if (distinctMatched.length === distinctPlanted.length) return 'all-returned';
+  // One-to-one: each planted entry (each nameless value, each copy of a duplicated name) must be matched by its
+  // own echoed cookie, so a client that returned one of a pair is some-returned, not all-returned.
+  const preds = planted.every((n) => n === '')
+    ? NAMELESS_VALUES.map((v) => (c) => c.name === '' && c.value === v)
+    : planted.map((n) => (c) => c.name === n);
+  const used = new Set();
+  let m = 0;
+  for (const p of preds) {
+    const i = got.findIndex((c, j) => !used.has(j) && p(c));
+    if (i >= 0) { used.add(i); m++; }
+  }
+  if (m === 0) return 'none-returned';
+  if (m === preds.length) return 'all-returned';
   return 'some-returned';
 }
 
@@ -140,6 +152,7 @@ for (const [i, line] of lines.slice(1).entries()) {
     jar_kind: r.jar_kind,
     jar: r.jar,
     attempts: r.attempts,
+    // hops is the setter leg only (the first GET and its redirects); the echo, delete and second echo are not counted.
     requests_made: r.hops.length,
     hops: r.hops.map((h) => ({ status: typeof h.status === 'number' ? h.status : null, set_cookie_count: typeof h.set_cookie_count === 'number' ? h.set_cookie_count : null })),
     setter_status: typeof r.setter_status === 'number' ? r.setter_status : null,
@@ -176,17 +189,22 @@ for (const c of ORDER) {
 }
 observations.sort((a, b) => ORDER.indexOf(a.client) - ORDER.indexOf(b.client) || FLAVOR_ORDER.indexOf(a.flavor) - FLAVOR_ORDER.indexOf(b.flavor));
 
-const blob = JSON.stringify(observations);
 const logPath = SRC.replace(/\.jsonl$/, '.log');
 let logText = '';
 try { logText = readFileSync(logPath, 'utf8'); } catch { throw new Error(`the run log ${logPath} must be committed beside the capture`); }
-for (const re of FORBIDDEN) {
-  if (re.test(blob)) throw new Error(`refusing to emit: a row matches ${re}`);
-  if (re.test(logText)) throw new Error(`refusing to emit: the run log matches ${re}`);
+const clients = ORDER.map((id) => ({ id, name: ROSTER[id].name, role: 'client', ...clientMeta.get(id) }));
+
+// The machine gate covers everything that is emitted: the rows, the client metadata (version, platform,
+// invocation, jar), the provenance line and the run log committed beside the capture. A path or a host
+// other than badhttp.dev / alt.badhttp.dev anywhere in them refuses the run.
+const scanned = [['a row', JSON.stringify(observations)], ['the client metadata', JSON.stringify(clients)], ['the provenance line', JSON.stringify(meta)], ['the run log', logText]];
+for (const [what, text] of scanned) {
+  for (const re of FORBIDDEN) if (re.test(text)) throw new Error(`refusing to emit: ${what} matches ${re}`);
+  for (const m of text.matchAll(/\bhttps?:\/\/([^\/\s"'?#:\\]+)/g)) {
+    if (!ALLOWED_HOSTS.includes(m[1].toLowerCase())) throw new Error(`refusing to emit: ${what} names the host ${JSON.stringify(m[1])}`);
+  }
 }
 if (/(FAILED|raised)/.test(logText) && !observations.some((o) => o.outcome === 'client-raised' || o.outcome === 'request-failed')) throw new Error('the run log reports a failure the rows do not carry');
-
-const clients = ORDER.map((id) => ({ id, name: ROSTER[id].name, role: 'client', ...clientMeta.get(id) }));
 
 const out = `// GENERATED by scripts/witness-parse-cookies.mjs from ${SRC} — do not edit by hand.
 // Re-run the generator after any new capture; the capture scripts are in scripts/cookies-witness/.
@@ -209,7 +227,9 @@ export const WITNESS_COOKIES = {
 
 export const CLIENTS_COOKIES = ${JSON.stringify(clients, null, 2)};
 
-export const OBSERVATIONS_COOKIES = ${JSON.stringify(observations, null, 0).replace(/\},\{/g, '},\n  {').replace(/^\[/, '[\n  ').replace(/\]$/, ',\n]')};
+export const OBSERVATIONS_COOKIES = [
+${observations.map((o) => '  ' + JSON.stringify(o) + ',').join('\n')}
+];
 `;
 writeFileSync(OUT, out);
 const outcomes = {};

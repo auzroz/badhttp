@@ -43,7 +43,7 @@ export const SSE = {
     },
   },
   'cut': {
-    about: 'Ends mid-event with a clean close: a complete event, then "data: {\\"partial\\":tr" and EOF with no blank line. The spec says discard it; many parsers emit it or leak it into the next connection.',
+    about: 'Ends mid-event with a clean close: a complete event, then "data: {\\"partial\\":tr" and EOF with no blank line. The spec says the unterminated event is discarded.',
     *stream() {
       yield { wait: 0, bytes: bytes(block([RETRY])) };
       yield { wait: 0, bytes: bytes(block(['id: 1', 'data: complete'])) };
@@ -64,7 +64,7 @@ export const SSE = {
     },
   },
   'cr': {
-    about: 'Every line ends in a bare CR. Spec-legal. Almost nobody handles it.',
+    about: 'Every line ends in a bare CR. Spec-legal: CR alone is a line terminator.',
     *stream() {
       yield { wait: 0, bytes: bytes(block([RETRY], '\r')) };
       for (let n = 1; n <= 3; n++) yield { wait: 0, bytes: bytes(tick(n, 3, '\r')) };
@@ -167,7 +167,7 @@ export function handleSse({ seg, url, request, json, bad, intParam, numParam, wi
       flavors: Object.fromEntries(Object.entries(SSE).map(([k, v]) => [k, v.about])),
       usage: '/sse/{flavor}',
       limits: { max_seconds: limits.sseMaxSeconds, max_events: limits.sseMaxEvents, max_interval_ms: limits.sseMaxIntervalMs, max_bytes: limits.sseMaxBytes },
-      reconnect: `Every stream starts with "retry: 30000" (resume alone sends "retry: 1000"). Any request carrying a Last-Event-ID header is answered 204 No Content (${RECONNECT_NOTE}), except /sse/resume, which continues from it.`,
+      reconnect: `Every stream starts with "retry: 30000" (resume alone sends "retry: 1000"). A GET or HEAD with valid parameters that carries a Last-Event-ID header is answered 204 No Content (${RECONNECT_NOTE}), except /sse/resume, which continues from it.`,
       witness: sseWitness(),
     });
   }
@@ -292,7 +292,8 @@ export function sseFindings() {
   const stallWait = sGroups('stall', (o) => (o.end === 'harness-timeout' ? 'still waiting when the 30 s cap fired' : `${plural(evs(o).length, 'event')}, then ended ${o.end} after ${Math.round((o.wall_ms || 0) / 1000)} s`));
   const dropFewer = sWhere('drop', (o) => evs(o).length < ref('drop').length);
   const dropExtra = sWhere('drop', (o) => evs(o).length > ref('drop').length);
-  const preambleLibs = sClients().filter((c) => OBSERVATIONS_SSE.some((o) => o.client.id === c.id && (o.preamble_events || 0) > 0)).map((c) => c.name);
+  // Per library: on how many of its rows an empty event for the opening retry block was delivered (preamble_events > 0). Counted, never typed.
+  const preambleLibs = sClients().map((c) => { const rows = OBSERVATIONS_SSE.filter((o) => o.client.id === c.id); const n = rows.filter((o) => (o.preamble_events || 0) > 0).length; return { name: c.name, n, of: rows.length }; }).filter((p) => p.n > 0);
   const cmGoOnly = sWhere('comments', (o) => o.outcome === 'end-differs' && o.end === 'clean').join('|') === 'go-sse';
   const bigGoBoth = bigNone.slice().sort().join('|') === ['go-sse', 'r3labs/sse'].sort().join('|');
   const timeouts = OBSERVATIONS_SSE.filter((o) => o.client.role === 'client' && o.outcome === 'harness-timeout');
@@ -300,7 +301,7 @@ export function sseFindings() {
   const asSpec = OBSERVATIONS_SSE.filter((o) => o.client.role === 'client' && o.outcome === 'as-spec').length;
   const total = OBSERVATIONS_SSE.filter((o) => o.client.role === 'client').length;
   return [
-    `Two classes of library were measured and the expected ending differs by class: ${sList(es)} implement the EventSource interface (${es.length}), which reconnects after any server close and so reports a clean end as an error event in its reconnecting state; ${sList(os)} iterate one response and return (${os.length}). ${asSpec} of ${total} rows match the reference parse of the bytes the control received and ended as expected for their class.`,
+    `Two classes of library were measured and the expected ending differs by class: ${sList(es)} implement the EventSource interface (${es.length}), which reconnects after any server close and so reports a clean end as an error event in its reconnecting state; ${sList(os)} iterate one response and return (${os.length}). ${asSpec} of ${total} rows delivered what their class is expected to and ended as expected for it: the reference parse of the control's bytes, except that the EventSource interface delivers nothing on wrong-type and, on resume, also the events 4-6 of the documented later connections (a one-shot library on wrong-type may deliver either).`,
     `ok (the control stream, five events): ${sAll(okAll)} delivered the five events as the reference parse has them; endings: ${okEnds}.`,
     `cut (a complete event, then "data: {\\"partial\\":tr" and EOF with no blank line; the spec discards it): ${cutDiscard.length ? `${sAll(cutDiscard)} delivered one event` : 'no library delivered exactly one event'}${cutPartial.length ? `; ${sList(cutPartial)} delivered the unterminated partial as an event` : ''}. The spec updates the Last-Event-ID string only when a blank line is processed, so after the unterminated "id: 2" a reconnect still carries 1; where a library exposes its last event id: ${cutLastId}.`,
     `drop (the connection reset mid-event): ${dropErr.length ? `${sAll(dropErr)} reported it as an error or entered their reconnecting state` : 'no library reported it as an error'}${dropClean.length ? `; ${sList(dropClean)} reported a clean end` : ''}${dropFewer.length ? `; ${sList(dropFewer)} delivered none of the complete event that arrived before the reset` : ''}${dropExtra.length ? `; ${sList(dropExtra)} delivered the half-written second event as an event of its own` : ''}. stall (one event, then ten seconds of silence, then a close): ${stallWait}.`,
@@ -311,9 +312,9 @@ export function sseFindings() {
     `wrong-type (a valid stream served as text/plain; the EventSource interface must fail the connection): ${wtRefused.length ? `${sList(wtRefused)} refused it and delivered nothing` : 'no library refused it'}${wtDelivered.length ? `; ${sList(wtDelivered)} delivered the three events regardless` : ''}. A one-shot library is under no specification obligation to check the type; the rows say which did.`,
     `error-event (an event whose name is "error", between two ticks): ${eeAsEvent.length ? `${sList(eeAsEvent)} delivered it as a named event` : 'no library delivered it as a named event'}${eeOnErrorListener.length ? ` — and for ${sList(eeOnErrorListener)} it arrived on the same error listener as a transport failure would, so a caller must look for the event's data to tell them apart` : ''}${eeCallback.length ? `; ${sList(eeCallback)} surfaced it only through their error callback` : ''}${eeDropped.length ? `; ${sList(eeDropped)} delivered neither an event nor an error carrying its data` : ''}.`,
     `big (one 65,536-byte data line): ${bigOk.length === N ? 'every library delivered the line intact' : bigDiff}.${bigGoBoth ? ' Both Go libraries read lines through a bufio.Scanner whose default token limit is 64 KiB, and a 65,536-byte data line plus its field name is longer than that.' : ''}`,
-    `The stream's opening "retry: 30000" block dispatches no event in the specification (it has no data), and ${preambleLibs.length ? `${sList(preambleLibs)} delivered an empty event for it on every flavor that sends it` : 'no library delivered an event for it'}; those events are recorded on the rows (preamble_events) and excluded from the comparison so they do not hide anything else.`,
+    `The stream's opening "retry: 30000" block dispatches no event in the specification (it has no data), and ${preambleLibs.length ? `${sList(preambleLibs.map((p) => `${p.name} (on ${p.n} of ${p.of} flavors)`))} delivered an empty event for it` : 'no library delivered an event for it'}; those events are recorded on the rows (preamble_events) and excluded from the comparison so they do not hide anything else. An empty event at the very end of a stream is not the opening block and is kept in the comparison.`,
     `resume (ids 1–3, then 4–6 to a reconnect carrying Last-Event-ID: 3, then a 204): ${rsFull.length ? `${sList(rsFull)} ran the whole sequence — three connections, six events, stopped at the 204` : 'no EventSource-class library ran the whole sequence'}; per library: ${rsEs}.`,
-    `${timeouts.length} of ${total} rows hit the harness's 30 s cap${timeouts.length ? ` (${sList(timeouts.map((o) => `${sName(o.client.id)} on ${o.flavor}`))})` : ''} and ${failed.length} failed to land${failed.length ? ` (${sList(failed.map((o) => `${sName(o.client.id)} on ${o.flavor}`))})` : ''}. Every other row is a stream this server sent, read back from the wire with its x-badhttp-version on the first connection.`,
+    `${timeouts.length} of ${total} rows hit the harness's 30 s cap${timeouts.length ? ` (${sList(timeouts.map((o) => `${sName(o.client.id)} on ${o.flavor}`))})` : ''} and ${failed.length} failed to land${failed.length ? ` (${sList(failed.map((o) => `${sName(o.client.id)} on ${o.flavor}`))})` : ''}. Every other row is a stream this server sent, read back from the wire with its x-badhttp-version on every connection.`,
   ];
 }
 

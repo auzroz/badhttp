@@ -60,7 +60,12 @@ echo            {status, cookie_header_bytes, cookies: [{name, value_bytes, valu
 after_delete    {status, names: [...]} — step 4's parsed cookie names (null for no-jar)
 jar_enumerable  true when the client's jar can be listed from the harness
 jar_entries     [{name, domain, path, host_only, secure, expires, value_bytes}] after step 1, or null;
-                expires is an ISO-8601 instant, "session", or null when the jar does not expose it
+                expires is an ISO-8601 instant (Python aiohttp's rows instead carry the Set-Cookie Expires string verbatim, an
+                HTTP-date), "session", or null when the jar does not expose it (rendered as "expiry not exposed by the
+                jar", never as a session cookie). value_bytes is the cookie value's length on the wire where the client
+                exposes the wire bytes (urllib, requests re-encode as latin-1; aiohttp utf-8 with surrogateescape; tough-cookie
+                latin-1); httpx exposes only the decoded string, so its value_bytes is that string's UTF-8 length. Each
+                client's jar string names the basis. The next capture will carry aiohttp's expires as the jar's own ISO instant.
 jar_rejections  [{message}] cookies the jar refused loudly (tough-cookie throws; others null/[])
 version_header  the x-badhttp-version of the last badhttp response seen
 client_error, error_kind (transport | raised), last_status_seen   as in the auth capture
@@ -79,7 +84,7 @@ Relative to the names the flavor plants (a fixed table in the parser, cross-chec
 |---|---|
 | `all-returned` | every planted name came back on step 2 |
 | `some-returned` | at least one, not all |
-| `none-returned` | none — which is the documented right answer on `wrong-domain`, `public-suffix` and `path-prefix`, and the finding elsewhere |
+| `none-returned` | none — which is the specified answer on `wrong-domain` and `path-prefix`, the recommended one on `public-suffix` (a jar with a public-suffix list; plain RFC 6265 without one would store it), and the finding elsewhere |
 | `client-raised` | the client raised before returning a response |
 | `request-failed` | transport failure |
 

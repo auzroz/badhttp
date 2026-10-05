@@ -1,7 +1,7 @@
 // Path templates, requested literally. Agents and registry probers copy OpenAPI path templates
 // like /sse/{flavor} into requests without substituting them — ~600 times a day from x402 ecosystem
 // monitors within two days of being listed (2026-08-25), and 285/312/314 a day across all thirteen
-// templates /openapi.json publishes, on 2026-09-05/06/07 — re-measured because the first figure had
+// templates /openapi.json then published, on 2026-09-05/06/07 — re-measured because the first figure had
 // been sitting on the home page in the present tense for two weeks. (Brace shapes the spec does not
 // publish drew 0/10/14 those days: /402/pay/{network}, which this file answers, and /nope{x} and
 // /sse/{flavor}/x, which correctly 404.) A 404 teaches them nothing and reads

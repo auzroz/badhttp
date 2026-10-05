@@ -24,8 +24,11 @@ month are free, then $0.001 each; verification is free. At this project's volume
   SDK with throwaway keys of both formats the portal issues: Ed25519 → `EdDSA`, P-256 PKCS#8 PEM → `ES256`).
 - `src/x402.js` puts `https://api.cdp.coinbase.com/platform/v2/x402` FIRST in the Base-mainnet v2 facilitator chain
   **only when** `CDP_API_KEY_ID` and `CDP_API_KEY_SECRET` are present in the Worker's environment; otherwise the chain
-  is unchanged (PayAI, xpay, Mogami, Heurist). A `401`/`403` from any facilitator is treated as the project's
-  credential problem and fails over to the next facilitator instead of refusing the payment.
+  is unchanged (PayAI, xpay, Mogami, Heurist). A `401`/`403` (or `429`) from any facilitator is treated as the project's
+  credential problem (or its rate limit), not the payer's, and fails over to the next facilitator at `/verify` and,
+  since session 28, at `/settle` too (nothing is broadcast when a facilitator answers `/settle` with one of those three
+  statuses, so the next facilitator verifies and settles instead). Any other `/settle` failure after a successful
+  `/verify` still answers `502 settlement outcome unknown`, because the transfer may have been broadcast.
 - `GET /402` shows the live chain under `facilitators.base`, so the change is visible the moment the secrets land.
 
 ## The operator's step (minutes)
@@ -57,5 +60,5 @@ month are free, then $0.001 each; verification is free. At this project's volume
 ## If it fails
 
 - `facilitator_rejected_payload` with the CDP URL in `facilitator`: the JWT was accepted but the payload was not —
-  read the `detail`. A `401` never reaches the payer: it fails over to PayAI and the payment still settles.
+  read the `detail`. A `401` never reaches the payer: whether it arrives at `/verify` or at `/settle`, the payment fails over to PayAI and still settles.
 - To disable without touching secrets: `wrangler secret delete CDP_API_KEY_ID` restores the previous chain.

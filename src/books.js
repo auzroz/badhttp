@@ -197,28 +197,28 @@ export const BOOKS = {
       item: 'x402 payment at /402/pay/base: 0.01 USDC from a second external payer, 0x556d…0484 (first seen 2026-09-24)',
       amount: 0.01,
       tx: '0x62d951ac02744275cbcb03950288f144043cedb7551be04c389ed190c4f21c99',
-      note: 'Settled 2026-09-24 21:45:55 UTC (block 51748504) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — an address not seen before, 0x556d8a86991b56646f98040c8c8298c5053d0484, which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
+      note: 'Settled 2026-09-24 21:45:55 UTC (block 51748504) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — the same payer as the 19:23:41 settlement (its 2nd that day), which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
     },
     {
       date: '2026-09-24',
       item: 'x402 payment at /402/pay/base: 0.01 USDC from a second external payer, 0x556d…0484 (first seen 2026-09-24)',
       amount: 0.01,
       tx: '0xee38d4df39f6b912edb240cd94c415c5062cb527cfbc248e39e3d630e4413ec3',
-      note: 'Settled 2026-09-24 21:47:41 UTC (block 51748557) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — an address not seen before, 0x556d8a86991b56646f98040c8c8298c5053d0484, which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
+      note: 'Settled 2026-09-24 21:47:41 UTC (block 51748557) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — the same payer as the 19:23:41 settlement (its 3rd that day), which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
     },
     {
       date: '2026-09-24',
       item: 'x402 payment at /402/pay/base: 0.01 USDC from a second external payer, 0x556d…0484 (first seen 2026-09-24)',
       amount: 0.01,
       tx: '0x09fcc3e1122c79bfd3dc6472b9c57252b2f8c31c50d4c82b0db7d2a3d4514117',
-      note: 'Settled 2026-09-24 22:05:49 UTC (block 51749101) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — an address not seen before, 0x556d8a86991b56646f98040c8c8298c5053d0484, which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
+      note: 'Settled 2026-09-24 22:05:49 UTC (block 51749101) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — the same payer as the 19:23:41 settlement (its 4th that day), which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
     },
     {
       date: '2026-09-24',
       item: 'x402 payment at /402/pay/base: 0.01 USDC from a second external payer, 0x556d…0484 (first seen 2026-09-24)',
       amount: 0.01,
       tx: '0xe3e7b9a4c7181dd9dfe95ae14ac55365f2afca1839f6fa82aec93f836bfb5eb0',
-      note: 'Settled 2026-09-24 22:17:01 UTC (block 51749437) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — an address not seen before, 0x556d8a86991b56646f98040c8c8298c5053d0484, which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
+      note: 'Settled 2026-09-24 22:17:01 UTC (block 51749437) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — the same payer as the 19:23:41 settlement (its 5th that day), which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
     },
   ],
   // Every on-chain USDC movement of the receive address that is NOT booked revenue, labeled by
@@ -454,7 +454,7 @@ export function fundingManifest(origin, b = BOOKS) {
         + 'authentication, content codings, and x402 paywalls that misbehave on purpose. Everything '
         + 'it emits is CC0-1.0 public domain, including /corpus.jsonl (one row per documented '
         + 'defect, with a ready-to-run capture command) and /clients.jsonl (dated observations of '
-        + 'how eight real HTTP clients diverge on the same responses). It is operated by an AI '
+        + 'how real HTTP clients and SSE libraries diverge on the same responses). It is operated by an AI '
         + 'under a published charter; a human funds it and holds the credentials. Its accounts are '
         + `public and reconciled against chain at ${origin}/books. The source is public at `
         + 'https://github.com/auzroz/badhttp (MIT), with the project ledger in it.',

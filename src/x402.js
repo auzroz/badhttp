@@ -25,22 +25,37 @@ const USDC = {
   'base': { caip2: 'eip155:8453', chainId: 8453, asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', name: 'USD Coin', version: '2', label: 'Base mainnet', real: true, explorer: 'https://basescan.org/tx/' },
   'base-sepolia': { caip2: 'eip155:84532', chainId: 84532, asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', name: 'USDC', version: '2', label: 'Base Sepolia (testnet)', real: false, explorer: 'https://sepolia.basescan.org/tx/' },
 };
+import { CDP_FACILITATOR_URL, cdpConfigured, cdpHeaders } from './cdp-auth.js';
+
 const DEFAULT_NETWORK = 'base-sepolia';
 
 // Facilitators, in order of preference. Overridable with the X402_FACILITATORS_{BASE,BASE_SEPOLIA} vars (comma-separated).
 // Surveyed 2026-08-23 (LEDGER.md #2). Credential-free on both Base networks: xpay (zero fee, no cap, verify 100/min,
-// settle 50/min, young), Mogami (no fee, AGPL server), PayAI (oldest and biggest, but 1,000 lifetime free settlements
-// per receiving wallet, then an API key). Coinbase's x402.org facilitator is Sepolia-only without CDP keys. Heurist is
-// mainnet-only and slow. OpenX402 rejects unregistered payTo addresses (5 USDC + a wallet signature to register: not us).
+// settle 50/min, young), Mogami (no fee, AGPL server), PayAI (oldest and biggest; a lifetime allowance of 1,000 free
+// credits per receiving wallet, each Base settlement costing gas + 30% ≈ 2.31 credits ≈ $0.00231 as published at
+// facilitator.payai.network/pricing on 2026-10-05, so ≈430 free mainnet settlements, then an API key). Coinbase's
+// x402.org facilitator is Sepolia-only without CDP keys. Heurist is mainnet-only and slow. OpenX402 rejects
+// unregistered payTo addresses (5 USDC + a wallet signature to register: not us).
+//
+// 2026-10-05 (LEDGER.md #27): PayAI moved to the FRONT of the mainnet lists. Reason, measured rather than preferred:
+// the anonymous automated buyer that settled /402/pay/base five times on 2026-09-24 paid 92 sellers in two days, and
+// 75 of those 92 payTo addresses sit in the two public facilitator catalogues (66 in Coinbase's CDP Bazaar, 23 in
+// PayAI's) — catalogues a seller enters only by having a payment VERIFIED or SETTLED through that facilitator
+// (PayAI: "there is no registration form, account, or manual submission"). xpay publishes no catalogue, and x402scan
+// does not count xpay settlements (its indexer only follows facilitator addresses it knows). So every mainnet payment
+// this server routed through xpay was invisible to every registry buyers walk. With PayAI first, each real payment
+// lists this resource where paying buyers look, at a published cost of ~0.2 cents from a free allowance that covers
+// years at this volume; xpay stays second as the zero-fee failover. Sepolia is unchanged (x402.org first; free).
 const DEFAULT_FACILITATORS = {
-  'base': ['https://facilitator.xpay.sh', 'https://v2.facilitator.mogami.tech', 'https://facilitator.payai.network', 'https://facilitator.heurist.xyz'],
+  'base': ['https://facilitator.payai.network', 'https://facilitator.xpay.sh', 'https://v2.facilitator.mogami.tech', 'https://facilitator.heurist.xyz'],
   'base-sepolia': ['https://x402.org/facilitator', 'https://facilitator.xpay.sh', 'https://v2.facilitator.mogami.tech', 'https://facilitator.payai.network'],
 };
 // v1 payments need a facilitator whose /supported advertises x402Version 1 kinds for the network. Probed live
 // 2026-08-26: xpay and PayAI carry v1 on both Base networks, Heurist on mainnet only, x402.org on Sepolia only;
-// Mogami is v2-only, so it is absent here. Overridable with X402_V1_FACILITATORS_{BASE,BASE_SEPOLIA}.
+// Mogami is v2-only, so it is absent here. Overridable with X402_V1_FACILITATORS_{BASE,BASE_SEPOLIA}. Same order
+// rule as above (2026-10-05): PayAI first on mainnet.
 const DEFAULT_V1_FACILITATORS = {
-  'base': ['https://facilitator.xpay.sh', 'https://facilitator.payai.network', 'https://facilitator.heurist.xyz'],
+  'base': ['https://facilitator.payai.network', 'https://facilitator.xpay.sh', 'https://facilitator.heurist.xyz'],
   'base-sepolia': ['https://x402.org/facilitator', 'https://facilitator.xpay.sh', 'https://facilitator.payai.network'],
 };
 // A verify rejection for one of these reasons is the facilitator declining us, not the payment being bad: try the next one.
@@ -48,11 +63,12 @@ const FACILITATOR_SIDE_REJECTION = /not_registered|unsupported|not_supported|rat
 
 // What has actually been exercised, so the docs never claim more. Update when settlement is first observed.
 export const VERIFIED = {
-  as_of: '2026-09-30',
+  as_of: '2026-10-05',
   first_external_payment: 'On 2026-09-01 at 21:32:11 UTC a payer that is not this project settled /402/pay/base for the first time: 0.01 USDC on Base mainnet, tx 0x645b92cd93250785c5208821f22328087389803ed2178566e871f2edeed5686a, from 0x54e163e9b8edda194d83f46add921bfa5fc5f4e0 — the paying scout of nohumans.directory, whose registry probes listed x402 endpoints with real money (user agent nohumans-scout/1.0). Booked as revenue on /books with its tx hash; the first revenue this site has earned',
   second_external_payer: 'On 2026-09-24 between 19:23:41 and 22:17:01 UTC a second payer that is not this project settled /402/pay/base five times, 0.01 USDC each, from 0x556d8a86991b56646f98040c8c8298c5053d0484 (tx 0xfd6bbfa2…, 0x62d951ac…, 0xee38d4df…, 0x09fcc3e1…, 0xe3e7b9a4…; full hashes on /books). Zone analytics show five matching 200s from the US with an EMPTY user agent, and the same address paid dozens of other x402 endpoints in bursts the next day, so this reads as an automated buyer walking a registry rather than a person; which registry, and whether it paid with the v2 header or the v1 body, is not knowable here. nohumans.directory\'s scout also paid a second time on 2026-09-22 (tx 0x74276696…). All six are booked as revenue with their tx hashes',
   first_external_testnet_payment: 'On 2026-09-16 at 08:51:40 UTC a payer that is not this project settled /402/pay (Base Sepolia, test USDC, no dollar value) for the first time: 0.01 test USDC, tx 0x3c4d55346397bc2765f838f7a5741142d317df7156fd5867b1d756977e1e58b2, from 0x4f26bcacaf89aad3bb6b0c6858523b84a7ae7776 (the authorizer of the on-chain transfer; the time is the block timestamp). Cloudflare zone analytics show the matching 200 on /402/pay with user agent curl/8.21.0; they log path, status, time and user agent but no request headers or body, and this server keeps no request logs of its own, so whether the payment rode the v2 PAYMENT-SIGNATURE header or the v1 X-PAYMENT body is not known. Not revenue — testnet USDC has no value — and not booked; recorded because it is the first settlement anyone but this project or nohumans.directory has ever completed against this host',
-  exercised: 'SETTLEMENT, end to end on BOTH networks, both client generations against production (2026-08-28). Base Sepolia (test USDC): v2 official @x402/fetch 2.23.0 — tx 0xf35d92c571e4af086b8cf01d87e242e94d6406fff46c5a3c15cbcf787ec31a0c; v1 legacy x402-fetch 1.2.0 via the body and X-PAYMENT — tx 0x0b6b47a003f84096bf59971d665509be2ba54ee467d70dec7c6e5450dffacd62 (both settled by x402.org). Base mainnet (real USDC, a self-test: the payer is project-controlled and the 0.02 USDC moved between our own addresses — booked on /books as working capital, not revenue): v2 tx 0x8a331a0a28a26d290984c34bd12ae03bdc31603856b4e46bace3d2045cddc089; v1 tx 0x629b1a478e88c8be043ee0e8ebac67169a386192fde388b9a616fc850b5010b8 (both settled by xpay). Receipts arrived in PAYMENT-RESPONSE (v2) and X-PAYMENT-RESPONSE (v1) and decoded success:true every time',
+  exercised: 'SETTLEMENT, end to end on BOTH networks, both client generations against production (2026-08-28). Base Sepolia (test USDC): v2 official @x402/fetch 2.23.0 — tx 0xf35d92c571e4af086b8cf01d87e242e94d6406fff46c5a3c15cbcf787ec31a0c; v1 legacy x402-fetch 1.2.0 via the body and X-PAYMENT — tx 0x0b6b47a003f84096bf59971d665509be2ba54ee467d70dec7c6e5450dffacd62 (both settled by x402.org). Base mainnet (real USDC, a self-test: the payer is project-controlled and the 0.02 USDC moved between our own addresses — booked on /books as working capital, not revenue): v2 tx 0x8a331a0a28a26d290984c34bd12ae03bdc31603856b4e46bace3d2045cddc089; v1 tx 0x629b1a478e88c8be043ee0e8ebac67169a386192fde388b9a616fc850b5010b8 (both settled by xpay). Receipts arrived in PAYMENT-RESPONSE (v2) and X-PAYMENT-RESPONSE (v1) and decoded success:true every time. 2026-10-05: PayAI moved to the front of the mainnet facilitator lists and settled a v2 self-test the same minute — tx 0x9eed7b72bdd445317b1a59e5c7cc12f9a44b857132dcc743121b366261e6ca75 (0.01 USDC between project addresses, booked as a labeled transfer, not revenue)',
+  catalogues: 'Listed in PayAI\'s public Bazaar (GET https://facilitator.payai.network/discovery/resources?payTo=<receive address>) since 2026-10-05T02:48:53Z, written by that facilitator when it settled the self-test above — its documented and only route in ("there is no registration form, account, or manual submission"). NOT in Coinbase\'s CDP Bazaar (34,325 resources on 2026-10-05): a resource enters it only through a payment settled by the CDP facilitator, which needs a CDP API key this project does not hold. Also listed, by registration, on x402scan, nohumans.directory (paid-verified), x402-list.com and 402index.io. Why it matters: the anonymous buyer of 2026-09-24 paid 92 sellers in two days, 81 of them on x402scan, 66 in the CDP Bazaar, 23 in PayAI\'s',
   not_yet_exercised: 'a v1 (X-PAYMENT) payment known to be from anyone other than this project; a direct USDC transfer (a donation) rather than an x402 settlement; a payment for any amount other than the default 0.01 (every external settlement so far has been the default)',
 };
 
@@ -248,10 +264,10 @@ function decodePaymentHeader(request) {
   }
 }
 
-async function callFacilitator(base, path, body, timeoutMs) {
+async function callFacilitator(base, path, body, timeoutMs, env) {
   const res = await fetch(`${base.replace(/\/$/, '')}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': 'badhttp/x402 (+https://badhttp.dev/402)' },
+    headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': 'badhttp/x402 (+https://badhttp.dev/402)', ...(await cdpHeaders(env, base, path)) },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -264,8 +280,9 @@ async function callFacilitator(base, path, body, timeoutMs) {
   const reason = json && typeof json === 'object' ? String(json.error || json.invalidReason || json.errorReason || json.message || '').slice(0, 200) : text.slice(0, 200);
   const err = new Error(`facilitator ${path} returned ${res.status}${reason ? `: ${reason}` : ''}${json ? '' : ' (not JSON)'}`);
   err.status = res.status;
-  // 4xx without a verdict means this facilitator will not take the payload as sent; others will not either.
-  err.terminal = res.status >= 400 && res.status < 500 && res.status !== 429;
+  // 4xx without a verdict means this facilitator will not take the payload as sent; others will not either —
+  // except 401/403 (our credentials, not the payer's payload: a misconfigured CDP key must fail over, not fail the payment).
+  err.terminal = res.status >= 400 && res.status < 500 && res.status !== 429 && res.status !== 401 && res.status !== 403;
   throw err;
 }
 
@@ -274,7 +291,14 @@ function facilitatorsFor(network, env, version = 2) {
   const key = version === 1 ? `X402_V1_FACILITATORS_${suffix}` : `X402_FACILITATORS_${suffix}`;
   const raw = env && typeof env[key] === 'string' ? env[key] : '';
   const list = raw.split(',').map((s) => s.trim()).filter(Boolean);
-  return list.length ? list : (version === 1 ? DEFAULT_V1_FACILITATORS : DEFAULT_FACILITATORS)[network];
+  const chain = list.length ? list : (version === 1 ? DEFAULT_V1_FACILITATORS : DEFAULT_FACILITATORS)[network];
+  // Coinbase's CDP facilitator goes FIRST on mainnet v2 — but only once the operator has stored CDP_API_KEY_ID and
+  // CDP_API_KEY_SECRET as Worker secrets (docs/RUNBOOK-cdp-facilitator.md). It is the only route into the CDP Bazaar,
+  // the catalogue most paying buyers walk (LEDGER.md #27). Without the secrets nothing here changes.
+  if (version === 2 && network === 'base' && cdpConfigured(env) && !chain.some((f) => f.startsWith(CDP_FACILITATOR_URL))) {
+    return [CDP_FACILITATOR_URL, ...chain];
+  }
+  return chain;
 }
 
 // ---------- scenarios ----------
@@ -516,7 +540,7 @@ async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env,
   const verifyErrors = [];
   for (const f of facilitators) {
     try {
-      const v = await callFacilitator(f, '/verify', body, X402_LIMITS.verifyTimeoutMs);
+      const v = await callFacilitator(f, '/verify', body, X402_LIMITS.verifyTimeoutMs, env);
       if (v.isValid === false && FACILITATOR_SIDE_REJECTION.test(String(v.invalidReason || ''))) {
         verifyErrors.push(`${f}: ${String(v.invalidReason).slice(0, 200)}`);
         continue;
@@ -550,7 +574,7 @@ async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env,
   }
   let settled;
   try {
-    settled = await callFacilitator(facilitator, '/settle', body, X402_LIMITS.settleTimeoutMs);
+    settled = await callFacilitator(facilitator, '/settle', body, X402_LIMITS.settleTimeoutMs, env);
   } catch (e) {
     // The settle call failed or timed out after verification passed. The authorization may or may not have been broadcast.
     return json({ error: 'settlement outcome unknown', scenario: '/402/pay', facilitator, message: String(e.message).slice(0, 200), charged: 'unknown', hint: `check ${addressUrl}; do not re-sign until you have` }, 502);

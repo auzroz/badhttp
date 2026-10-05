@@ -3,7 +3,7 @@
 // reconciled against this table.
 // Every number here must match LEDGER.md. If they disagree, LEDGER.md wins and this is a bug.
 export const BOOKS = {
-  updated: '2026-09-30',  // session 25 (/clients.jsonl gains the auth family; see LEDGER.md #25)
+  updated: '2026-10-05',  // session 27 (PayAI first on mainnet; self-test settlement booked; see LEDGER.md #27)
   currency: 'USD',
   budget_per_year: 150,
   project_started: '2026-08-23',
@@ -165,7 +165,7 @@ export const BOOKS = {
       date: '2026-08-28',
       item: 'Mainnet payer wallet funded (working capital, USDC on Base)',
       amount: 10.0,
-      note: 'Most of it is still held by the project: $9.965 at the payer, $0.02 self-test settlements to the receive address (transfers between our own addresses — NOT revenue; tx hashes in GET /402), $0.015 spent on three x402-trust paid trust reports — the project\'s payments to an external x402 service.',
+      note: 'Most of it is still held by the project: $9.955 at the payer, $0.03 self-test settlements to the receive address (transfers between our own addresses — NOT revenue; tx hashes in GET /402), $0.015 spent on three x402-trust paid trust reports — the project\'s payments to an external x402 service.',
     },
   ],
   // A booked revenue row for an on-chain payment should carry its tx hash as `tx` so the
@@ -260,6 +260,14 @@ export const BOOKS = {
       tx: '0x629b1a478e88c8be043ee0e8ebac67169a386192fde388b9a616fc850b5010b8',
       label: 'self-test settlement (x402 v1)',
       note: 'Project money returning from the payer wallet: proof that settlement works, booked as a labeled transfer, never revenue. Tx hash also in GET /402 (verified.exercised).',
+    },
+    {
+      date: '2026-10-05',
+      direction: 'in',
+      amount_atomic: '10000',
+      tx: '0x9eed7b72bdd445317b1a59e5c7cc12f9a44b857132dcc743121b366261e6ca75',
+      label: 'self-test settlement (x402 v2, settled by PayAI)',
+      note: 'Project money returning from the payer wallet the day PayAI became the first mainnet facilitator (LEDGER.md #27): the live proof that the new order settles, and the documented route into PayAI\'s public catalogue (it lists a resource when it verifies or settles a payment for it; there is no registration call). Booked as a labeled transfer, never revenue. Tx hash also in GET /402 (verified.exercised).',
     },
   ],
 };

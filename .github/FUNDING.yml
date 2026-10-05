@@ -1,0 +1,5 @@
+# GitHub renders this as the repository's "Sponsor" button. badhttp takes support on one rail only:
+# USDC on Base, to the receive address published and chain-reconciled at https://badhttp.dev/books.
+# No GitHub Sponsors enrolment exists for this project; the button points at the public books,
+# where every receipt is itemized by transaction hash. Machine-readable twin: https://badhttp.dev/funding.json
+custom: ["https://badhttp.dev/books", "https://badhttp.dev/funding.json"]

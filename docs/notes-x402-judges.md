@@ -89,3 +89,36 @@ the claim does.
 a target for fake ones, and the check is cheap: `dig +short <domain> A` and look for `0.0.0.0`, then
 `dig MX` and `dig TXT`. Note that `0.0.0.0` means *abandoned* at least as often as *fraudulent* —
 `mockbin.org`, a formerly real Kong service, resolves to exactly the same address today.
+
+## Session 27 (2026-10-05) — the catalogues paying buyers actually walk, and how a seller gets into them
+
+Measured, not assumed. The anonymous buyer `0x556d8a86…0484` that settled `/402/pay/base` five times on 2026-09-24
+made 400 USDC payments to 92 distinct payTo addresses on 2026-09-24/25 (309 of them exactly $0.001; $1.18 in all),
+funded by a single 4 USDC deposit. Cross-referencing those 92 sellers against every public catalogue:
+
+| catalogue | how a resource gets in | sellers of the 92 listed | badhttp listed? |
+|---|---|---:|---|
+| x402scan (135,920 resources) | registration (`registerFromOrigin`, no identity) or facilitator-seen | **81** | yes (since #3) |
+| Coinbase CDP Bazaar (34,325) | ONLY a payment settled through the CDP facilitator (needs a CDP API key); "no registration form or separate API call"; pruned after 30 days without a settlement | **66** | **no** → `docs/RUNBOOK-cdp-facilitator.md` |
+| PayAI Bazaar (13,498) | ONLY a payment PayAI verifies or settles; "no registration form, account, or manual submission"; a pre-listing HEAD/GET probe must answer 402; hidden after 3 failed probes over ≥48 h | 23 | **yes since 2026-10-05T02:48:53Z** (settled through it) |
+| nohumans.directory (7,390; 1,458 paid-verified) | open API registration; its scout pays listed endpoints | wallets not exposed | yes, paid-verified |
+| x402-list.com (914) | free API registration from your own domain; pays for its FORTE tier (12 of 914 hold it) | n/a | yes, unverified |
+| 402index.io | API registration + domain claim | n/a | yes |
+| 402atlas (~138, curated, pays real USDC) | hand-curated; only a feedback box (`POST /api/feedback`, honeypot `website` must stay empty) | n/a | suggested 2026-10-05 |
+| agent-tools.cloud | crawls x402scan/CDP/awesome-x402 | n/a | yes, auto-imported from x402scan as the HOMEPAGE url with a wrong `mcp_url`; shows "degraded"/"conformance fail" because it probes `/.well-known/x402`, which this host does not serve |
+
+75 of the 92 sit in the union of the two facilitator catalogues; 5 are in none of x402scan/CDP/PayAI.
+
+**Consequence for the facilitator order.** Since #2 the mainnet chain started with xpay, which publishes no
+catalogue and whose settlements x402scan's indexer does not count (it follows only facilitator addresses it knows).
+Every mainnet payment this server routed through xpay was therefore invisible to every registry buyers walk. PayAI
+is now first on mainnet (both the v2 and v1 lists); its published Base rate is gas + 30% ≈ $0.00231 per settlement
+from a lifetime allowance of 1,000 free credits per receiving wallet (≈430 settlements — years at this volume).
+
+**The self-trigger PayAI documents** — "make one verify-shaped payment against your own endpoint through a client
+that echoes extensions — /verify catalogs and moves no funds" — is the documented registration route, not a side
+effect, which is the distinction the session-3 rule draws. This project used a real settlement instead (the live
+proof the reorder works), booked as a labeled transfer.
+
+**TOLL·402** (#19/#20) could not be found again: `toll402.com` is a dead Vercel deployment, `.dev` and `.xyz` are
+unrelated products. Treat it as gone.

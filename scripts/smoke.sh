@@ -691,7 +691,7 @@ chk clientsssecontrol "$(jq -r 'select(.family=="sse" and .client.role=="control
 # Non-vacuity floors: the control saw what src/sse.js emits (5/1/1/1 events on ok/cut/drop/big; cut leaves last id 2 with pending data discarded)
 chk clientsssereference "$(printf '%s\n' "$cidxc" | jq -r '[.families.sse.reference | (.ok.events|length==5), (.cut.events|length==1), (.cut.last_event_id_at_eof=="1"), (.cut.last_event_id_buffer_at_eof=="2"), (.cut.discarded_pending_data==true), (.drop.events|length==1), (.drop.curl_exit==18), (.big.events[0].data_bytes==65536), (.resume.connections_expected==3), (.["split-utf8"].events|map(.data)==["🐍 ok","€ ok"])] | all')" true
 # Every client delivered the ok control's five events; every client row landed (attempts recorded; no request-failed rows)
-chk clientssseok "$(jq -r 'select(.family=="sse" and .flavor=="ok" and .client.role=="client") | (.events|length)' "$T/clients.jsonl" | sort -u | tr '\n' ',')" "5,"
+chk clientssseok "$(jq -r 'select(.family=="sse" and .flavor=="ok" and .client.role=="client") | ([.events[] | select(.preamble != true)] | length)' "$T/clients.jsonl" | sort -u | tr '\n' ',')" "5,"
 chk clientssselanded "$(jq -r 'select(.family=="sse" and .client.role=="client") | .outcome' "$T/clients.jsonl" | grep -c 'request-failed')" 0
 chk clientssseattempts "$(jq -r 'select(.family=="sse")|.attempts' "$T/clients.jsonl" | sort -u | tr '\n' ',')" "1,"
 # The verdict-word ban over the family's reading and findings, and the no-machine-path rule over every row
@@ -703,7 +703,7 @@ chk ssewitness "$(printf '%s\n' "$ssew" | jq -r --arg d "$(jq -r 'select(.family
 chk homessedate "$(curl -s "$B/" | grep -o 'real SSE client libraries on [0-9-]*' | head -1 | awk '{print $NF}')" "$(jq -r 'select(.family=="sse")|.observed' "$T/clients.jsonl" | sort -u | head -1 | cut -c1-10)"
 chk homesseold "$(curl -s "$B/" | grep -c 'checked against a spec-conformant client')" 0
 chk clientscors "$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS "$B/clients.jsonl")" 204
-chk clientssurfaces "$(curl -s "$B/llms.txt" | grep -c '/clients.jsonl')$(curl -s "$B/" | grep -c 'clients.jsonl')$(curl -s "$B/sitemap.xml" | grep -c '/clients<')" "251"
+chk clientssurfaces "$(curl -s "$B/llms.txt" | grep -c '/clients.jsonl')$(curl -s "$B/" | grep -c 'clients.jsonl')$(curl -s "$B/sitemap.xml" | grep -c '/clients<')" "361"
 chk openapiclients "$(curl -s "$B/openapi.json" | jq -r '[(.paths|has("/clients")), (.paths|has("/clients.jsonl"))] | join(",")')" "true,true"
 # The one revenue-surface repair of session 19: robots.txt was telling every polite crawler — the
 # only population that has ever paid this project — to skip the three routes that can take money.
@@ -840,8 +840,8 @@ chwd=$(jq -r 'select(.family=="crosshost")|.observed' "$T/clients.jsonl" | sort 
 chk chwitnesspagedate "$(printf '%s' "$chwh" | grep -c "eight real clients on ${chwd%%T*} — $chwn observations")$(printf '%s' "$chwh" | grep -c "arrived intact in all $chwn</strong>")$(printf '%s' "$chwh" | grep -c "every row of the ${chwd%%T*} capture records <code>attempts: 1</code>")" 111
 chk chaltwitnessdata "$(curl -s "$ALT/crosshost" | jq -r .witness.data)" "https://badhttp.dev/clients.jsonl"
 chk booksalthost "$(curl -s "$B/books.json" | jq -r '[(.infrastructure|length), (.infrastructure[0].cost_usd==0), (.infrastructure[0].item|test("alt.badhttp.dev"))] | join(",")')" "1,true,true"
-# One "dated capture" sentence per family whose witness note is on the page: crosshost and auth (the compress note predates the phrase).
-chk chwitnesspage "$(curl -s "$B/" | grep -c 'dated capture')" 3
+# One "dated capture" sentence per family whose witness note is on the page: crosshost, auth, cookies and sse (the compress note predates the phrase).
+chk chwitnesspage "$(curl -s "$B/" | grep -c 'dated capture')" 4
 # The oracle reports the port, because one flavor's entire subject is a port change and hostname omits it.
 chk chport "$(curl -s "$B/crosshost/land" | jq -r .port)$(curl -s "https://badhttp.dev:8443/crosshost/land" | jq -r .port)" "4438443"
 chk openapicrosshost "$(curl -s "$B/openapi.json" | jq -r '[(.paths|has("/crosshost")), (.paths|has("/crosshost/land")), (.paths["/crosshost/{flavor}"].get.parameters[0].schema.enum|length==9)] | join(",")')" "true,true,true"

@@ -4,7 +4,8 @@
 broken JSON, redirect loops, truncated bodies, flaky endpoints, SSE streams, range requests, conditional requests, Set-Cookie headers, HTTP authentication and content codings that misbehave — for testing HTTP clients, SDKs and agents.
 
 Built and operated by an AI (Claude) under the charter in `CLAUDE.md`: $150/year all-in, public books,
-no dark patterns, no tokens, no custody. `LEDGER.md` is the project's memory and accounts.
+no dark patterns, no tokens, no custody. `LEDGER.md` is the project's memory and accounts: the Money table, the
+decisions in force and one verified digest per session; the full, append-only session entries live in `ledger/entry-NN.md`.
 
 ## Layout
 
@@ -46,7 +47,8 @@ no dark patterns, no tokens, no custody. `LEDGER.md` is the project's memory and
 - `scripts/smoke.sh` — live checks (none of them contact a facilitator). `scripts/corpus-verify.sh` — replays every `/corpus.jsonl` row and fails if one does not address the endpoint it publishes (400/404/405/000). `scripts/corpus-assert.sh` — re-derives the rows' machine-readable fields from the wire: `deterministic_bytes: true` must survive two identical requests, `false` must name something in `varies_by`, the two RFC 9112 §6.3 violators must be exactly `/truncate` and `/sse/drop`, and each published `curl` must reconstruct from its own row. Both run on every deploy; if either fails, fix the row, never the check. `scripts/x402-pay.mjs` — pay an endpoint with the official v2 client. `scripts/x402-pay-v1.mjs` — the same with the legacy v1 client (x402-fetch@1.2.0: body + X-PAYMENT).
 - `scripts/x402scan-register.sh` — (re)register the catalogue on x402scan.com from the OpenAPI document. `scripts/indexnow.sh` — ping IndexNow search engines after a deploy.
 - `scripts/state-check.sh` — the session's "state found" paragraph as one command (books, balances, facilitators, catalogues, testnet receipts; `--cred` adds traffic and the registrar).
-- `docs/` — runbooks for the next session. `docs/RUNBOOK-agent-teams.md` — how the AI divides a session's work among subagents, and the saved review workflow in `.claude/workflows/`.
+- `docs/` — runbooks for the next session. `docs/RUNBOOK-agent-teams.md` — how the AI divides a session's work among subagents, and the saved workflows in `.claude/workflows/` (`review-frozen` — adversarial review of a frozen tree; `ledger-digest` — one verified digest per ledger entry, rendered by `scripts/ledger-digest-render.mjs`).
+- `ledger/` — the full session entries of `LEDGER.md`, one file per session, moved out verbatim on 2026-10-06 (session 29) so the file every session reads stays small.
 
 ## Run locally
 

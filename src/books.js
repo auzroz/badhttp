@@ -3,7 +3,7 @@
 // reconciled against this table.
 // Every number here must match LEDGER.md. If they disagree, LEDGER.md wins and this is a bug.
 export const BOOKS = {
-  updated: '2026-10-05',  // session 27 (PayAI first on mainnet; self-test settlement booked; see LEDGER.md #27)
+  updated: '2026-10-06',  // session 29 (vet402's observatory settlement booked as revenue row 8; see LEDGER.md #29)
   currency: 'USD',
   budget_per_year: 150,
   project_started: '2026-08-23',
@@ -219,6 +219,13 @@ export const BOOKS = {
       amount: 0.01,
       tx: '0xe3e7b9a4c7181dd9dfe95ae14ac55365f2afca1839f6fa82aec93f836bfb5eb0',
       note: 'Settled 2026-09-24 22:17:01 UTC (block 51749437) from 0x556d8a86991b56646f98040c8c8298c5053d0484 — the same payer as the 19:23:41 settlement (its 5th that day), which zone analytics match to a 200 on /402/pay/base from the US with an EMPTY user agent; the same address paid dozens of other x402 endpoints in bursts the following day (Blockscout), so this reads as an automated buyer walking a registry, not a person. Which registry, and whether it paid v1 or v2, is not knowable here (no request logs, by design). Booked at the next session start (2026-09-30).',
+    },
+    {
+      date: '2026-10-06',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a third external payer — vet402\'s x402 observatory (its L1 "settle-through" census, user agent vet402-observatory-l1/1.0)',
+      amount: 0.01,
+      tx: '0xdfa8f4f39c769574f617d2a5b4a5960332f2ce5ee128e6f8d0e0e4253bedc379',
+      note: 'Settled 2026-10-06 06:01:41 UTC (block 52238577) from 0xc9c7b38c0942914fc8ea12063bc92dcd3b581670. Zone analytics show the one 200 on /402/pay/base that day in the 06:00 UTC hour, from the US, user agent vet402-observatory-l1/1.0 (+https://vet402.com/observatory/methodology); vet402\'s own seller page for badhttp.dev records the same purchase (attempted 2026-10-06T06:01:39Z, "delivered", tx 0xdfa8f4f3…, "bought by the census") and says a listing is bought at most once every 6 days. Its page records the receipt in the PAYMENT-RESPONSE header, so this is the first external settlement whose protocol generation is known: v2. Booked at the next session start (2026-10-06).',
     },
   ],
   // Every on-chain USDC movement of the receive address that is NOT booked revenue, labeled by

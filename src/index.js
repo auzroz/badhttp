@@ -1,10 +1,10 @@
 // badhttp — the server that misbehaves on purpose.
 // Stateless by design: no storage, no cron. The only outbound requests are /402/pay's calls to an
 // x402 facilitator and /books' cached reads of two of our own addresses — balanceOf for the receive
-// address and for the project's payer wallet from a public Base RPC, and the receive address's
-// itemized transfer list from a public Blockscout indexer.
+// address and for the project's payer wallet from a public Base RPC, and the receipt of every
+// transaction the books name from the same kind of RPC (no indexer; session 30).
 import { BOOKS, totals, hostingUsage, solvency, fundingManifest } from './books.js';
-import { receiveBalance, payerBalance, receiveTransfers, usdcFromAtomic, reproduceCurl, reproduceTransfersCurl, CHAIN_INFO } from './chain.js';
+import { receiveBalance, payerBalance, receiveTransfers, usdcFromAtomic, reproduceCurl, reproduceReceiptCurl, RECEIPT_SOURCES, CHAIN_INFO } from './chain.js';
 import { homePage, booksPage, llmsTxt, FAVICON_SVG } from './page.js';
 import { openapi } from './openapi.js';
 import { handle402, SCENARIOS as X402_SCENARIOS, BROKEN as X402_BROKEN, X402_LIMITS, VERIFIED as X402_VERIFIED } from './x402.js';
@@ -19,7 +19,9 @@ import { templateExplainer, matchesTemplate } from './template.js';
 import { handleCorpus, handleLicense, LICENSE } from './corpus.js';
 import { handleClients } from './clients.js';
 
-const VERSION = '0.22.1';
+const VERSION = '0.23.0';
+// The last change to the /.well-known/x402 manifest (its `updated` field, per the draft). Move it when the manifest changes.
+const WELL_KNOWN_X402_UPDATED = '2026-10-09T00:00:00Z';
 
 const STATUS_TEXT = {
   200: 'OK', 201: 'Created', 202: 'Accepted', 203: 'Non-Authoritative Information', 204: 'No Content',
@@ -422,12 +424,13 @@ async function handleEcho(request, url) {
 // operator does), and every USDC movement of it is public and itemized. The aggregate identity —
 // balance − (labeled movements in − labeled movements out) − booked revenue must be 0 — stands on
 // the RPC alone; positive means money arrived that the next session books; negative means the books
-// claim more than the address holds, and the itemized list (Blockscout) shows which movement is
-// missing or mislabeled, so a withdrawal can never hide (the design rule from docs/research-session-3.md).
+// claim more than the address holds; the itemized list (the receipt of every transaction the books
+// name, each confirmed or not) shows which book row is wrong, so a withdrawal can never hide behind
+// the books (the design rule from docs/research-session-3.md, re-based on receipts in session 30).
 const CHAIN_STATUS_NOTE = {
   reconciled: 'the chain and the books agree',
   unbooked_receipts: 'USDC has arrived on chain that is not yet booked as revenue above; booking happens by hand at the next session',
-  bookkeeping_bug: 'the books account for more USDC (labeled movements plus booked revenue) than the address now holds — either a movement is missing or mislabeled in the books, or money left the address unrecorded; the itemized transfer list shows which. Treat this as a bookkeeping bug (or an RPC error: reproduce the number yourself) until the ledger explains it',
+  bookkeeping_bug: 'the books account for more USDC (labeled movements plus booked revenue) than the address now holds — either a movement is missing or mislabeled in the books, or money left the address unrecorded; the itemized list below shows which named row the chain does not bear out, and scripts/find-transfers.mjs finds a movement the books do not name. Treat this as a bookkeeping bug (or an RPC error: reproduce the number yourself) until the ledger explains it',
 };
 
 const ATOMIC_STR = /^\d{1,30}$/;
@@ -471,59 +474,88 @@ function chainView(bal, t) {
   };
 }
 
-// The itemized transfer list: every on-chain USDC movement of the receive address, labeled from
-// the books (chain_movements by tx hash, then revenue rows carrying a tx). An unmatched incoming
-// row is "unbooked"; an unmatched outgoing row is an unexplained withdrawal and is flagged loudly.
+// The itemized transfer list, since session 30 built from the receipts of the transactions the books
+// NAME (chain_movements rows and revenue rows carrying a tx), not from an indexer: each named
+// transaction's USDC Transfer logs that touch the address are the rows, and each book row is thereby
+// confirmed against the chain (amount, direction, counterparty) or shown as unconfirmed — loudly,
+// because a book row the chain does not bear out is a bookkeeping bug. An on-chain leg inside a named
+// transaction that no book row explains is "unbooked" if incoming and an unexplained withdrawal if
+// outgoing. A transaction the books do not name cannot appear here at all; the aggregate identity above
+// is where it shows, and the view says so instead of letting the table read as exhaustive.
 function transfersView(tr, books, chain) {
   const base = {
-    source_api: 'base.blockscout.com/api/v2 (public Blockscout indexer for Base)',
-    reproduce: reproduceTransfersCurl(books.receive_address),
+    source_api: `eth_getTransactionReceipt on a public Base RPC (${RECEIPT_SOURCES.join(', then ')}), one receipt per transaction the books name; no indexer`,
+    method: 'For every tx hash in chain_movements[] and revenue[], read its receipt; the USDC Transfer logs in it whose from or to is the receive address are the rows. A book row is confirmed when a log matches its tx, direction and amount exactly. The block header of each row gives its timestamp.',
+    discovery: 'This list can only name transactions the books already name. A payment or withdrawal the books do not know shows in the balance identity above (unbooked_usdc), not here; the next session finds its hash with eth_getLogs and names it.',
+    reproduce: reproduceReceiptCurl(books.revenue.find((r) => r.tx)?.tx),
   };
-  if (!tr) return { ...base, error: 'the public indexer did not answer; the reconciliation above stands on the RPC balance alone, and the itemized list can be reproduced with the curl below' };
-  if (tr.pending) return { ...base, error: 'first read at this edge location is still in progress (the indexer answers in 2–20 s); reload shortly — the result is being cached' };
+  if (!tr) return { ...base, error: 'no public RPC returned a receipt for any transaction the books name (unreachable, rate-limited, or every receipt refused); the reconciliation above stands on the RPC balance alone, and each row can be reproduced with the curl below' };
+  if (tr.pending) return { ...base, error: 'first read at this edge location is still in progress (a batch of receipts from a public RPC); reload shortly — the result is being cached' };
   // Keyed by tx AND direction: a book row explains one leg of a transaction, not the whole tx —
   // otherwise an outgoing leg inside a booked incoming tx would silently inherit the calm label.
-  const labelByTx = new Map();
+  const expected = new Map();
   for (const m of Array.isArray(books.chain_movements) ? books.chain_movements : []) {
-    if (m.tx) labelByTx.set(`${String(m.tx).toLowerCase()}:${m.direction}`, { label: m.label, note: m.note });
+    if (m.tx) expected.set(`${String(m.tx).toLowerCase()}:${m.direction}`, { label: m.label, note: m.note, atomic: String(m.amount_atomic), tx: String(m.tx).toLowerCase(), direction: m.direction, confirmed: false });
   }
   for (const r of books.revenue) {
-    if (r.tx) labelByTx.set(`${String(r.tx).toLowerCase()}:in`, { label: 'booked revenue', note: r.item || '' });
+    if (r.tx) expected.set(`${String(r.tx).toLowerCase()}:in`, { label: 'booked revenue', note: r.item || '', atomic: String(Math.round(r.amount * 1e6)), tx: String(r.tx).toLowerCase(), direction: 'in', confirmed: false });
   }
-  let unbookedIn = 0, unexplainedOut = 0;
+  let unbookedIn = 0, unexplainedOut = 0, mismatched = 0;
   let net = 0n;
-  const items = tr.items.map((it) => {
-    const known = labelByTx.get(`${it.tx}:${it.direction}`);
+  // Two passes, so the label of a leg never depends on the order legs arrive in: first every book row
+  // claims the leg that matches it exactly, then the legs nobody claimed are labeled on their own
+  // terms — a mismatch only when the book row it points at is STILL unconfirmed (review, session 30).
+  const claimed = new Set();
+  tr.items.forEach((it, i) => {
+    const known = expected.get(`${it.tx}:${it.direction}`);
+    if (known && !known.confirmed && known.atomic === it.atomic) { known.confirmed = true; claimed.add(i); }
+  });
+  const items = tr.items.map((it, i) => {
+    const known = expected.get(`${it.tx}:${it.direction}`);
     let label, note;
-    if (known) ({ label, note } = known);
-    else if (it.direction === 'in') { label = 'unbooked'; note = 'Arrived on chain, not yet booked — if you just paid or donated, this row is you.'; unbookedIn++; }
+    const confirmed = claimed.has(i);
+    if (confirmed) ({ label, note } = known);
+    else if (known && !known.confirmed) { label = 'AMOUNT MISMATCH'; note = `The books record ${usdcFromAtomic(BigInt(known.atomic))} USDC for this leg ("${known.label}"); the chain shows ${usdcFromAtomic(BigInt(it.atomic))}. The chain is right and the book row is wrong until the ledger explains it.`; mismatched++; }
+    else if (it.direction === 'in') { label = 'unbooked'; note = 'Arrived on chain inside a transaction the books name, but no book row explains this leg — if you just paid or donated, this row is you.'; unbookedIn++; }
     else if (it.direction === 'self') { label = 'self-transfer'; note = 'From and to are both this address; net zero.'; }
     else { label = 'UNEXPLAINED WITHDRAWAL'; note = 'Money left the address and no book entry explains it. Even a legitimate movement by the operator (the only key-holder) would appear here until the next session books it — either way, treat the books as broken until the ledger explains this transaction.'; unexplainedOut++; }
     if (it.direction === 'in') net += BigInt(it.atomic);
     else if (it.direction === 'out') net -= BigInt(it.atomic);
     return {
       timestamp: it.timestamp, block_number: it.block_number, tx: it.tx, direction: it.direction,
-      from: it.from, to: it.to, amount_usdc: usdcFromAtomic(BigInt(it.atomic)), label, note,
+      from: it.from, to: it.to, amount_usdc: usdcFromAtomic(BigInt(it.atomic)), label, note, confirmed_on_chain: confirmed,
     };
   });
-  // Cross-check against the independent RPC balance — meaningful only when the list is complete
-  // (nothing truncated, nothing dropped by validation) and both sources answered. A mismatch
-  // usually means the two were read at different moments (indexer lag or cache age); the RPC
-  // balance above is authoritative either way.
-  let matches = null;
-  if (!tr.truncated && !tr.dropped && chain && chain.balance_usdc !== undefined) matches = usdcFromAtomic(net) === chain.balance_usdc;
+  // Every book row the chain did not bear out, with the reason the receipt read gave (or none: the
+  // receipt was fine but carried no leg of this direction and amount).
+  const unreadable = new Map((tr.unreadable || []).map((u) => [u.tx, u.reason]));
+  const unconfirmed = [...expected.values()].filter((e) => !e.confirmed).map((e) => ({
+    tx: e.tx, direction: e.direction, amount_usdc: usdcFromAtomic(BigInt(e.atomic)), label: e.label,
+    reason: unreadable.get(e.tx) || 'the receipt shows no USDC transfer of this amount in this direction',
+  }));
+  // Cross-check against the independent RPC balance: the sum of EVERY leg itemized (whatever its
+  // label) against the balance. When every named row is confirmed and the identity above is
+  // reconciled, that sum is the balance exactly; a difference means either a transfer the books do
+  // not name (see unbooked_usdc above) or a wrong book row (listed below). The page claims
+  // "every unit explained" only when the list is also clean (no unbooked, mismatched, unexplained
+  // or unconfirmed rows) — the sum alone cannot vouch for individual rows.
+  const matches = chain && chain.balance_usdc !== undefined ? usdcFromAtomic(net) === chain.balance_usdc : null;
   return {
     ...base,
     fetched_at: tr.fetched_at,
     age_seconds: tr.age_seconds,
     source: tr.source,
-    truncated: tr.truncated,
-    ...(tr.dropped ? { dropped_invalid_rows: tr.dropped } : {}),
+    rpc: tr.rpc,
+    truncated: false,
     items,
+    books_rows_named: expected.size,
+    books_rows_confirmed: expected.size - unconfirmed.length,
+    books_rows_unconfirmed: unconfirmed,
     itemized_net_usdc: usdcFromAtomic(net),
     matches_balance: matches,
     unbooked_in_count: unbookedIn,
     unexplained_out_count: unexplainedOut,
+    amount_mismatch_count: mismatched,
   };
 }
 
@@ -547,7 +579,7 @@ async function handleBooks(url, ctx) {
   const [bal, payer, tr] = await Promise.all([
     receiveBalance(BOOKS.receive_address, ctx),
     payerBalance(BOOKS.solvency.payer_address, ctx),
-    receiveTransfers(BOOKS.receive_address, ctx),
+    receiveTransfers(BOOKS.receive_address, [...BOOKS.chain_movements.map((m) => m.tx), ...BOOKS.revenue.map((r) => r.tx)].filter(Boolean), ctx),
   ]);
   const chain = chainView(bal, t);
   chain.transfers = transfersView(tr, BOOKS, chain);
@@ -671,13 +703,42 @@ export default {
         case 'robots.txt':
           return text(`User-agent: *\nAllow: /\nDisallow: /delay/\nDisallow: /drip\nDisallow: /truncate\nDisallow: /flaky/\nDisallow: /redirect/\nDisallow: /sse/\nDisallow: /range/\nDisallow: /etag/\nDisallow: /cookies/\nDisallow: /auth/\nDisallow: /compress/\nAllow: /crosshost\nDisallow: /crosshost/\nAllow: /402/pay\nAllow: /402/pay/base\nAllow: /402/pay/base-sepolia\nDisallow: /402/\nSitemap: ${url.origin}/sitemap.xml\n`, 200, { 'cache-control': 'public, max-age=86400' });
         case 'sitemap.xml': {
-          const pages = ['/', '/books', '/badjson', '/sse', '/range', '/etag', '/cookies', '/auth', '/compress', '/crosshost', '/402', '/corpus', '/clients', '/license', '/openapi.json', '/llms.txt', '/books.json', '/corpus.jsonl', '/clients.jsonl', '/funding.json'];
+          const pages = ['/', '/books', '/badjson', '/sse', '/range', '/etag', '/cookies', '/auth', '/compress', '/crosshost', '/402', '/corpus', '/clients', '/license', '/openapi.json', '/llms.txt', '/books.json', '/corpus.jsonl', '/clients.jsonl', '/funding.json', '/.well-known/x402'];
           const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((pth) => `  <url><loc>${url.origin}${pth}</loc><lastmod>${BOOKS.updated}</lastmod></url>`).join('\n')}\n</urlset>\n`;
           return new Response(xml, { status: 200, headers: withBase({ 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=86400' }) });
         }
         case 'llms.txt':
           return new Response(llmsTxt({ origin: url.origin, version: VERSION, limits: LIMITS, x402Limits: X402_LIMITS }), { status: 200, headers: withBase({ 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'public, max-age=300' }) });
         case '.well-known':
+          // /.well-known/x402 (session 30): the resource-server manifest of draft-hawkins-x402-dns-discovery-03
+          // (IETF Internet-Draft, August 2026). Machines asked for this path 639 times in the three days before
+          // it existed (Agent402's crawler names it as one of the four documents it reads). It lists ONLY the
+          // three URLs that settle: every other /402 route misbehaves on purpose and never charges, and a
+          // manifest that advertised them as payable would be the lie this project exists to not tell. The
+          // draft's rule that every resource URL be HTTPS and on this host is met by construction (url.host).
+          if (seg[1] === 'x402') {
+            // https by construction, whatever scheme the request arrived on: the draft says every resource URL MUST be HTTPS.
+            const origin = `https://${url.host}`;
+            const pay = (path, description) => ({ url: `${origin}${path}`, method: 'GET', description });
+            return json({
+              x402Version: 2,
+              kind: 'resource-server',
+              name: 'badhttp',
+              description: 'HTTP edge cases for testing clients, SDKs and agents, including x402 paywalls that misbehave on purpose. Free; only the three resources below settle a payment.',
+              resources: [
+                pay('/402/pay/base', `A real x402 paywall, real USDC on Base mainnet (eip155:8453): pay ${X402_LIMITS.defaultUsd} USDC (or ?amount=, ${X402_LIMITS.minUsd}-${X402_LIMITS.maxUsd}) and get a 200 with a receipt and the transaction hash. v2 in PAYMENT-REQUIRED and v1 in the body of the same 402.`),
+                pay('/402/pay', 'The same paywall for test USDC on Base Sepolia (eip155:84532), the default network; no dollar value.'),
+                pay('/402/pay/base-sepolia', 'Identical to /402/pay: test USDC on Base Sepolia.'),
+              ],
+              not_listed: 'Every other route under /402 is a paywall that misbehaves on purpose (never settles, rejects, times out, crashes, returns garbage receipts, asks for 1,000,000 USDC, names a chain that does not exist, or is malformed). They are documented at /402 and deliberately absent here, because an indexer that read them as payable would mislead its buyers.',
+              attestation: { type: 'none' },
+              docs: `${origin}/402`,
+              openapi: `${origin}/openapi.json`,
+              books: `${origin}/books.json`,
+              contact: 'ops@badhttp.dev',
+              updated: WELL_KNOWN_X402_UPDATED,
+            }, 200, { 'cache-control': 'public, max-age=3600' });
+          }
           // 402index.io domain verification (session 20, 2026-09-08). Their claim flow hands out a
           // secret token and asks for its SHA-256 at this path; holding the preimage is what proves
           // control of the domain. The hash below is public by construction — it reveals nothing

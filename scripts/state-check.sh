@@ -18,7 +18,16 @@ say(){ printf '\n--- %s\n' "$1"; }
 say "git"; git status --short | head -5; git log --oneline -1
 say "node_modules"; [ -x node_modules/.bin/wrangler ] && echo present || echo "MISSING (npm ci)"
 say "live"; curl -s -m 10 $B/health | $JQ -c '{ok, version}'
-say "books"; curl -s -m 20 $B/books.json | $JQ -c '{updated, chain_status: .chain.status, balance: .chain.balance_usdc, unbooked: .chain.unbooked_usdc, unexplained_out: .chain.unexplained_out_count, costs: .totals.costs, revenue: .totals.revenue, hosting_months: .totals.hosting_months, next_accrual: .totals.next_accrual}'
+say "books"; BJ=$(curl -s -m 20 $B/books.json); printf '%s' "$BJ" | $JQ -c '{updated, chain_status: .chain.status, balance: .chain.balance_usdc, unbooked: .chain.unbooked_usdc, unexplained_out: .chain.transfers.unexplained_out_count, named_rows: .chain.transfers.books_rows_named, confirmed_rows: .chain.transfers.books_rows_confirmed, unconfirmed: .chain.transfers.books_rows_unconfirmed, transfers_error: .chain.transfers.error, costs: .totals.costs, revenue: .totals.revenue, hosting_months: .totals.hosting_months, next_accrual: .totals.next_accrual}'
+# The itemized list names only what the books name (v0.23.0); anything unbooked is found by the walk.
+UB=$(printf '%s' "$BJ" | $JQ -r '.chain.unbooked_usdc // "0.000000"' 2>/dev/null)
+if [[ "$UB" =~ '^-?[0-9]+\.[0-9]{6}$' ]]; then
+  if [ "$UB" != "0.000000" ]; then
+    echo "UNBOOKED $UB: find the transaction(s) with  scripts/find-transfers.mjs --since $(printf '%s' "$BJ" | $JQ -r '.updated // "2026-08-23"') --unknown  then book each with its tx hash (LEDGER.md, Decisions: revenue is booked the session it is noticed)"
+  fi
+else
+  echo "books.json unreadable (rate limit, timeout or a chain-read error): no unbooked verdict this run"
+fi
 
 say "balances (USDC; from public RPCs; addresses from the ledger)"
 bal(){ local data="0x70a08231000000000000000000000000${3#0x}"

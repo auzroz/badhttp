@@ -252,7 +252,7 @@ ${endpoint({
 <p>If badhttp is useful to you, it accepts support on the one rail an AI can operate end to end: USDC on <strong>Base</strong>, to the receive address on the <a href="/books">books</a> — <code>${esc(books.receive_address)}</code> (<a href="https://basescan.org/address/${esc(books.receive_address)}#tokentxns">Basescan</a>; Base network only). A machine can pay the real paywall (<code>/402/pay/base</code>, <code>?amount=</code> up to $1.00) and get a receipt; a human with a wallet can send any amount directly. Either way it appears in the chain reconciliation on the books within minutes and is booked as revenue at the next session — in public, like every other cent this project touches.</p>
 
 <footer>
-<p>Stateless: no database, no request logging by this Worker (Workers invocation logs are off, so a discarded <code>PAYMENT-SIGNATURE</code> is not retained by it; Cloudflare's edge keeps sampled request metadata, not headers or bodies), no outbound requests except <code>/402/pay</code>'s calls to an x402 facilitator and <a href="/books">/books</a>' cached reads of two of our own addresses — the receive address's balance and the project payer wallet's balance from a public Base RPC, and the receive address's itemized transfer list from a public Blockscout indexer. One rate limit, at the zone and before this Worker runs: 100 requests per 10 seconds per IP. Past that Cloudflare answers 429 with a text/plain body (<code>error code: 1015</code>) and a <code>Retry-After</code> for 10 seconds. It is not one of the scenarios above; treat it as real.</p>
+<p>Stateless: no database, no request logging by this Worker (Workers invocation logs are off, so a discarded <code>PAYMENT-SIGNATURE</code> is not retained by it; Cloudflare's edge keeps sampled request metadata, not headers or bodies), no outbound requests except <code>/402/pay</code>'s calls to an x402 facilitator and <a href="/books">/books</a>' cached reads of two of our own addresses — the receive address's balance, the project payer wallet's balance, and the receipt of every transaction the books name, all from public Base RPCs (no indexer, no key). One rate limit, at the zone and before this Worker runs: 100 requests per 10 seconds per IP. Past that Cloudflare answers 429 with a text/plain body (<code>error code: 1015</code>) and a <code>Retry-After</code> for 10 seconds. It is not one of the scenarios above; treat it as real.</p>
 <p>Source and ledger: <a href="https://github.com/auzroz/badhttp">github.com/auzroz/badhttp</a> (MIT; the ledger is <a href="https://github.com/auzroz/badhttp/blob/main/LEDGER.md">LEDGER.md</a>, append-only, one entry per session with spend and reasoning; published 2026-09-18 as a single commit, and the commit message says why). Built 2026-08-23. Contact: <a href="mailto:ops@badhttp.dev">ops@badhttp.dev</a> (received and read; never send credentials or secrets by mail either). <a href="/openapi.json">OpenAPI</a> · <a href="/books.json">books.json</a></p>
 </footer>`;
 
@@ -263,40 +263,40 @@ function transfersSection(tr, balanceUsdc) {
   if (!tr) return '';
   if (tr.error) {
     return `
-<h3>Every movement, itemized</h3>
+<h3>Every movement the books name, confirmed on chain</h3>
 <p class="note">${esc(tr.error)}</p>
 <pre><code>${esc(tr.reproduce)}</code></pre>`;
   }
   const short = (h) => `${h.slice(0, 6)}…${h.slice(-4)}`;
-  const when = (ts) => `${ts.slice(0, 10)} ${ts.slice(11, 16)} UTC`;
+  const when = (ts) => (ts ? `${ts.slice(0, 10)} ${ts.slice(11, 16)} UTC` : `block ${tr.items.find((i) => i.timestamp === ts)?.block_number ?? '?'}`);
   const rows = tr.items.length
     ? tr.items.map((it) => {
       const other = it.direction === 'out' ? it.to : it.from;
-      const alarm = it.label === 'UNEXPLAINED WITHDRAWAL';
-      return `<tr><td>${esc(when(it.timestamp))}</td><td class="num">${it.direction === 'out' ? '−' : '+'}${esc(it.amount_usdc)}</td><td><code><a href="https://basescan.org/address/${esc(other)}">${esc(short(other))}</a></code></td><td><code><a href="https://basescan.org/tx/${esc(it.tx)}">${esc(short(it.tx))}</a></code></td><td>${alarm ? '<strong>' : ''}${esc(it.label)}${alarm ? '</strong>' : ''}${it.note ? `<br><span class="note">${esc(it.note)}</span>` : ''}</td></tr>`;
+      const alarm = it.label === 'UNEXPLAINED WITHDRAWAL' || it.label === 'AMOUNT MISMATCH';
+      return `<tr><td>${esc(it.timestamp ? when(it.timestamp) : `block ${it.block_number}`)}</td><td class="num">${it.direction === 'out' ? '−' : '+'}${esc(it.amount_usdc)}</td><td><code><a href="https://basescan.org/address/${esc(other)}">${esc(short(other))}</a></code></td><td><code><a href="https://basescan.org/tx/${esc(it.tx)}">${esc(short(it.tx))}</a></code></td><td>${alarm ? '<strong>' : ''}${esc(it.label)}${alarm ? '</strong>' : ''}${it.confirmed_on_chain ? ' <span class="note">· confirmed</span>' : ''}${it.note ? `<br><span class="note">${esc(it.note)}</span>` : ''}</td></tr>`;
     }).join('')
-    : `<tr><td colspan="5" class="note">No movements yet.</td></tr>`;
+    : `<tr><td colspan="5" class="note">The books name no transactions yet.</td></tr>`;
   const freshness = tr.source === 'stale-cache'
     ? `an edge-cached copy from ${esc(tr.age_seconds)} s ago; a fresh read started in the background`
-    : `${tr.age_seconds < 2 ? 'read just now' : 'read ' + esc(tr.age_seconds) + ' s ago'}`;
+    : `${tr.age_seconds < 2 ? 'read just now' : 'read ' + esc(tr.age_seconds) + ' s ago'} from <code>${esc(tr.rpc || 'a public RPC')}</code>`;
+  const unconfirmed = tr.books_rows_unconfirmed && tr.books_rows_unconfirmed.length
+    ? `<p><strong>${esc(String(tr.books_rows_unconfirmed.length))} book row${tr.books_rows_unconfirmed.length === 1 ? '' : 's'} ${tr.books_rows_unconfirmed.length === 1 ? 'is' : 'are'} not borne out by the chain.</strong> Treat the books as broken until the ledger explains ${tr.books_rows_unconfirmed.length === 1 ? 'it' : 'them'}.</p><ul>${tr.books_rows_unconfirmed.map((u) => `<li><code><a href="https://basescan.org/tx/${esc(u.tx)}">${esc(short(u.tx))}</a></code> ${esc(u.direction)} ${esc(u.amount_usdc)} USDC, booked as "${esc(u.label)}": ${esc(u.reason)}</li>`).join('')}</ul>`
+    : '';
+  const clean = tr.unbooked_in_count === 0 && tr.amount_mismatch_count === 0 && tr.unexplained_out_count === 0 && Array.isArray(tr.books_rows_unconfirmed) && tr.books_rows_unconfirmed.length === 0;
   const crossCheck = tr.matches_balance === false
-    ? `<p class="note">The itemized rows sum to ${esc(tr.itemized_net_usdc)} USDC while the balance above reads ${esc(balanceUsdc ?? 'differently')} — the two sources were read at different moments (indexer lag or cache age). The RPC balance is authoritative; this list catches up within minutes.</p>`
-    : '';
-  const truncNote = tr.truncated
-    ? `<p class="note">Only the newest ${esc(String(tr.items.length))} movements are itemized here (one indexer page per direction); the balance identity above still counts everything. The curl below pages through the rest.</p>`
-    : '';
-  const dropNote = tr.dropped_invalid_rows
-    ? `<p class="note">${esc(String(tr.dropped_invalid_rows))} row${tr.dropped_invalid_rows === 1 ? '' : 's'} from the indexer failed validation and ${tr.dropped_invalid_rows === 1 ? 'is' : 'are'} not shown; this list is incomplete until the indexer answers cleanly.</p>`
-    : '';
+    ? `<p class="note">The itemized legs above (every label) sum to ${esc(tr.itemized_net_usdc)} USDC while the balance above reads ${esc(balanceUsdc ?? 'differently')}. Either the address has moved USDC in a transaction the books do not yet name (the identity above shows it as unbooked, and the next session books it with its hash), or a book row is wrong (listed above if so). The RPC balance is authoritative.</p>`
+    : tr.matches_balance === true
+      ? `<p class="note">The itemized legs above (every label) sum to ${esc(tr.itemized_net_usdc)} USDC, which is the balance above${clean ? ': every unit the address holds is explained by a transaction the books name' : ' — but not every leg is explained by a book row (see the labels above), so that sum vouches for the total, not for the rows'}.</p>`
+      : '';
   const alarm = tr.unexplained_out_count > 0
     ? `<p><strong>${esc(String(tr.unexplained_out_count))} outgoing transfer${tr.unexplained_out_count === 1 ? '' : 's'} ha${tr.unexplained_out_count === 1 ? 's' : 've'} no book entry explaining ${tr.unexplained_out_count === 1 ? 'it' : 'them'}.</strong> Money left the address unrecorded; treat the books as broken until the ledger explains it. That this line can appear — automatically, on the page itself — is the point of publishing the itemization.</p>`
     : '';
   return `
-<h3>Every movement, itemized</h3>
-<p>Each USDC transfer in or out of the address, from the public Blockscout indexer (${freshness}), labeled from the books by transaction hash. An incoming transfer the books don't know is <em>unbooked</em> (usually: someone just paid, and the next session books it). An outgoing one the books don't explain would be flagged in bold as unexplained — the project holds no key to this address, and this table is how a quiet withdrawal by anyone who does would surface.</p>
+<h3>Every movement the books name, confirmed on chain</h3>
+<p>The books name every transaction they claim — each labeled movement and each booked payment carries its hash. For each one this page reads the receipt from a public Base RPC (${freshness}) and shows the USDC transfer in it that touches the address, so a book row is <em>confirmed</em> by the chain or exposed as wrong; ${esc(String(tr.books_rows_confirmed))} of ${esc(String(tr.books_rows_named))} named rows are confirmed. What this table cannot do is show a transaction the books do not name: that is the job of the balance identity above, where an unbooked payment appears within minutes as <em>unbooked</em> (usually: someone just paid, and the next session finds the hash and books it). Until session 30 this list came from a public indexer, which stopped answering on 2026-10-06; the receipts come from the same kind of public RPC as the balance and need no key.</p>
 <div class="scroll"><table><thead><tr><th>when (UTC)</th><th class="num">usdc</th><th>counterparty</th><th>tx</th><th>label</th></tr></thead><tbody>${rows}</tbody></table></div>
-${alarm}${crossCheck}${truncNote}${dropNote}
-<p class="note">Reproduce the list yourself (no key needed):</p>
+${unconfirmed}${alarm}${crossCheck}
+<p class="note">Reproduce any row yourself (no key needed):</p>
 <pre><code>${esc(tr.reproduce)}</code></pre>`;
 }
 
@@ -311,11 +311,11 @@ function chainSection(chain, books) {
   const tr = chain.transfers;
   // The per-movement claim is earned only when the itemized list actually came back complete and
   // clean; the aggregate identity alone cannot vouch for individual rows.
-  const itemizedClean = !!(tr && !tr.error && !tr.truncated && tr.unexplained_out_count === 0 && tr.unbooked_in_count === 0);
+  const itemizedClean = !!(tr && !tr.error && tr.unexplained_out_count === 0 && tr.unbooked_in_count === 0 && Array.isArray(tr.books_rows_unconfirmed) && tr.books_rows_unconfirmed.length === 0 && tr.matches_balance === true);
   const statusLine = {
-    reconciled: `<p><strong>The chain and the books agree.</strong>${itemizedClean ? ' Every movement of the address is accounted for below.' : ''}</p>`,
+    reconciled: `<p><strong>The chain and the books agree.</strong>${itemizedClean ? ' Every transaction the books name is confirmed on chain below, and those rows sum to the balance.' : ''}</p>`,
     unbooked_receipts: `<p><strong>USDC has arrived on chain that is not yet booked above.</strong> Booking happens by hand at the next session — if you just paid or donated: thank you, this line is you.</p>`,
-    bookkeeping_bug: `<p><strong>The books account for more USDC than the address holds.</strong> Labeled movements plus booked revenue exceed the balance the RPC reports — either a movement is missing or mislabeled in the books, or money left the address unrecorded. The itemized list below shows which. Treat this as a bookkeeping bug (or reproduce the number below to rule out an RPC fault) until the ledger explains it.</p>`,
+    bookkeeping_bug: `<p><strong>The books account for more USDC than the address holds.</strong> Labeled movements plus booked revenue exceed the balance the RPC reports — either a movement is missing or mislabeled in the books, or money left the address unrecorded. The itemized list below shows any named row the chain does not bear out; a withdrawal in a transaction the books do not name shows only in this identity, and scripts/find-transfers.mjs in the repository finds its hash. Treat this as a bookkeeping bug (or reproduce the number below to rule out an RPC fault) until the ledger explains it.</p>`,
   }[chain.status] || '';
   const freshness = chain.source === 'stale-cache'
     ? `an edge-cached copy from ${esc(chain.age_seconds)} s ago; a fresh read started in the background`
@@ -353,7 +353,7 @@ function hostingMeasuredSection(books, u) {
 <table><thead><tr><th>measured</th><th class="num">per 30 days</th><th>against the paid plan's included allowance</th></tr></thead><tbody>
 <tr><td>requests<br><span class="note">${esc(n(m.requests))} in the window, ${esc(n(u.requests_per_day))}/day</span></td><td class="num">${esc(n(u.projected_requests_per_month))}</td><td>${esc(pct(u.percent_of_paid_included_requests))} of ${esc(n(m.plan.paid_included_requests_per_month))}</td></tr>
 <tr><td>CPU time<br><span class="note">${esc(n(m.cpu_ms))} ms in the window, mean ${esc(String(u.mean_cpu_ms_per_request))} ms per request</span></td><td class="num">${esc(n(u.projected_cpu_ms_per_month))} ms</td><td>${esc(pct(u.percent_of_paid_included_cpu))} of ${esc(n(m.plan.paid_included_cpu_ms_per_month))} ms</td></tr>
-<tr><td>subrequests<br><span class="note">the RPC and indexer reads on this page</span></td><td class="num">${esc(n(Math.round(m.subrequests / m.window.days * 30)))}</td><td class="note">not separately metered</td></tr>
+<tr><td>subrequests<br><span class="note">the RPC reads on this page</span></td><td class="num">${esc(n(Math.round(m.subrequests / m.window.days * 30)))}</td><td class="note">not separately metered</td></tr>
 <tr><td>egress</td><td class="num">${esc(String(u.projected_egress_gb_per_month))} GB</td><td class="note">Workers does not bill egress</td></tr>
 </tbody></table>
 <p>So there are two honest answers to &ldquo;what does hosting cost&rdquo;, and they answer different questions. <strong>On the account that already carries the plan</strong> &mdash; the operator's, active before this project existed and covering other work &mdash; this project's usage sits inside the included allowance and the metered charge it adds is <strong>$${esc(u.incremental_hosting_usd_per_year.toFixed(2))}</strong>. <strong>Standing on its own</strong> it would pay the paid plan's floor, <strong>$${esc(u.standalone_hosting_usd_per_year.toFixed(2))}/year</strong> &mdash; because it could not use the free plan at all.</p>
@@ -385,6 +385,7 @@ function solvencySection(s, books) {
 ${s.next_bill ? `<tr><td><strong>next bill</strong>: ${esc(s.next_bill.item)}<br><span class="note">due ${esc(s.next_bill.due)}, in ${esc(String(s.days_until_next_bill))} days</span></td><td class="num"><strong>${esc(s.next_bill.amount.toFixed(2))}</strong></td><td class="note">registrar API, auto-renew on</td></tr>` : ''}
 </tbody></table>
 ${s.next_bill ? `<p>Earnings cover <strong>${esc(String(s.earned_share_of_next_bill_percent))}%</strong> of the next bill. On its own record this service does <strong>not</strong> pay for itself, and nothing in the measurements above changes that &mdash; the cost side is small, the earned side is $${esc(s.earned_to_date_usd.toFixed(2))}.</p>` : ''}
+${s.sustainability_statement && s.sustainability_statement_dated ? `<p><strong>Plainly, as of ${esc(s.sustainability_statement_dated)}:</strong> ${esc(s.sustainability_statement)}</p>` : ''}
 <h3>What is actually on hand, and whose it is</h3>
 <table><thead><tr><th>held</th><th class="num">usd</th><th>how this figure is known</th></tr></thead><tbody>
 <tr><td>USDC on Base at the project's payer wallet<br><span class="note"><code><a href="https://basescan.org/address/${esc(s.payer_address)}#tokentxns">${esc(s.payer_address)}</a></code> &mdash; ${esc(s.payer_note)}</span></td><td class="num">${esc(s.payer_usdc === null ? '—' : s.payer_usdc.toFixed(6))}</td><td class="note">${s.error ? 'unavailable this request' : `read from chain ${esc(String(s.age_seconds))} s ago (${esc(s.source)})`}</td></tr>
@@ -404,7 +405,7 @@ export function booksPage(books, totals, version, chain, usage, solv) {
 <header>
 <h1><a href="/">badhttp</a> <span class="pill">books</span></h1>
 <p class="tag">every dollar, in public</p>
-<p class="lede">This service is run by an AI with a budget of $${esc(books.budget_per_year)} per year and an obligation to publish its accounts. One-off costs and booked revenue are maintained by hand each session and must match the project ledger line for line; hosting accrues on a clock and is computed here, with its arithmetic printed beside it, because a figure that goes stale on a date is one nobody is obliged to notice. The receive address's balance and every one of its transfers are read from chain below (cached briefly at the edge) and reconciled against them, so an unbooked payment — or a bookkeeping error, or a withdrawal — normally shows here before any human touches the books.</p>
+<p class="lede">This service is run by an AI with a budget of $${esc(books.budget_per_year)} per year and an obligation to publish its accounts. One-off costs and booked revenue are maintained by hand each session and must match the project ledger line for line; hosting accrues on a clock and is computed here, with its arithmetic printed beside it, because a figure that goes stale on a date is one nobody is obliged to notice. The receive address's balance, and the receipt of every transaction the books name, are read from chain below (cached briefly at the edge) and reconciled against them, so an unbooked payment or withdrawal moves the balance identity, and a bookkeeping error in a named transaction shows in its row, before any human touches the books.</p>
 </header>
 <div class="books">
 <div><span>spent to date</span><b>${esc(usd(totals.costs))}</b></div>
@@ -482,7 +483,7 @@ Operated by an AI under a published charter; every cost and every dollar of reve
 
 ## Optional
 
-- [Books](${o}/books.json): public accounts, machine-readable; the \`chain\` object reconciles the receive address's live on-chain USDC balance against booked revenue (labeled non-revenue movements excluded) and \`chain.transfers\` itemizes every USDC movement of the address in both directions, each labeled from the books by tx hash — so an unbooked payment, a bookkeeping error, or an unexplained withdrawal is visible before any human touches the books. The project holds no key that can spend from the address; the operator does. Two figures beside the tables answer questions the books used to leave to assertion: \`hosting_measured\` and \`hosting_usage\` publish what this Worker actually consumes against Cloudflare's published allowances (so the reader can see that the $5/mo hosting line is the charter's attribution, what the project would pay standing alone, and what it adds to a bill that already exists — all three), and \`solvency\` reads the project's payer wallet live and sets it against the next bill, which is the whole self-sustainability question as one number
+- [Books](${o}/books.json): public accounts, machine-readable; the \`chain\` object reconciles the receive address's live on-chain USDC balance against booked revenue (labeled non-revenue movements excluded) and \`chain.transfers\` reads the receipt of every transaction the books name from a public RPC and confirms each book row against it (tx, direction, amount) — so a bookkeeping error or an unexplained withdrawal inside a named transaction is visible on the page, and an unbooked payment shows in the balance identity within minutes of arriving, before any human touches the books; the list itself names only what the books name, and says so. The project holds no key that can spend from the address; the operator does. Two figures beside the tables answer questions the books used to leave to assertion: \`hosting_measured\` and \`hosting_usage\` publish what this Worker actually consumes against Cloudflare's published allowances (so the reader can see that the $5/mo hosting line is the charter's attribution, what the project would pay standing alone, and what it adds to a bill that already exists — all three), and \`solvency\` reads the project's payer wallet live and sets it against the next bill, which is the whole self-sustainability question as one number
 - [Corpus](${o}/corpus.jsonl): the catalogue of defects as one flat NDJSON file, one row per documented defect behaviour (the template explainers and the discovery surfaces are deliberately not rows; \`what_is_not_a_row\` on the index says so) — url, request headers to send, the defect, the RFCs, whether the bytes are stable enough to pin a digest on, and a ready-to-run capture curl. [Index and capture notes](${o}/corpus). Read the \`rfc9112_message_syntax\` object before capturing: this service emits NO RFC 9112 message-syntax violations and cannot (a CDN re-serializes every response), so it is not a source of malformed start-lines, malformed field-lines or request-smuggling fixtures; its defects live one layer up
 - [Client observations](${o}/clients.jsonl): what real HTTP clients actually did, one NDJSON row per observation, five families so far: six decoding clients and two non-decoding controls against all 21 \`/compress\` flavors (dated 2026-09-02); eight clients started at each of the nine \`/crosshost\` flavors, eight boundaries and a same-origin control (dated 2026-09-17) — which of the headers each was sent arrived after the redirect, on which host, over which transport; and the same eight clients handed the documented fake credentials through their own mechanism at each of the 18 \`/auth\` flavors (dated 2026-09-18) — how the credentials were configured (\`mechanism_kind\`), how many requests the client made, and what the final /auth response said; and the same eight clients with a fresh jar at each of the 17 \`/cookies\` setter flavors (dated ${WITNESS_COOKIES.probed.slice(0, 10)}) — which planted cookies came back to /cookies/echo, what the jar recorded where it can be enumerated (\`jar_entries\`), and what survived /cookies/delete; and real SSE client libraries plus a raw-wire control at each of the 14 \`/sse\` flavors${WITNESS_SSE.probed ? ' (dated ' + WITNESS_SSE.probed.slice(0, 10) + ')' : ''} — every event delivered, every connection opened, how the stream ended, described against a WHATWG parse of the bytes the control received (\`class\` names whether the library is an EventSource-interface one that reconnects or a one-shot one). Each row carries the client's version. The only data here this project did not author about itself; \`corpus_id\` joins each row back to the corpus and \`family\` names the legend that applies. [Index, per-family outcome legends and the per-flavor disagreement count](${o}/clients). Read \`reading_this\` first: the \`outcome\` field describes what the caller received, and is never a verdict on the client
 - [Health](${o}/health): liveness

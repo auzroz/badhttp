@@ -396,29 +396,43 @@ chk booksaccrual "$(printf '%s\n' "$_BJ" | jq -r --argjson m1 "$_M1" --argjson m
   then "ok" else "bad" end')" ok
 chk bookscommitments "$(printf '%s\n' "$_BJ" | jq -r '[.commitments[] | select((.due > (now|strftime("%Y-%m-%d"))) and (.amount > 0) and (.verified|length > 0))] | length')" 1
 chk bookspageaccrual "$(curl -s "$B/books" | grep -c 'computed from the clock')" 1
-# /books chain reconciliation (v0.10.0; itemized transfers v0.11.0). Tolerant of a public-RPC or
-# indexer outage: when .chain.error / .chain.transfers.error is present the structural checks still
+# /books chain reconciliation (v0.10.0; itemized transfers v0.11.0; receipts by hash v0.23.0). Tolerant
+# of a public-RPC outage: when .chain.error / .chain.transfers.error is present the structural checks still
 # pass; the arithmetic identity and label assertions run only when the data was actually read.
 cjson=$(curl -s "$B/books.json")
-# A cold colo answers transfers with a "still in progress" note while the indexer read finishes in
-# the background (Blockscout takes 2-20 s). That is not an outage: wait briefly and refetch so the
-# label assertions actually run. A real indexer failure (any other .error) still passes as tolerated,
-# but loudly, so a run that passes only via the error guard is visible in the output.
+# A cold colo answers transfers with a "still in progress" note while the receipt batch finishes in
+# the background. That is not an outage: wait briefly and refetch so the label assertions actually
+# run. A real RPC failure (any other .error) still passes as tolerated, but loudly, so a run that
+# passes only via the error guard is visible in the output.
 tries=0
 while [ $tries -lt 3 ] && printf '%s\n' "$cjson" | jq -e '(.chain.transfers.error? // "") | test("in progress")' >/dev/null 2>&1; do
   sleep 8; cjson=$(curl -s "$B/books.json"); tries=$((tries+1))
 done
 terr=$(printf '%s\n' "$cjson" | jq -r '.chain.transfers.error? // ""')
 if [ -n "$terr" ]; then echo "WARN transfers degraded (checks pass vacuously): $terr"; fi
-if [ "$(printf '%s\n' "$cjson" | jq -r '.chain.transfers.truncated')" = "true" ]; then echo "WARN transfers truncated: bookstransfersselftest passes vacuously"; fi
 chk bookschain "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.error? // "") != "" then "ok" elif (.chain.balance_usdc|test("^[0-9]+\\.[0-9]{6}$")) and (.chain.status|IN("reconciled","unbooked_receipts","bookkeeping_bug")) then "ok" else "bad" end')" ok
 chk bookschainmath "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.error? // "") != "" then "ok" elif ((((.chain.balance_usdc|tonumber)*1000000|round) - ((.chain.movements_in_usdc|tonumber)*1000000|round) + ((.chain.movements_out_usdc|tonumber)*1000000|round) - ((.chain.booked_revenue_usdc|tonumber)*1000000|round)) == ((.chain.unbooked_usdc|tonumber)*1000000|round)) then "ok" else "bad" end')" ok
 chk bookschaincurl "$(printf '%s\n' "$cjson" | jq -r '.chain.reproduce|test("eth_call")')" true
 chk bookstransfers "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.transfers.error? // "") != "" then "ok" elif ((.chain.transfers.items|type) == "array") and (.chain.transfers.unexplained_out_count == 0) then "ok" else "bad" end')" ok
-chk bookstransfersselftest "$(printf '%s\n' "$cjson" | jq -r 'if ((.chain.transfers.error? // "") != "") or (.chain.transfers.truncated == true) then "ok" else ([.chain.transfers.items[] | select(.tx == "0x8a331a0a28a26d290984c34bd12ae03bdc31603856b4e46bace3d2045cddc089" or .tx == "0x629b1a478e88c8be043ee0e8ebac67169a386192fde388b9a616fc850b5010b8" or .tx == "0x9eed7b72bdd445317b1a59e5c7cc12f9a44b857132dcc743121b366261e6ca75" or .tx == "0x30e24c0a8d200180906adf54ba011fd26aa2c4fb070ad78c870debd2d286a748") | .label] | if (length == 4) and (map(test("self-test")) | all) then "ok" else "bad" end) end')" ok
-chk bookstransferscurl "$(printf '%s\n' "$cjson" | jq -r '.chain.transfers.reproduce|test("token-transfers")')" true
+chk bookstransfersselftest "$(printf '%s\n' "$cjson" | jq -r 'if ((.chain.transfers.error? // "") != "") or (.chain.transfers.truncated == true) then "ok" else ([.chain.transfers.items[] | select(.tx == "0x8a331a0a28a26d290984c34bd12ae03bdc31603856b4e46bace3d2045cddc089" or .tx == "0x629b1a478e88c8be043ee0e8ebac67169a386192fde388b9a616fc850b5010b8" or .tx == "0x9eed7b72bdd445317b1a59e5c7cc12f9a44b857132dcc743121b366261e6ca75" or .tx == "0x30e24c0a8d200180906adf54ba011fd26aa2c4fb070ad78c870debd2d286a748" or .tx == "0xba553c25d371527eef124de3151a002b20b276030c1e0368553133098961c6b0") | .label] | if (length == 5) and (map(test("self-test")) | all) then "ok" else "bad" end) end')" ok
+chk bookstransferscurl "$(printf '%s\n' "$cjson" | jq -r '.chain.transfers.reproduce|test("eth_getTransactionReceipt")')" true
+# Since v0.23.0 the list is built from the receipts of the transactions the books name, so every book
+# row must be confirmed by the chain. The named-row floor (15, the count when this was written) keeps
+# the check from passing vacuously on an empty set; raise it when rows are added, never lower it.
+chk bookstransfersconfirmed "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.transfers.error? // "") != "" then "ok" elif (.chain.transfers.books_rows_named >= 15) and (.chain.transfers.books_rows_named == (([.revenue[]|select(.tx)]|length) + ([.chain_movements[]|select(.tx)]|length))) and (.chain.transfers.books_rows_confirmed == .chain.transfers.books_rows_named) and ((.chain.transfers.books_rows_unconfirmed|length) == 0) and (.chain.transfers.amount_mismatch_count == 0) and ([.chain.transfers.items[] | select(.confirmed_on_chain != true)] | length == 0) then "ok" else "bad" end')" ok
+# When the identity above is reconciled and every named row is confirmed, the rows sum to the balance exactly.
+# Recomputed in jq from the rows and the RPC balance — never from the Worker's own matches_balance, which is
+# derived from the same rows (a check that reads its expectation from the thing it checks proves nothing).
+chk bookstransferssum "$(printf '%s\n' "$cjson" | jq -r 'if ((.chain.transfers.error? // "") != "") or (.chain.status != "reconciled") then "ok" elif (([.chain.transfers.items[] | ((.amount_usdc|tonumber*1000000|round) * (if .direction=="out" then -1 elif .direction=="self" then 0 else 1 end))] | add // 0) == (.chain.balance_usdc|tonumber*1000000|round)) and (.chain.transfers.matches_balance == true) then "ok" else "bad" end')" ok
 chk bookspagechain "$(curl -s "$B/books" | grep -c 'Reconciliation')" 1
-chk bookspageitemized "$(curl -s "$B/books" | grep -c 'Every movement, itemized')" 1
+chk bookspageitemized "$(curl -s "$B/books" | grep -c 'Every movement the books name, confirmed on chain')" 1
+# /.well-known/x402 (v0.23.0, session 30): the resource-server manifest of draft-hawkins-x402-dns-discovery-03,
+# the file Agent402's crawler asked for 639 times in three days. Pinned: kind, the three paywall URLs (and no
+# other /402 route — the misbehaving ones never settle and must not be advertised as payable), CORS and JSON.
+_wk=$(curl -s -D - "$B/.well-known/x402")
+chk wellknownx402kind "$(printf '%s\n' "$_wk" | sed '1,/^\r\{0,1\}$/d' | jq -r '.kind + ":" + (.x402Version|tostring)')" "resource-server:2"
+chk wellknownx402urls "$(printf '%s\n' "$_wk" | sed '1,/^\r\{0,1\}$/d' | jq -r '[.resources[].url | sub("^https?://[^/]+"; "")] | sort | join(",")')" "/402/pay,/402/pay/base,/402/pay/base-sepolia"
+chk wellknownx402headers "$(printf '%s\n' "$_wk" | tr -d '\r' | grep -i -c '^content-type: application/json\|^access-control-allow-origin: \*')" 2
 # ---- the measured hosting basis and the solvency line (v0.16.0, session 21) -------------------
 # hosting_usage is DERIVED from hosting_measured, so this recomputes the derivation from the raw
 # measurement — with Cloudflare's two included allowances DUPLICATED here on purpose, exactly as
@@ -505,10 +519,10 @@ chk bookspagesolvency "$(printf '%s\n' "$bpage" | grep -c 'Can it pay its own ne
 # The page must state BOTH cost answers. A future edit that keeps only the $0 one would be the
 # flattering half of a true story, and this is the check that catches it.
 chk bookspagebothcosts "$(printf '%s\n' "$bpage" | grep -c 'Standing on its own')$(printf '%s\n' "$bpage" | grep -c 'the books charge themselves the larger figure' -i)" "11"
-chk openapi "$(curl -s "$B/openapi.json" | jq -r '.paths|keys|length')" 39
+chk openapi "$(curl -s "$B/openapi.json" | jq -r '.paths|keys|length')" 40
 chk openapiprofile "$(curl -s "$B/openapi.json" | jq -r '[(.paths["/402/pay"].get["x-payment-info"].price.mode), (.paths["/402/pay"].get["x-payment-info"].protocols[0]|keys[0]), ([.paths[] | .[] | .security] | all(. == [])), ([.paths[] | .[] | has("x-payment-info")] | map(select(.)) | length), (.info.contact.url|test("/books$")), (.info.contact.email // "none"), (.["x-agentcash-guidance"].llmsTxtUrl|test("/llms.txt$")), (.info["x-guidance"]|length > 50), (.paths["/402/{scenario}"].get.parameters[0].schema.enum|index("pay") // "nopay")] | join(",")')" "dynamic,x402,true,3,true,ops@badhttp.dev,true,true,nopay"
 chk llms "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$B/llms.txt"; curl -s "$B/llms.txt" | head -1)" "200 text/markdown; charset=utf-8# badhttp"
-chk sitemap "$(curl -s "$B/sitemap.xml" | grep -c '<loc>')$(curl -s -o /dev/null -w ' %{content_type}' "$B/sitemap.xml")" "20 application/xml; charset=utf-8"
+chk sitemap "$(curl -s "$B/sitemap.xml" | grep -c '<loc>')$(curl -s -o /dev/null -w ' %{content_type}' "$B/sitemap.xml")" "21 application/xml; charset=utf-8"
 chk robotsmap "$(curl -s "$B/robots.txt" | grep -c "^Sitemap: $B/sitemap.xml")" 1
 chk favicon "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$B/favicon.svg")$(curl -s -o /dev/null -w ' %{http_code} %{redirect_url}' "$B/favicon.ico")$(curl -sI "$B/" | tr -d '\r' | grep -ic "^content-security-policy: .*img-src 'self' data:")" "200 image/svg+xml 301 $B/favicon.svg1"
 # ---- funding discovery (v0.16.0): the manifest and its provenance file ------------------------

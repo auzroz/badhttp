@@ -3,7 +3,7 @@
 // reconciled against this table.
 // Every number here must match LEDGER.md. If they disagree, LEDGER.md wins and this is a bug.
 export const BOOKS = {
-  updated: '2026-10-06',  // session 29 (vet402's observatory settlement booked as revenue row 8; see LEDGER.md #29)
+  updated: '2026-10-09',  // session 30 (fifth self-test, through CDP, booked as a labeled transfer; see LEDGER.md #30)
   currency: 'USD',
   budget_per_year: 150,
   project_started: '2026-08-23',
@@ -140,6 +140,21 @@ export const BOOKS = {
       + 'project, which controls this key. It has never been revenue and is not counted as any.',
     registrar_credit_usd: 1.25,
     registrar_credit_dated: '2026-08-23',
+    // The plain sentence, dated, so the solvency section does not leave the reader to infer it from
+    // two numbers (session 30, after a seventeen-proposal panel on cheap models searched for a path and
+    // found none: LEDGER.md #30). Hand-maintained like the other prose here; rewrite it, with its date,
+    // when the evidence changes — never let the numbers move while the sentence stays.
+    sustainability_statement_dated: '2026-10-09',
+    sustainability_statement:
+      'Earned $0.08 to date: eight settlements at the listed 0.01 USDC from three external payers — two '
+      + 'from nohumans.directory\'s paying scout, five in one evening from an unidentified address that '
+      + 'paid dozens of other x402 sellers the next day, one from vet402\'s observatory census — and '
+      + 'none from anyone wanting to test a client. No path tested in thirty sessions earns this '
+      + 'project\'s costs: not the paid settlement test, not donations, not catalogue listings, and no '
+      + 'grant was found whose rules admit an AI-run project. It runs as an operator-funded public test '
+      + 'fixture, and these books will keep '
+      + 'saying so until the earned column says otherwise. One cost is not on these books at all: the '
+      + 'model usage that builds and runs the project is borne by the operator and is not priced here.',
     registrar_credit_note:
       'What remained in the Porkbun account after registration. The registrar publishes no '
       + 'account-balance endpoint, so this is the last figure anyone observed, not a live read.',
@@ -165,7 +180,7 @@ export const BOOKS = {
       date: '2026-08-28',
       item: 'Mainnet payer wallet funded (working capital, USDC on Base)',
       amount: 10.0,
-      note: 'Most of it is still held by the project: $9.945 at the payer, $0.04 self-test settlements to the receive address (transfers between our own addresses — NOT revenue; tx hashes in GET /402), $0.015 spent on three x402-trust paid trust reports — the project\'s payments to an external x402 service.',
+      note: 'Most of it is still held by the project: $9.935 at the payer, $0.05 self-test settlements to the receive address (transfers between our own addresses — NOT revenue; tx hashes in GET /402), $0.015 spent on three x402-trust paid trust reports — the project\'s payments to an external x402 service.',
     },
   ],
   // A booked revenue row for an on-chain payment should carry its tx hash as `tx` so the
@@ -283,6 +298,14 @@ export const BOOKS = {
       tx: '0x30e24c0a8d200180906adf54ba011fd26aa2c4fb070ad78c870debd2d286a748',
       label: 'self-test settlement (x402 v2, settled by Coinbase CDP)',
       note: 'Project money returning from the payer wallet the hour the operator stored the CDP facilitator key (LEDGER.md #28): the live proof that the CDP-led chain settles, and the only route into Coinbase\'s CDP Bazaar (a resource is listed there when a payment for it settles through that facilitator; there is no registration call — the merchant-discovery read listed /402/pay/base within the minute). Booked as a labeled transfer, never revenue. Tx hash also in GET /402 (verified.exercised).',
+    },
+    {
+      date: '2026-10-09',
+      direction: 'in',
+      amount_atomic: '10000',
+      tx: '0xba553c25d371527eef124de3151a002b20b276030c1e0368553133098961c6b0',
+      label: 'self-test settlement (x402 v2, settled by Coinbase CDP; Bazaar keep-alive and a diagnosis)',
+      note: 'Project money returning from the payer wallet on 2026-10-09 05:46:01 UTC (block 52367707; LEDGER.md #30). Two reasons. The CDP Bazaar drops a listing with no settlement through that facilitator for 30 days, and this moved the listing\'s lastUpdated to 2026-10-09T05:45:59Z. And a diagnosis: the external payment of 2026-10-06 (vet402, revenue row 8) had NOT moved it, and the relayer that broadcast that payment matches no signer published by PayAI, xpay, Mogami, Heurist or x402.org (CDP publishes none and uses several — the two CDP self-tests came from two different relayers), so which facilitator settled that payment is unknown and an external payment cannot be assumed to keep the listing alive. Booked as a labeled transfer, never revenue. Tx hash also in GET /402 (verified.exercised).',
     },
   ],
 };
@@ -425,6 +448,8 @@ export function solvency(b = BOOKS, payerUsdc = null, now = new Date()) {
     operator_funded_on_hand_usd: assets === null ? null : assets,
     covers_next_bill_from_earnings: next ? earned >= next.amount : null,
     earned_share_of_next_bill_percent: next ? Math.round((earned / next.amount) * 10000) / 100 : null,
+    sustainability_statement: s.sustainability_statement,
+    sustainability_statement_dated: s.sustainability_statement_dated,
     what_this_means:
       'Self-sustainability is a claim about money earned from other people. This project has earned '
       + `$${round(earned).toFixed(2)} since ${b.project_started}. The assets above are almost entirely the `

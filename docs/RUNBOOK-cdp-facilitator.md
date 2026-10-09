@@ -41,7 +41,10 @@ month are free, then $0.001 each; verification is free. At this project's volume
    leave the optional "Permission restrictions" at their default (the facilitator needs no trade/transfer rights);
    do **not** set an IP allowlist (the Worker calls from Cloudflare's egress addresses, which are not ours to pin);
    keep the default Ed25519 algorithm (`src/cdp-auth.js` handles P-256 too). The key can be revoked in the portal at
-   any time; a revoked or wrong key costs nothing but a failover to PayAI (`details` on the response says so).
+   any time; a revoked or wrong key costs nothing but a failover to PayAI. The only trace on a successful `/402/pay/base`
+   response is its `facilitator` field (PayAI's URL instead of CDP's) and, since v0.23.0, `failed_over_from` naming the
+   facilitators that refused with their status; `details` appears only on the 502 when every facilitator fails. Check it
+   with a self-test (`scripts/x402-pay.mjs`) and read `facilitator` in the body.
 2. From the repository directory, with `.env` loaded (`set -a; source .env; set +a; export PATH=/opt/homebrew/bin:$PATH`):
 
        ./node_modules/.bin/wrangler secret put CDP_API_KEY_ID

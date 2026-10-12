@@ -19,7 +19,7 @@ import { templateExplainer, matchesTemplate } from './template.js';
 import { handleCorpus, handleLicense, LICENSE } from './corpus.js';
 import { handleClients } from './clients.js';
 
-const VERSION = '0.24.0';
+const VERSION = '0.25.0';
 // The last change to the /.well-known/x402 manifest (its `updated` field, per the draft). Move it when the manifest changes.
 const WELL_KNOWN_X402_UPDATED = '2026-10-09T00:00:00Z';
 

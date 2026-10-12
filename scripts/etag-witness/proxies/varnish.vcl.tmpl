@@ -1,0 +1,7 @@
+vcl 4.1;
+# /etag witness: Varnish with its built-in VCL. This file only names the backend (the recorder); every
+# subroutine is Varnish's builtin. Rendered by ../drivers/proxy.mjs.
+backend default {
+    .host = "{{ORIGIN_HOST}}";
+    .port = "{{ORIGIN_PORT}}";
+}

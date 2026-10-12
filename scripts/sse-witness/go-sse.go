@@ -432,7 +432,7 @@ func runGoSSE(r *run) {
 		r.addEvent(e.Type, id, e.Data)
 		if id != nil {
 			r.mu.Lock()
-			r.lastID = id // Connection.lastEventID is private; the id carried by the last delivered event is its value
+			r.lastID = id // Connection.lastEventID is private; the id carried by the last delivered event is its value (true by construction: it cannot show what a reconnect would carry, unlike r3labs' cl.LastEventID below)
 			r.mu.Unlock()
 		}
 	})

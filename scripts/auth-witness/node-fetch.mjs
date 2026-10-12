@@ -62,8 +62,11 @@ for (const f of ORDER) {
       // fetch turns a 407 into a network error (the Fetch standard's rule, applied outside a browser): the promise
       // rejects and the 407 Response never reaches the caller. A server response WAS seen on the wire, so this is
       // the client raising, not a transport failure — recorded as such, with the status and challenge the wire
-      // carried, and not retried.
-      if (lastHop && lastHop.headers['x-badhttp-version']) {
+      // carried, and not retried. Narrowed in the v0.24.0 follow-up: only that case (fetch itself rejected, no Response reached
+      // the caller, and the last hop on the wire was the 407). A timeout, or a reset while reading a body that arrived, is a
+      // transport failure and falls through to the retry path below; before, any exception after a badhttp header was seen
+      // was recorded as the client raising. The committed capture's one 'raised' row is a 407 and still meets this.
+      if (res === undefined && lastHop && lastHop.status === 407 && lastHop.headers['x-badhttp-version']) {
         console.log(JSON.stringify({ ...base, attempts: attempt, requests_made: counter - before, hops, final_status: null, last_status_seen: lastHop.status, redirects_followed: null, final_url: null, challenge_seen: lastHop.headers['www-authenticate'] || lastHop.headers['proxy-authenticate'] || null, oracle: null, version_header: lastHop.headers['x-badhttp-version'], error_kind: 'raised', client_error: err }));
         console.error('node', f, 'raised:', err);
         break;

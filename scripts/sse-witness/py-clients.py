@@ -174,7 +174,7 @@ class HttpxSse(Client):
                             obs.event(sse.event, sse.id, sse.data)
                             if sse.retry is not None:
                                 obs.retry = sse.retry
-                            obs.last_id = sse.id or None
+                            obs.last_id = sse.id or None  # the id of the last DELIVERED event: httpx-sse's decoder state is never read, so this cannot show what a reconnect would carry
                     obs.conn_end('server-closed')
                     obs.end = 'clean'
             except HarnessTimeout:
@@ -182,7 +182,7 @@ class HttpxSse(Client):
                 obs.end = 'harness-timeout'
             except httpx_sse.SSEError as e:  # the library's own Content-Type check, raised after the response arrived
                 obs.error(describe(e), bool(getattr(e, 'data', None)), None)
-                obs.conn_end('refused', describe(e))
+                obs.conn_end('refused', describe(e))  # 'refused' = the library rejected a response that arrived; a TCP refusal is 'connect-refused' (node-clients.mjs)
                 obs.end = 'error'
             except Exception as e:
                 got_response = bool(obs.conns) and obs.conns[-1]['status'] is not None

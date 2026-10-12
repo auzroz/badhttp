@@ -29,6 +29,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { isAbsolute } from 'node:path';
+import { VERDICT_WORDS, checkString, headerSafe } from './witness-gate.mjs';
 
 const OUT = 'src/witness-sse-data.js';
 const isMain = process.argv[1] && /witness-parse-sse\.mjs$/.test(process.argv[1]);
@@ -43,10 +44,12 @@ export const FLAVOR_ORDER = ['ok', 'stall', 'cut', 'drop', 'crlf', 'cr', 'no-spa
 const ROSTER_IDS = ['curl', 'aiohttp-sse-client', 'eventsource-npm', 'go-sse', 'httpx-sse', 'node-eventsource', 'r3labs-sse', 'sseclient-py'];
 const CLASSES = ['eventsource', 'one-shot', 'raw'];
 const ENDS = ['clean', 'error', 'reconnecting', 'stopped', 'closed-by-harness', 'harness-timeout'];
-const CONN_ENDS = ['server-closed', 'reset', 'client-closed', 'harness-timeout', 'status-204', 'error', 'refused'];
+// connections[].ended: 'refused' is the library itself rejecting a response that arrived (py-clients.py; the Node and Go libraries abort
+// their own request and are recorded 'client-closed'); 'connect-refused' is a TCP refusal (node-clients.mjs; no captured row carries it);
+// 'error' is a failure the harness could not classify. One meaning per token.
+const CONN_ENDS = ['server-closed', 'reset', 'client-closed', 'harness-timeout', 'status-204', 'error', 'refused', 'connect-refused'];
 const CLEAN_CLOSE = ['ok', 'stall', 'cut', 'crlf', 'cr', 'no-space', 'multiline', 'comments', 'split-utf8', 'error-event', 'big'];
-const VERDICT_WORDS = /\b(correctly|incorrectly|conformant|non-compliant|noncompliant|violates|buggy|broken client|wrong client|passes|fails the spec)\b/i;
-const MACHINE = /\/(Users|home|private|tmp|Volumes|var|opt|Library)\/|[A-Za-z]:\\\\|file:\/\/|localhost|127\.0\.0\.1|\[::1\]|(?<![\d.])0\.0\.0\.0(?![\d.])/;
+// VERDICT_WORDS and the machine/host checks are the shared gate, scripts/witness-gate.mjs.
 
 // ---------- the reference parser: WHATWG HTML §9.2.6, byte-faithful ----------
 // Lines end at CRLF, LF or CR; one leading BOM is stripped; a field is `name: value` with exactly one leading
@@ -75,7 +78,7 @@ export function whatwgParse(bytes) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const unterminated = !endedWithEol && i === lines.length - 1;
-    if (unterminated) { pending = true; break; } // §9.2.6: a line not terminated at EOF is not processed... see note below
+    if (unterminated) { pending = !line.startsWith(':'); break; } // §9.2.6: a line not terminated at EOF is not processed (see the note below); an unterminated comment leaves nothing pending, a field line does
     if (line === '') { dispatch(); continue; }
     if (line.startsWith(':')) continue;
     let field, value;
@@ -122,12 +125,12 @@ const prov = lines.shift();
 if (!prov || prov.capture !== 'sse') throw new Error('line 1 must be the provenance line with capture: "sse"');
 const rows = lines;
 const bad = (m) => { throw new Error(`REFUSED: ${m}`); };
-if (MACHINE.test(JSON.stringify(prov))) bad('the provenance line carries a machine path or local host');
+{ const why = checkString(JSON.stringify(prov), 'the provenance line', { verdict: false }); if (why) bad(why); }
 // The run log is committed beside the capture; it is not emitted, but a machine path in it would be published with the repo.
 const LOG_PATH = SRC.replace(/\.jsonl$/, '.log');
 let LOG_TEXT = '';
 try { LOG_TEXT = readFileSync(LOG_PATH, 'utf8'); } catch { bad(`the run log ${LOG_PATH} must be committed beside the capture`); }
-if (MACHINE.test(LOG_TEXT)) bad(`the run log ${LOG_PATH} carries a machine path or local host`);
+{ const why = checkString(LOG_TEXT, `the run log ${LOG_PATH}`, { verdict: false }); if (why) bad(why); }
 
 // Roster and grid checks
 const clients = new Map();
@@ -141,12 +144,12 @@ for (const r of rows) {
   const conns = r.connections || [];
   if (!conns.length) bad(`${r.client.id}/${r.flavor}: no connection recorded (did not land)`);
   conns.forEach((c, i) => { if (!c.x_badhttp_version) bad(`${r.client.id}/${r.flavor}: connection ${i + 1} of ${conns.length} has no x-badhttp-version (did not land, or an edge response was recorded as the client's)`); });
-  if (MACHINE.test(JSON.stringify(r))) bad(`${r.client.id}/${r.flavor}: row carries a machine path or local host`);
-  for (const m of JSON.stringify(r).matchAll(/\bhttps?:\/\/([^\/\s"'?#:\\]+)/gi)) if (!['badhttp.dev', 'alt.badhttp.dev'].includes(m[1].toLowerCase())) bad(`${r.client.id}/${r.flavor}: foreign host ${m[1]}`);
+  { const why = checkString(JSON.stringify(r), `${r.client.id}/${r.flavor}: the row`, { verdict: false }); if (why) bad(why); }
   const key = `${r.client.id}/${r.flavor}`;
   if (seen.has(key)) bad(`duplicate observation ${key}: one row per (client, flavor)`);
   seen.add(key);
   if (!clients.has(r.client.id)) clients.set(r.client.id, { ...r.client, flavors: new Set() });
+  else if (JSON.stringify(r.client) !== JSON.stringify((({ flavors, ...c }) => c)(clients.get(r.client.id)))) bad(`${r.client.id} changed its client metadata mid-capture`);
   clients.get(r.client.id).flavors.add(r.flavor);
 }
 for (const [id, c] of clients) {
@@ -177,6 +180,7 @@ for (const r of control) {
   if (!r.control || !r.control.raw_base64) bad(`control ${r.flavor} carries no raw_base64`);
   const raw = Buffer.from(r.control.raw_base64, 'base64');
   if (sha(raw) !== r.control.raw_sha256) bad(`control ${r.flavor}: raw bytes do not hash to raw_sha256`);
+  if (r.control.raw_bytes !== raw.length) bad(`control ${r.flavor}: raw_bytes ${r.control.raw_bytes} is not the ${raw.length} bytes decoded`);
   const parsed = whatwgParse(raw);
   RAW_REF[r.flavor] = { events: parsed.events.map((e) => ({ ...e, data_bytes: Buffer.byteLength(e.data, 'utf8') })), later: null };
   const events = RAW_REF[r.flavor].events.map((e) => norm(e));
@@ -296,6 +300,8 @@ const witness = {
   family: 'sse', probed: prov.probed, badhttp_version_observed: BADHTTP_VERSION, worker_version: prov.worker_version || null,
   flavors: FLAVOR_ORDER.length, clients: CLIENTS.filter((c) => c.role === 'client').length, source_file: SRC.replace(/^.*?docs\//, 'docs/'), run_log: SRC.replace(/^.*?docs\//, 'docs/').replace(/\.jsonl$/, '.log'), capture_scripts: 'scripts/sse-witness/',
 };
+// Provenance fields and the capture path are written into the header comment of the generated file.
+for (const [label, v] of [['probed', witness.probed], ['worker_version', witness.worker_version], ['the capture path', witness.source_file], ['badhttp_version_observed', BADHTTP_VERSION]]) { const why = headerSafe(label, v); if (why) bad(why); }
 const header = `// GENERATED by scripts/witness-parse-sse.mjs from ${witness.source_file} — do not edit by hand.
 // Re-run the generator after any new capture; the capture scripts are in scripts/sse-witness/.
 //

@@ -9,7 +9,8 @@ The state under test is the client's JAR. For each (client, flavor) a FRESH sess
   4. GET /cookies/echo       what survived the cleanup
 0.2 s between requests. Every request the client sent during step 1 is counted from inside the client (a urllib
 handler, a requests adapter, an httpx event hook, a urllib3 pool subclass, an aiohttp middleware) together with the
-number of Set-Cookie headers the client's OWN response API exposed on that hop. A final response without
+number of Set-Cookie headers the client's own response API exposed on that hop (requests is the exception: its headers mapping folds repeated
+Set-Cookie into one comma-joined value, so the count is read from the urllib3 response beneath it, resp.raw.headers.getlist). A final response without
 x-badhttp-version is Cloudflare's rate-limit page, not an observation: the whole flavor is retried after a pause
 (attempts <= 3) and recorded as an error only if it never clears. urllib3 has no jar: jar_kind "no-jar", the echo is
 sent with no Cookie header, after_delete and jar_entries are null; the four steps still run so hops and the setter
@@ -19,7 +20,7 @@ fields are real.
   COOKIE_FLAVORS=ok,nameless limits a dry run; a published capture always runs the full list.
 """
 import asyncio, base64, json, os, sys, time, platform
-import urllib.request, urllib.error, http.cookiejar
+import http.client, urllib.request, urllib.error, http.cookiejar
 from datetime import datetime, timezone
 
 B = sys.argv[1] if len(sys.argv) > 1 else 'https://badhttp.dev'
@@ -124,7 +125,7 @@ class RequestsCounting(HTTPAdapter):
         resp = super().send(request, **kw)
         self.o.last_status = resp.status_code
         self.o.hops[-1]['status'] = resp.status_code
-        self.o.hops[-1]['set_cookie_count'] = len(resp.raw.headers.getlist('Set-Cookie'))
+        self.o.hops[-1]['set_cookie_count'] = len(resp.raw.headers.getlist('Set-Cookie'))  # urllib3 layer: requests' own headers mapping merges repeated Set-Cookie
         return resp
 
 class RequestsClient(Client):
@@ -335,12 +336,12 @@ def profile(name, version, invocation, cls, transport_errors):
         run_flavor(name, cls, transport_errors, base, f)
 
 profile('urllib', f'{PY} stdlib', 'build_opener(HTTPCookieProcessor(CookieJar()), counting handler).open(Request(url)) x4', UrllibClient,
-        (urllib.error.URLError, TimeoutError, ConnectionError))
+        (urllib.error.URLError, TimeoutError, ConnectionError, http.client.IncompleteRead))  # IncompleteRead: a body cut short is a transport failure
 profile('requests', f'{requests.__version__} ({PY})', 'requests.Session().get(url, allow_redirects=True) x4', RequestsClient,
-        (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
+        (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError))  # ChunkedEncodingError: a body cut short is a transport failure
 profile('httpx', f'{httpx.__version__} ({PY})', 'httpx.Client(follow_redirects=True).get(url) x4', HttpxClient,
         (httpx.TransportError,))
 profile('urllib3', f'{urllib3.__version__} ({PY})', 'urllib3.PoolManager().request("GET", url, redirect=True, retries=Retry(total=10, redirect=6, respect_retry_after_header=False)) x4, no jar', Urllib3Client,
         (urllib3.exceptions.HTTPError,))
 profile('aiohttp', f'{aiohttp.__version__} ({PY})', 'aiohttp.ClientSession().get(url, allow_redirects=True) x4', AiohttpClient,
-        (aiohttp.ClientConnectionError, asyncio.TimeoutError, TimeoutError))
+        (aiohttp.ClientConnectionError, aiohttp.ClientPayloadError, asyncio.TimeoutError, TimeoutError))  # ClientPayloadError: a body cut short is a transport failure

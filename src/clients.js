@@ -1,4 +1,4 @@
-// /clients — what real HTTP clients did, as data. Six families so far.
+// /clients — what real HTTP clients did, as data. Seven families so far.
 //
 // Why this exists (session 19, 2026-09-07). Since v0.12.0 the home page has carried a paragraph
 // asserting how six real HTTP clients behave against twenty-one content-coding flavors, and cited
@@ -38,6 +38,8 @@ import { WITNESS_SSE, CLIENTS_SSE, REFERENCE_SSE, OBSERVATIONS_SSE } from './wit
 import { sseFindings } from './sse.js';
 import { WITNESS_RANGE, CLIENTS_RANGE, REFERENCE_RANGE, OBSERVATIONS_RANGE } from './witness-range-data.js';
 import { rangeFindings } from './range.js';
+import { WITNESS_ETAG, CLIENTS_ETAG, REFERENCE_ETAG, OBSERVATIONS_ETAG } from './witness-etag-data.js';
+import { etagFindings } from './etag.js';
 
 // The keys every row carries whatever its family. Family-specific fields are listed per family below.
 export const COMMON_FIELDS = ['id', 'corpus_id', 'family', 'flavor', 'url', 'client', 'observed', 'badhttp_version_observed', 'status', 'reported_error', 'outcome', 'license'];
@@ -67,12 +69,15 @@ const TRUNC_ROWS = OBSERVATIONS.filter((o) => o.flavor === 'truncated' && CLIENT
 const TRUNC_SILENT = TRUNC_ROWS.filter((o) => o.outcome === 'differs-silently');
 const TRUNC_PARTIAL = TRUNC_SILENT.filter((o) => o.bytes_received > 0).length;
 const TRUNC_EMPTY = TRUNC_SILENT.filter((o) => o.bytes_received === 0).length;
+const UNDECL_ROWS = OBSERVATIONS.filter((o) => (o.flavor === 'undeclared' || o.flavor === 'double-hidden') && CLIENTS.find((c) => c.id === o.client)?.role === 'client');
+const UNDECL_SILENT = UNDECL_ROWS.filter((o) => o.outcome === 'differs-silently');
 const COMPRESS_READING =
   'Read `outcome` as a description of what the caller received, never as a verdict on the client. ' +
-  '"differs-silently" is the CORRECT behaviour on some flavors and the finding on others, and the ' +
+  '"differs-silently" is the expected outcome on some flavors and the finding on others, and the ' +
   'difference is a property of the flavor, not of the client. On `undeclared` and `double-hidden` ' +
   'this server declares no coding for the client to strip, so returning the bytes exactly as sent ' +
-  'is right — and all six clients do. On `truncated` the identical outcome is the finding: ' +
+  'is the expected outcome — and ' +
+  `${numWord(UNDECL_SILENT.length)} of ${numWord(UNDECL_ROWS.length)} client rows on those two flavors returned it. On` + ' `truncated` the identical outcome is the finding: ' +
   `${cw(TRUNC_SILENT.length)} of ${cw(TRUNC_ROWS.length)} reported no error: ${cw(TRUNC_PARTIAL)} returned a partial document as though it were whole` +
   `${TRUNC_EMPTY ? ` and ${cw(TRUNC_EMPTY)} an empty body` : ''}. GET /compress documents which is which, ` +
   'per flavor. No client here is scored, ranked, or called conformant: no specification says what a ' +
@@ -919,9 +924,212 @@ function rangeFamily({ rows }) {
 }
 
 // ---------------------------------------------------------------------------------------------------
+// etag: real HTTP caches and conditional-request clients plus a raw-wire control x 10 /etag flavors (each fetching the flavor
+// three times through a fresh cache); the reference is what RFC 9111 implies a textbook cache would have sent and shown its
+// caller given what the control's textbook revalidation got (session 32, 2026-10-12; docs/spec-etag-witness.md).
+
+const ETAG_CLASSES = {
+  'library-cache': 'A caching layer under an HTTP client library: it stores a response and decides, from what it stored, whether to revalidate and what to send. The harness never sends a conditional header itself, so every If-None-Match and If-Modified-Since in the row is one the library chose.',
+  'cli-conditional': 'A command-line tool that keeps one saved validator between runs (curl --etag-save/--etag-compare, curl -z, wget -N). Not a cache in the RFC 9111 sense: it has no store of responses, only a validator and a file, so the three fetches are three runs in one working directory. The row names the exact flags in configuration.',
+  'proxy-cache': 'A caching proxy configured with the recorder as its upstream and driven by curl as its user, with only the directives that enable its cache at all (named in configuration). The exchanges are what the proxy sent upstream; the caller is curl talking to the proxy.',
+  raw: 'The control: curl sending exactly what the row says and nothing else (cold-raw: no conditional header; revalidate-raw: If-None-Match with the ETag cold-raw received and If-Modified-Since with the Last-Modified it received, verbatim, as RFC 9111 §4.3.1 says to validate; revalidate-adopted-raw on mismatch: the tag the 304 carried). Its body hash is the document every caller body is compared with.',
+};
+
+const ETAG_OUTCOMES = {
+  'document/stored-after-304': 'The warm fetch put a request upstream, was answered 304, and the caller still received the flavor\'s document (the bytes of the cold control\'s body): the cache filled the body in from its store with status 200, or a command-line tool reported 304 and left its stored file.',
+  'document/fresh-200': 'The warm fetch put a request upstream, was answered 200, and the caller received the document from that response: the cache refetched, whether or not the request was conditional (wire.conditional says which).',
+  'document/no-request': 'The warm fetch put no request upstream and the caller received the document from the store, without revalidation.',
+  'document/stored-despite-200': 'The warm fetch put a request upstream and was answered 200 with a body, yet the tool reported 304 and kept its stored copy of the document (description.caller_status is 304).',
+  'empty-304': 'The caller received a 304 (the status, or an empty body with a 304 reported) rather than a body.',
+  'other-body': 'The caller received a 200 whose body is not the flavor\'s document; its bytes and sha256 are on the fetch.',
+  'other-status': 'The caller saw a status other than 200 and 304 on the warm fetch (for example a proxy\'s 503); its bytes and sha256 are on the fetch.',
+  error: 'The library raised or the tool exited non-zero on the warm fetch; error.name is on the fetch.',
+  'harness-timeout': 'A harness cap fired (20 s for a fetch, 60 s for a cell); the row keeps the fetches that completed and marks the rest not-run.',
+  'request-failed': 'No observation: the rate limit never cleared, or the recorder saw an exchange without x-badhttp-version. Such a row has no exchanges and no fetch results.',
+  control: 'A curl control row: one exchange, no cache. It is the source of the reference (cold-raw, revalidate-raw, revalidate-adopted-raw) and of the true document.',
+};
+
+// What each fetch's description (set by the parser from the exchanges and the caller's result) can be, and the qualifier for a document.
+const ETAG_DESCRIPTIONS = {
+  document: 'The caller received the flavor\'s document and no error, with status 200, or with 304 reported by a tool that left its stored file. via says how: fresh-200, stored-after-304, stored-despite-200 or no-request.',
+  'empty-304': 'The caller received a 304 with no body: status 304 with 0 bytes, or 0 bytes with the last answer 304.',
+  'other-body': 'The caller received a 200 whose body is not the document.',
+  'other-status': 'The caller saw a status other than 200 and 304 (status, bytes and sha256 are on the description).',
+  error: 'The library raised or the tool exited non-zero.',
+  'not-run': 'A cap fired before this fetch.',
+};
+const ETAG_VIA = {
+  'fresh-200': 'The fetch\'s last request was answered 200.',
+  'stored-after-304': 'The fetch\'s last request was answered 304 and the caller still got the document: the cache filled it in from its store, or a command-line tool reported 304 and left its stored file (description.caller_status is 304 then).',
+  'stored-despite-200': 'The fetch\'s last request was answered 200 with a body, yet the tool reported 304 and kept its stored copy (description.caller_status is 304).',
+  'no-request': 'No request went upstream: the document was served from the store without revalidating.',
+};
+
+// wire.conditional: the first request of a fetch.
+const ETAG_CONDITIONAL = {
+  none: 'The first request carried neither If-None-Match nor If-Modified-Since: an unconditional request.',
+  etag: 'The first request carried If-None-Match only.',
+  date: 'The first request carried If-Modified-Since only.',
+  both: 'The first request carried both If-None-Match and If-Modified-Since.',
+  'if-match': 'The first request carried an If-Match (recorded, not expected from a cache).',
+};
+
+// wire.etag_echo and wire.date_echo: how the validator the client sent relates to the most recent one it received in a 200.
+const ETAG_ECHO = {
+  etag_echo: {
+    verbatim: 'The If-None-Match value is the ETag the client last received in a 200, byte for byte.',
+    'weak-stripped': 'The client received W/"x" and sent "x".',
+    'weak-added': 'The client received "x" and sent W/"x".',
+    'quotes-added': 'The client received a bare x and sent "x".',
+    'quotes-removed': 'The client received "x" and sent a bare x.',
+    list: 'The client sent a list that contains the received tag.',
+    other: 'The client sent a tag that no 200 it received carried: the tag from a 304 (on mismatch), a tag taken from an unconditional 304, or a tag with no 200 having carried one (an empty tag, say). etag_sent and etag_received are on the wire; etag_received is null when no 200 carried a tag.',
+  },
+  date_echo: {
+    verbatim: 'The If-Modified-Since value is the Last-Modified the client last received in a 200, byte for byte.',
+    reformatted: 'A valid HTTP-date for the same instant, different bytes.',
+    'own-clock': 'A valid HTTP-date for a different instant, such as the response\'s Date or the current time.',
+    'invalid-echoed': 'A value that is not an HTTP-date, sent back as received (bad-date\'s ISO string).',
+    other: 'Another value, including a date sent when no 200 carried a Last-Modified (date_received is null then).',
+  },
+};
+
+// wire fields beyond the echoes: what the client held from its most recent 200 when the fetch began, and what of it the first request left out.
+const ETAG_WIRE = {
+  etag_held: 'The ETag of the most recent 200 when the fetch began (null if none).',
+  date_held: 'The Last-Modified of the most recent 200 when the fetch began (null if none).',
+  etag_dropped: 'True when an ETag was held and the fetch\'s first request did not send it (present when requests is at least 1). A null etag_echo with etag_dropped false means nothing was held or nothing was sent.',
+  date_dropped: 'True when a Last-Modified was held and the fetch\'s first request did not send it (present when requests is at least 1).',
+};
+
+const ETAG_REFERENCE_LEGEND = {
+  'as-reference': 'The warm fetch matches the reference: what RFC 9111 implies a textbook cache would show its caller on the warm fetch, given what the control\'s textbook revalidation got.',
+  differs: 'The warm fetch does not match the reference. This is a description: RFC 9111 §5.2.2.4 forbids reusing a no-cache response without validation and does not forbid an unconditional refetch, so a cache that refetches and one that revalidates are both allowed to.',
+  undefined: 'No reference exists: RFC 9110 §15.4.5 defines a 304 only in response to a conditional request, so the cold 304 of always-304 selects no stored response and RFC 9111 §4.3.4 says nothing about what a cache should show; the rows describe what each cache did.',
+};
+
+const ETAG_READING =
+  'Read outcome as a description of what the caller received on the warm fetch and what went upstream, never as a verdict on the ' +
+  'client. RFC 9111 §4.3 says what a cache sends to validate a stored response and what a 304 and a 200 mean to it, and ' +
+  '§5.2.2.4 says a no-cache response must not be reused without a successful validation; it does not forbid an unconditional ' +
+  'refetch, so a cache that revalidates and one that refetches are both doing something the specification allows. Each row is ' +
+  'described relative to a reference derived from the control\'s own exchanges: what a textbook cache would have sent and shown ' +
+  'its caller given what this server answered curl\'s textbook revalidation. "differs" is a description of a difference from that ' +
+  'reference, not a defect; where the specification defines nothing (a 304 to a request that carried no conditional, an unparseable ' +
+  'Last-Modified, a bare ETag) the reference says so. The harness never sends a conditional header for a client, so every ' +
+  'validator in a row is one the client chose from what it stored. Not every class is a cache in the RFC 9111 sense: a library cache ' +
+  'stores responses, a command-line conditional client keeps one saved validator, and a caching proxy is driven by curl as its user; ' +
+  'each row names its class. The recorder sits between the client and this service and speaks plain HTTP/1.1 to the ' +
+  'client, so TLS and HTTP/2 behaviour is out of scope; for a proxy the exchanges are what it sent upstream. No client here is scored or ranked.';
+
+const ETAG_FIELDS = ['class', 'scenario', 'fetches', 'exchanges_after_result', 'late_exchanges', 'end', 'wall_ms', 'attempts', 'pattern', 'adopted_304_validator', 'outcome_vs_reference', 'reference', 'control', 'oracle', 'configuration'];
+
+/** One row per observation: clients x 10 cells (one flavor each, three fetches through a fresh cache), plus the control rows. */
+function etagRows() {
+  return OBSERVATIONS_ETAG.map((o) => {
+    const c = o.client;
+    const first = o.exchanges && o.exchanges[0] ? o.exchanges[0] : o.fetches && o.fetches[0] && o.fetches[0].exchanges ? o.fetches[0].exchanges[0] : null;
+    return {
+      id: o.id,
+      corpus_id: `etag.${o.flavor}`,
+      family: 'etag',
+      flavor: o.flavor,
+      scenario: o.scenario,
+      url: o.url,
+      client: { id: c.id, name: c.name, version: c.version, platform: c.platform, invocation: c.invocation, role: c.role, class: c.class, library: c.library, runtime: c.runtime, configuration: c.configuration, requests_recorded_by: c.requests_recorded_by },
+      observed: WITNESS_ETAG.probed,
+      badhttp_version_observed: WITNESS_ETAG.badhttp_version_observed,
+      status: first ? first.status : null,
+      class: c.class,
+      fetches: o.fetches ?? null,
+      exchanges: o.exchanges ?? null,
+      exchanges_after_result: o.exchanges_after_result ?? null,
+      late_exchanges: o.late_exchanges ?? null,
+      reported_error: o.reported_error ?? ((o.fetches && o.fetches[1] && o.fetches[1].description && o.fetches[1].description.kind === 'error') ? (o.fetches[1].description.error_name ?? null) : null),
+      end: o.end,
+      wall_ms: o.wall_ms,
+      attempts: o.attempts,
+      outcome: o.outcome,
+      pattern: o.pattern ?? null,
+      adopted_304_validator: o.adopted_304_validator ?? null,
+      outcome_vs_reference: o.outcome_vs_reference ?? null,
+      reference: o.reference ?? null,
+      control: o.control ?? null,
+      configuration: c.configuration ?? null,
+      oracle: 'the reference: what RFC 9111 implies a textbook cache would have sent and shown its caller on the warm fetch, given what the curl control\'s textbook revalidation (If-None-Match with the ETag it received, If-Modified-Since with the Last-Modified it received) got on the same date (REFERENCE in the /clients etag family block carries it per flavor); the document is the body of the cold control, whose hash is control.raw_sha256',
+      license: LICENSE.responses.id,
+    };
+  });
+}
+
+function etagFamily({ rows }) {
+  const clientRowsOnly = OBSERVATIONS_ETAG.filter((o) => o.client.role === 'client');
+  const outcomeCounts = {};
+  for (const o of OBSERVATIONS_ETAG) outcomeCounts[o.outcome] = (outcomeCounts[o.outcome] || 0) + 1;
+  const classCounts = {};
+  for (const c of CLIENTS_ETAG) classCounts[c.class] = (classCounts[c.class] || 0) + 1;
+  const conditionalCounts = {};
+  const etagEchoCounts = {};
+  const dateEchoCounts = {};
+  for (const o of clientRowsOnly) {
+    (o.fetches || []).forEach((f, i) => {
+      const w = f && f.wire;
+      if (!w) return;
+      if (i === 1) { const k = w.requests === 0 ? 'no-request' : w.conditional; if (k) conditionalCounts[k] = (conditionalCounts[k] || 0) + 1; }
+      if (i >= 1 && w.etag_echo) etagEchoCounts[w.etag_echo] = (etagEchoCounts[w.etag_echo] || 0) + 1;
+      if (i >= 1 && w.date_echo) dateEchoCounts[w.date_echo] = (dateEchoCounts[w.date_echo] || 0) + 1;
+    });
+  }
+  return {
+    what:
+      `What ${CLIENTS_ETAG.filter((c) => c.role === 'client').length} real HTTP caches and conditional-request clients did with the ${numWord(WITNESS_ETAG.flavors)} /etag flavors, one row per observation, ` +
+      'plus the control rows (curl: a cold request, a textbook revalidation, and on mismatch the revalidation with the tag the 304 carried). Each cell asks the client to fetch GET /etag/{flavor} ' +
+      'three times in a row through a fresh cache; the harness never sends a conditional header for a client. Each row lists every request the client sent, attributed to the fetch that ' +
+      'caused it, and what the caller received. The oracle is the reference: what RFC 9111 implies a textbook cache would have sent and shown its caller, given what the control\'s revalidation got.',
+    rows: rows.length,
+    flavors: WITNESS_ETAG.flavors,
+    cells_per_client: WITNESS_ETAG.cells_per_client,
+    observed: WITNESS_ETAG.probed,
+    badhttp_version_observed: WITNESS_ETAG.badhttp_version_observed,
+    worker_version: WITNESS_ETAG.worker_version,
+    clients: CLIENTS_ETAG,
+    fields: [...COMMON_FIELDS, ...ETAG_FIELDS],
+    class_legend: ETAG_CLASSES,
+    outcome_legend: ETAG_OUTCOMES,
+    description_legend: ETAG_DESCRIPTIONS,
+    via_legend: ETAG_VIA,
+    conditional_legend: ETAG_CONDITIONAL,
+    echo_legend: ETAG_ECHO,
+    wire_legend: ETAG_WIRE,
+    reference_legend: ETAG_REFERENCE_LEGEND,
+    reading_this: ETAG_READING,
+    outcome_counts: outcomeCounts,
+    class_counts: classCounts,
+    conditional_counts: conditionalCounts,
+    etag_echo_counts: etagEchoCounts,
+    date_echo_counts: dateEchoCounts,
+    reference: REFERENCE_ETAG,
+    disagreement_by_flavor: WITNESS_ETAG.disagreement_by_flavor,
+    answers_by_flavor: WITNESS_ETAG.answers_by_flavor,
+    disagreement_note: 'disagreement_by_flavor is, per flavor, the number of distinct answers — (outcome, conditional, etag_echo, date_echo) of the warm fetch — among client rows; answers_by_flavor lists them with the clients that gave each. conditional_counts is the first request of the warm fetch over all client rows (no-request when none went upstream); etag_echo_counts and date_echo_counts count the warm and warm-again fetches. Control rows are excluded.',
+    findings: etagFindings(),
+    freshness:
+      `A dated capture, not a live measurement: taken ${WITNESS_ETAG.probed} against badhttp version ` +
+      `${WITNESS_ETAG.badhttp_version_observed}, with the client versions on each row. Cache behaviour changes between ` +
+      `releases and this table does not update itself. Re-run it from ${WITNESS_ETAG.capture_scripts || 'scripts/etag-witness/'} in the source and ` +
+      'the numbers move; the date on every row is how you know whether to trust it.',
+    reproduce:
+      'Start a fresh cache and a fresh working directory, ask the row\'s client to fetch the row\'s url three times in a row through its cache with no conditional ' +
+      'header of your own, and compare each fetch\'s requests and what the caller received with the row. For the reference, fetch the same url with curl -sS --http1.1 and ' +
+      'again with If-None-Match set to the ETag and If-Modified-Since to the Last-Modified it returned (scripts/witness-parse-etag.mjs carries the reference rules). ' +
+      'Pace the calls against the zone limit of 100 per 10 s, and treat a response without x-badhttp-version as no observation.',
+  };
+}
+
+// ---------------------------------------------------------------------------------------------------
 
 export function clientRows({ origin }) {
-  return [...compressRows({ origin }), ...crosshostRows(), ...authRows(), ...cookieRows(), ...sseRows(), ...rangeRows()];
+  return [...compressRows({ origin }), ...crosshostRows(), ...authRows(), ...cookieRows(), ...sseRows(), ...rangeRows(), ...etagRows()];
 }
 
 export function clientsIndex({ origin }) {
@@ -931,10 +1139,11 @@ export function clientsIndex({ origin }) {
   const cookies = cookieRows();
   const sse = sseRows();
   const range = rangeRows();
+  const etag = etagRows();
   return {
     what:
       'What real HTTP clients actually did with this server\'s misbehaviour, as data: one row per ' +
-      'observation, across six families so far — the ' + WITNESS.flavors + ' /compress flavors (six decoding clients and ' +
+      'observation, across seven families so far — the ' + WITNESS.flavors + ' /compress flavors (six decoding clients and ' +
       'two non-decoding controls), the ' + WITNESS_CROSSHOST.flavors + ' /crosshost flavors (eight clients; eight boundaries and a ' +
       'same-origin control), the ' + WITNESS_AUTH.flavors + ' /auth flavors (the same eight clients, each handed the documented ' +
       'fake credentials through its own mechanism), the ' + WITNESS_COOKIES.flavors + ' /cookies setter flavors (the same eight, ' +
@@ -942,7 +1151,8 @@ export function clientsIndex({ origin }) {
       'SSE client libraries plus a raw-wire control, each row described against a WHATWG parse of the ' +
       'bytes the control received) and the ' + WITNESS_RANGE.flavors + ' /range flavors (real resuming download clients, each handed a ' +
       WITNESS_RANGE.partial_bytes + '-byte partial of the document and told to resume it, plus a fresh download, with every request ' +
-      'recorded and the file on disk described against where RFC 9110 places the bytes a control received). Every row names ' +
+      'recorded and the file on disk described against where RFC 9110 places the bytes a control received) and the ' + WITNESS_ETAG.flavors + ' /etag flavors (real HTTP caches and ' +
+      'conditional-request clients, each fetching the flavor three times through a fresh cache with every request recorded, the caller\'s answer described against what RFC 9111 implies from the control\'s exchanges). Every row names ' +
       'the client and its version, the date, what it received, and what it reported.',
     why:
       'For /compress the home page has claimed these results since v0.12.0 and cited a private ' +
@@ -950,11 +1160,12 @@ export function clientsIndex({ origin }) {
       'v0.17.0 (2026-09-10); for /auth the home page carried a three-client note from v0.9.0 ' +
       '(2026-08-27); for /cookies the home page carried a three-jar note from v0.6.0 (2026-08-24); for /sse ' +
       'the home page carried a one-client note from v0.4.0 (2026-08-23); for /range the home page carried a ' +
-      'hand-typed curl note from v0.5.0 (2026-08-23). Here ' +
-      'are all six as rows. It is also the only data on this service that ' +
+      'hand-typed curl note from v0.5.0 (2026-08-23); for /etag the home page carried a one-cache note ' +
+      'from v0.5.0 (2026-08-23). Here ' +
+      'are all seven as rows. It is also the only data on this service that ' +
       'badhttp did not write about itself.',
     jsonl: `${origin}/clients.jsonl`,
-    rows: compress.length + crosshost.length + auth.length + cookies.length + sse.length + range.length,
+    rows: compress.length + crosshost.length + auth.length + cookies.length + sse.length + range.length + etag.length,
     families: {
       compress: compressFamily({ rows: compress }),
       crosshost: crosshostFamily({ rows: crosshost }),
@@ -962,6 +1173,7 @@ export function clientsIndex({ origin }) {
       cookies: cookieFamily({ rows: cookies }),
       sse: sseFamily({ rows: sse }),
       range: rangeFamily({ rows: range }),
+      etag: etagFamily({ rows: etag }),
     },
     common_fields: COMMON_FIELDS,
     join: 'corpus_id joins each row to a row of ' + `${origin}/corpus.jsonl` + '; family names the block above whose legend and fields apply',

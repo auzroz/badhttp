@@ -28,7 +28,7 @@ scrubbed again by the parser).
   venv/bin/python scripts/auth-witness/py-clients.py [base]
 """
 import asyncio, json, sys, time, platform, re
-import urllib.request, urllib.error
+import http.client, urllib.request, urllib.error
 
 B = sys.argv[1] if len(sys.argv) > 1 else 'https://badhttp.dev'
 # AUTH_FLAVORS=basic,digest limits a dry run; a published capture always runs the full list.
@@ -214,7 +214,7 @@ def fetch_urllib(f, u, cfg):
         raise
 
 run_profile('urllib', f'{PY} stdlib', 'build_opener(<auth handler(s)>, HTTPRedirectHandler, counting handler).open(Request(url))', plan_urllib, fetch_urllib,
-            (urllib.error.URLError, TimeoutError, ConnectionError))
+            (urllib.error.URLError, TimeoutError, ConnectionError, http.client.IncompleteRead))  # IncompleteRead: a body cut short is a transport failure
 
 # --- requests ------------------------------------------------------------------------------------
 import requests
@@ -267,7 +267,7 @@ def fetch_requests(f, u, cfg):
                 'version_header': r.headers.get('x-badhttp-version'), 'challenge_seen': challenge_of(r.headers), 'body_text': r.text}
 
 run_profile('requests', f'{requests.__version__} ({PY})', 'requests.Session().get(url, auth=<mechanism>, allow_redirects=True)', plan_requests, fetch_requests,
-            (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
+            (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError))  # ChunkedEncodingError: a body cut short is a transport failure
 
 # --- httpx ---------------------------------------------------------------------------------------
 import httpx
@@ -418,4 +418,4 @@ def fetch_aiohttp(f, u, cfg):
         raise
 
 run_profile('aiohttp', f'{aiohttp.__version__} ({PY})', 'aiohttp.ClientSession(<mechanism>).get(url, allow_redirects=True)', plan_aiohttp, fetch_aiohttp,
-            (aiohttp.ClientConnectionError, asyncio.TimeoutError, TimeoutError))
+            (aiohttp.ClientConnectionError, aiohttp.ClientPayloadError, asyncio.TimeoutError, TimeoutError))  # ClientPayloadError: a body cut short is a transport failure

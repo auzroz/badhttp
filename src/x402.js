@@ -29,6 +29,14 @@ import { CDP_FACILITATOR_URL, cdpConfigured, cdpHeaders } from './cdp-auth.js';
 
 const DEFAULT_NETWORK = 'base-sepolia';
 
+// The facilitators that refused a payment before one took it, as `<url> <verify|settle> <status>` (URL and status only, never
+// their messages), `<url> key-import` when importCdpKey rejected the secret's format by name (a SEC1 PEM, or neither PKCS#8 nor a
+// 64-byte Ed25519 key); any other key-load failure maps to the URL alone, as a timeout does. One mapping
+// for the 200 and the 202 (settlement_pending) bodies, so the two cannot drift (v0.24.0 review, carried; applied #32).
+const failedOverFrom = (verifyErrors) => (verifyErrors.length
+  ? verifyErrors.map((e) => e.replace(/^(\S+): (?:settle )?facilitator \/(verify|settle) returned (\d{3}).*$/s, '$1 $2 $3').replace(/^(\S+): CDP_API_KEY_SECRET.*$/s, '$1 key-import').replace(/^(\S+): .*$/s, '$1'))
+  : undefined);
+
 // Facilitators, in order of preference. Overridable with the X402_FACILITATORS_{BASE,BASE_SEPOLIA} vars (comma-separated).
 // Surveyed 2026-08-23 (LEDGER.md #2). Credential-free on both Base networks: xpay (zero fee, no cap, verify 100/min,
 // settle 50/min, young), Mogami (no fee, AGPL server), PayAI (oldest and biggest; a lifetime allowance of 1,000 free
@@ -366,10 +374,10 @@ export const BROKEN = {
   'no-accepts': { about: 'A PaymentRequired object with no "accepts" field at all.' },
   'empty-accepts': { about: '"accepts" is an empty list: nothing to pay with.' },
   'no-extra': { about: 'The requirement has no "extra" (no EIP-712 domain name/version), so the authorization cannot be signed correctly.' },
-  'no-resource': { about: 'No "resource" object. The reference client treats it as optional and signs anyway; stricter clients refuse.' },
+  'no-resource': { about: 'No "resource" object. The official client (@x402/fetch 2.23.0, probed 2026-08-23) treated it as optional and signed anyway; no other client has its behavior on this flavor recorded here.' },
   'version-99': { about: 'x402Version is 99.' },
   'decimal-amount': { about: '"amount" is "0.01" instead of atomic units ("10000"). A client that does not validate will sign for 0.01 atomic units, i.e. nothing.' },
-  'missing-header': { about: 'A 402 with v2-shaped requirements only in the JSON body (x402Version 2) and no PAYMENT-REQUIRED header. Genuinely broken: v2 keeps requirements in the header, and the reference client reads a body only when it says x402Version 1, so it finds nothing here.' },
+  'missing-header': { about: 'A 402 with v2-shaped requirements only in the JSON body (x402Version 2) and no PAYMENT-REQUIRED header. Genuinely broken: v2 keeps requirements in the header, and the reference client (@x402/fetch 2.23.0) reads a body only when it says x402Version 1, so it finds nothing here.' },
   'v1-body': { about: 'A spec-valid x402 v1 response: requirements only in the JSON body (maxAmountRequired, plain-string network name), no PAYMENT-REQUIRED header. Not malformed — /402/pay serves this same v1 body underneath its v2 header — but a strictly header-only v2 client sees no requirements, which is the trap.' },
 };
 
@@ -605,7 +613,7 @@ async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env,
     if (error === 'settlement_pending' && tx) {
       // Broadcast, not yet confirmed when the facilitator gave up waiting (spec: non-terminal, carries the hash).
       // Not a 402: re-paying would pay twice. 202 with the receipt header as the facilitator sent it.
-      return json({ paid: 'pending', scenario: '/402/pay', network: net.caip2, transaction: tx, explorer: `${net.explorer}${tx}`, facilitator, failed_over_from: verifyErrors.length ? verifyErrors.map((e) => e.replace(/^(\S+): .*$/s, '$1')) : undefined, charged: 'almost certainly; the transfer was broadcast and is awaiting confirmation', hint: 'do not pay again; watch the transaction' }, 202, { [receiptHeader]: b64.encode(settled), 'cache-control': 'private, no-store' });
+      return json({ paid: 'pending', scenario: '/402/pay', network: net.caip2, transaction: tx, explorer: `${net.explorer}${tx}`, facilitator, failed_over_from: failedOverFrom(verifyErrors), charged: 'almost certainly; the transfer was broadcast and is awaiting confirmation', hint: 'do not pay again; watch the transaction' }, 202, { [receiptHeader]: b64.encode(settled), 'cache-control': 'private, no-store' });
     }
     return respond402({ ...pr, error }, humanBody({ ...pr, error }, {
       settled_by: facilitator,
@@ -632,7 +640,7 @@ async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env,
       // The facilitators that refused this payment before `facilitator` took it, URL and status only (never their
       // messages): a 401 from CDP here is this project's key gone wrong, and until session 30 nothing on a successful
       // response said so (review finding; docs/RUNBOOK-cdp-facilitator.md). Absent when the first facilitator settled.
-      failed_over_from: verifyErrors.length ? verifyErrors.map((e) => e.replace(/^(\S+): (?:settle )?facilitator \/(verify|settle) returned (\d{3}).*$/s, '$1 $2 $3').replace(/^(\S+): .*$/s, '$1')) : undefined,
+      failed_over_from: failedOverFrom(verifyErrors),
       receipt_header: `${receiptName} (base64 JSON of the facilitator settle response)`,
       thanks: net.real ? `That is revenue. It is booked on /books the next time the books are updated (each session); verify it now at ${addressUrl}` : 'Test USDC; nothing real moved.',
     },

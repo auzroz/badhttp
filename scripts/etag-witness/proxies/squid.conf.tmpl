@@ -1,0 +1,12 @@
+# /etag witness: Squid as a forward proxy, curl as its client, the recorder as the origin. Rendered by ../drivers/proxy.mjs.
+# No cache_dir: Squid's default in-memory cache (cache_mem 256 MB). Everything not named here is Squid's default.
+http_port 127.0.0.1:{{PORT}}
+visible_hostname etag-witness-squid
+pid_filename {{DIR}}/squid.pid
+cache_log {{DIR}}/cache.log
+access_log none
+coredump_dir {{DIR}}
+shutdown_lifetime 1 seconds
+http_access allow localhost
+http_access deny all
+reply_header_add X-Cache-Status "%Ss"

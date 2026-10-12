@@ -1,0 +1,163 @@
+provenance: badhttp 0.24.0, 10 flavors, 14 clients + control
+curl-raw ok/cold-raw [→200] raw=307B attempts=1
+curl-raw ok/revalidate-raw [INM+IMS→304] raw=0B attempts=1
+curl-raw weak/cold-raw [→200] raw=333B attempts=1
+curl-raw weak/revalidate-raw [INM+IMS→304] raw=0B attempts=1
+curl-raw changing/cold-raw [→200] raw=332B attempts=1
+curl-raw changing/revalidate-raw [INM→200] raw=332B attempts=1
+curl-raw ignore/cold-raw [→200] raw=306B attempts=1
+curl-raw ignore/revalidate-raw [INM+IMS→200] raw=306B attempts=1
+curl-raw always-304/cold-raw [→304] raw=0B attempts=1
+curl-raw always-304/revalidate-raw [INM→304] raw=0B attempts=1
+curl-raw mismatch/cold-raw [→200] raw=311B attempts=1
+curl-raw mismatch/revalidate-raw [INM+IMS→304] raw=0B attempts=1
+curl-raw mismatch/revalidate-adopted-raw [INM→200] raw=311B attempts=1
+curl-raw no-validator-304/cold-raw [→200] raw=335B attempts=1
+curl-raw no-validator-304/revalidate-raw [INM+IMS→304] raw=0B attempts=1
+curl-raw unquoted/cold-raw [→200] raw=322B attempts=1
+curl-raw unquoted/revalidate-raw [INM+IMS→304] raw=0B attempts=1
+curl-raw bad-date/cold-raw [→200] raw=331B attempts=1
+curl-raw bad-date/revalidate-raw [IMS→304] raw=0B attempts=1
+curl-raw future/cold-raw [→200] raw=333B attempts=1
+curl-raw future/revalidate-raw [IMS→304] raw=0B attempts=1
+curl-etag ok [INM→200 =200/307B | INM→304 =304/307B | INM→200 =200/307B] attempts=1 after=0 1.6s
+curl-etag weak [INM→200 =200/333B | INM→304 =304/333B | INM→200 =200/333B] attempts=1 after=0 1.6s
+curl-etag changing [INM→200 =200/332B | INM→200 =200/332B | INM→200 =200/332B] attempts=1 after=0 1.6s
+curl-etag ignore [INM→200 =200/306B | INM→200 =200/306B | INM→200 =200/306B] attempts=1 after=0 1.6s
+curl-etag always-304 [INM→304 =304/0B | INM→304 =304/0B | INM→304 =304/0B] attempts=1 after=0 1.6s
+curl-etag mismatch [INM→200 =200/311B | INM→304 =304/311B | INM→200 =200/311B] attempts=1 after=0 1.6s
+curl-etag no-validator-304 [INM→200 =200/335B | INM→304 =304/335B | INM→200 =200/335B] attempts=1 after=0 1.6s
+curl-etag unquoted [INM→200 =200/322B | INM→304 =304/322B | INM→200 =200/322B] attempts=1 after=0 1.6s
+curl-etag bad-date [INM→200 =200/331B | INM→200 =200/331B | INM→200 =200/331B] attempts=1 after=0 1.6s
+curl-etag future [INM→200 =200/333B | INM→200 =200/333B | INM→200 =200/333B] attempts=1 after=0 1.6s
+curl-z ok [→200 =200/307B | IMS→304 =304/307B | IMS→304 =304/307B] attempts=1 after=0 1.6s
+curl-z weak [→200 =200/333B | IMS→304 =304/333B | IMS→304 =304/333B] attempts=1 after=0 1.5s
+curl-z changing [→200 =200/332B | IMS→200 =200/332B | IMS→200 =200/332B] attempts=1 after=0 1.6s
+curl-z ignore [→200 =200/306B | IMS→200 =304/306B | IMS→200 =304/306B] attempts=1 after=0 1.6s
+curl-z always-304 [→304 =304/0B | →304 =304/0B | →304 =304/0B] attempts=1 after=0 1.6s
+curl-z mismatch [→200 =200/311B | IMS→304 =304/311B | IMS→304 =304/311B] attempts=1 after=0 1.6s
+curl-z no-validator-304 [→200 =200/335B | IMS→304 =304/335B | IMS→304 =304/335B] attempts=1 after=0 1.5s
+curl-z unquoted [→200 =200/322B | IMS→304 =304/322B | IMS→304 =304/322B] attempts=1 after=0 1.6s
+curl-z bad-date [→200 =200/331B | IMS→200 =304/331B | IMS→200 =304/331B] attempts=1 after=0 1.5s
+curl-z future [→200 =200/333B | IMS→200 =200/333B | IMS→200 =200/333B] attempts=1 after=0 1.6s
+wget-N ok [→200 =200/307B | IMS→304 =304/307B | IMS→304 =304/307B] attempts=1 after=0 1.6s
+wget-N weak [→200 =200/333B | IMS→304 =304/333B | IMS→304 =304/333B] attempts=1 after=0 1.6s
+wget-N changing [→200 =200/332B | IMS→200 =200/332B | IMS→200 =200/332B] attempts=1 after=0 1.6s
+wget-N ignore [→200 =200/306B | IMS→200 =200/306B | IMS→200 =200/306B] attempts=1 after=0 1.6s
+wget-N always-304 [→304 =304/0B | →304 =304/0B | →304 =304/0B] attempts=1 after=0 1.6s
+wget-N mismatch [→200 =200/311B | IMS→304 =304/311B | IMS→304 =304/311B] attempts=1 after=0 1.6s
+wget-N no-validator-304 [→200 =200/335B | IMS→304 =304/335B | IMS→304 =304/335B] attempts=1 after=0 1.6s
+wget-N unquoted [→200 =200/322B | IMS→304 =304/322B | IMS→304 =304/322B] attempts=1 after=0 1.6s
+wget-N bad-date [→200 =200/331B | IMS→200 =200/331B | IMS→200 =200/331B] attempts=1 after=0 1.6s
+wget-N future [→200 =200/333B | IMS→304 =304/333B | IMS→304 =304/333B] attempts=1 after=0 1.6s
+hishel ok [→200 =200/307B | INM+IMS→304 =200/307B | INM+IMS→304 =200/307B] attempts=1 after=0 3.9s
+hishel weak [→200 =200/333B | INM+IMS→304 =200/333B | INM+IMS→304 =200/333B] attempts=1 after=0 3.7s
+hishel changing [→200 =200/332B | INM→200 =200/332B | INM→200 =200/332B] attempts=1 after=0 3.8s
+hishel ignore [→200 =200/306B | INM+IMS→200 =200/306B | INM+IMS→200 =200/306B] attempts=1 after=0 3.8s
+hishel always-304 [→304 =304/0B | →304 =304/0B | →304 =304/0B] attempts=1 after=0 3.7s
+hishel mismatch [→200 =200/311B | INM+IMS→304 →200 =200/311B | INM+IMS→304 →200 =200/311B] attempts=1 after=0 3.9s
+hishel no-validator-304 [→200 =200/335B | INM+IMS→304 =200/335B | INM+IMS→304 =200/335B] attempts=1 after=0 3.8s
+hishel unquoted [→200 =200/322B | INM+IMS→304 =200/322B | INM+IMS→304 =200/322B] attempts=1 after=0 3.8s
+hishel bad-date [→200 =200/331B | IMS→304 =200/331B | IMS→304 =200/331B] attempts=1 after=0 3.8s
+hishel future [→200 =200/333B | IMS→304 =200/333B | IMS→304 =200/333B] attempts=1 after=0 3.8s
+requests-cache-cc ok [→200 =200/307B | INM+IMS→304 =200/307B | INM+IMS→304 =200/307B] attempts=1 after=0 1.7s
+requests-cache-cc weak [→200 =200/333B | INM+IMS→304 =200/333B | INM+IMS→304 =200/333B] attempts=1 after=0 1.6s
+requests-cache-cc changing [→200 =200/332B | INM→200 =200/332B | INM→200 =200/332B] attempts=1 after=0 1.6s
+requests-cache-cc ignore [→200 =200/306B | INM+IMS→200 =200/306B | INM+IMS→200 =200/306B] attempts=1 after=0 1.6s
+requests-cache-cc always-304 [→304 =304/0B | →304 =304/0B | →304 =304/0B] attempts=1 after=0 1.6s
+requests-cache-cc mismatch [→200 =200/311B | INM+IMS→304 =200/311B | INM+IMS→200 =200/311B] attempts=1 after=0 1.6s
+requests-cache-cc no-validator-304 [→200 =200/335B | INM+IMS→304 =200/335B | INM+IMS→304 =200/335B] attempts=1 after=0 1.6s
+requests-cache-cc unquoted [→200 =200/322B | INM+IMS→304 =200/322B | INM+IMS→304 =200/322B] attempts=1 after=0 1.6s
+requests-cache-cc bad-date [→200 =200/331B | IMS→304 =200/331B | IMS→304 =200/331B] attempts=1 after=0 1.6s
+requests-cache-cc future [→200 =200/333B | IMS→304 =200/333B | IMS→304 =200/333B] attempts=1 after=0 1.6s
+cachecontrol ok [→200 =200/307B | INM+IMS→304 =200/307B | INM+IMS→304 =200/307B] attempts=1 after=0 1.6s
+cachecontrol weak [→200 =200/333B | INM+IMS→304 =200/333B | INM+IMS→304 =200/333B] attempts=1 after=0 1.6s
+cachecontrol changing [→200 =200/332B | INM→200 =200/332B | INM→200 =200/332B] attempts=1 after=0 1.6s
+cachecontrol ignore [→200 =200/306B | INM+IMS→200 =200/306B | INM+IMS→200 =200/306B] attempts=1 after=0 1.6s
+cachecontrol always-304 [→304 =304/0B | →304 =304/0B | →304 =304/0B] attempts=1 after=0 1.5s
+cachecontrol mismatch [→200 =200/311B | INM+IMS→304 =200/311B | INM+IMS→200 =200/311B] attempts=1 after=0 1.6s
+cachecontrol no-validator-304 [→200 =200/335B | INM+IMS→304 =200/335B | INM+IMS→304 =200/335B] attempts=1 after=0 1.6s
+cachecontrol unquoted [→200 =200/322B | INM+IMS→304 =200/322B | INM+IMS→304 =200/322B] attempts=1 after=0 1.6s
+cachecontrol bad-date [→200 =200/331B | →200 =200/331B | →200 =200/331B] attempts=1 after=0 1.6s
+cachecontrol future [→200 =200/333B | →200 =200/333B | →200 =200/333B] attempts=1 after=0 1.6s
+undici-cache ok [→200 =200/307B | INM+IMS→304 =200/307B | →200 =200/307B] attempts=1 after=0 1.6s
+undici-cache weak [→200 =200/333B | INM+IMS→304 =200/333B | →200 =200/333B] attempts=1 after=0 1.6s
+undici-cache changing [→200 =200/332B | INM+IMS→200 =200/332B | INM+IMS→200 =200/332B] attempts=1 after=0 1.6s
+undici-cache ignore [→200 =200/306B | INM+IMS→200 =200/306B | INM+IMS→200 =200/306B] attempts=1 after=0 1.6s
+undici-cache always-304 [→304 =304/0B | →304 =304/0B | →304 =304/0B] attempts=1 after=0 1.5s
+undici-cache mismatch [→200 =200/311B | INM+IMS→304 =200/311B | →200 =200/311B] attempts=1 after=0 1.5s
+undici-cache no-validator-304 [→200 =200/335B | INM+IMS→304 =200/335B | →200 =200/335B] attempts=1 after=0 1.5s
+undici-cache unquoted [→200 =200/322B | IMS→304 =200/322B | →200 =200/322B] attempts=1 after=0 1.5s
+undici-cache bad-date [→200 =200/331B | IMS→200 =200/331B | IMS→200 =200/331B] attempts=1 after=0 1.5s
+undici-cache future [→200 =200/333B | →200 =200/333B | →200 =200/333B] attempts=1 after=0 1.5s
+make-fetch-happen ok [→200 =200/307B | INM+IMS→304 =200/307B | INM+IMS→304 =200/307B] attempts=1 after=0 1.6s
+make-fetch-happen weak [→200 =200/333B | INM+IMS→304 =200/333B | INM+IMS→304 =200/333B] attempts=1 after=0 1.6s
+make-fetch-happen changing [→200 =200/332B | INM→200 =200/332B | INM→200 =200/332B] attempts=1 after=0 1.6s
+make-fetch-happen ignore [→200 =200/306B | INM+IMS→200 =200/306B | INM+IMS→200 =200/306B] attempts=1 after=0 1.6s
+make-fetch-happen always-304 [→304 =304/0B | →304 =304/0B | →304 =304/0B] attempts=1 after=0 1.6s
+make-fetch-happen mismatch [→200 =200/311B | INM+IMS→304 =200/311B | INM+IMS→200 =200/311B] attempts=1 after=0 1.6s
+make-fetch-happen no-validator-304 [→200 =200/335B | INM+IMS→304 =200/335B | INM+IMS→304 =200/335B] attempts=1 after=0 1.6s
+make-fetch-happen unquoted [→200 =200/322B | INM+IMS→304 =200/322B | INM+IMS→304 =200/322B] attempts=1 after=0 1.6s
+make-fetch-happen bad-date [→200 =200/331B | IMS→304 =200/331B | IMS→304 =200/331B] attempts=1 after=0 1.6s
+make-fetch-happen future [→200 =200/333B | IMS→304 =200/333B | IMS→304 =200/333B] attempts=1 after=0 1.8s
+got-cache ok [→200 =200/307B | INM+IMS→304 =200/307B | INM+IMS→304 =200/307B] attempts=1 after=0 1.6s
+got-cache weak [→200 =200/333B | INM+IMS→304 =200/333B | INM+IMS→304 =200/333B] attempts=1 after=0 1.6s
+got-cache changing [→200 =200/332B | INM→200 =200/332B | INM→200 =200/332B] attempts=1 after=0 1.6s
+got-cache ignore [→200 =200/306B | INM+IMS→200 =200/306B | INM+IMS→200 =200/306B] attempts=1 after=0 1.6s
+got-cache always-304 [→304 =304/0B | INM→304 =304/0B | INM→304 =304/0B] attempts=1 after=0 1.7s
+got-cache mismatch [→200 =200/311B | INM+IMS→304 =200/311B | →200 =200/311B] attempts=1 after=0 1.6s
+got-cache no-validator-304 [→200 =200/335B | INM+IMS→304 =200/335B | →200 =200/335B] attempts=1 after=0 1.5s
+got-cache unquoted [→200 =200/322B | INM+IMS→304 =200/322B | INM+IMS→304 =200/322B] attempts=1 after=0 1.5s
+got-cache bad-date [→200 =200/331B | IMS→304 =200/331B | IMS→304 =200/331B] attempts=1 after=0 1.6s
+got-cache future [→200 =200/333B | IMS→304 =200/333B | IMS→304 =200/333B] attempts=1 after=0 1.5s
+gregjones-httpcache ok [→200 =200/307B | INM+IMS→304 =200/307B | INM+IMS→304 =200/307B] attempts=1 after=0 1.5s
+gregjones-httpcache weak [→200 =200/333B | INM+IMS→304 =200/333B | INM+IMS→304 =200/333B] attempts=1 after=0 1.5s
+gregjones-httpcache changing [→200 =200/332B | INM→200 =200/332B | INM→200 =200/332B] attempts=1 after=0 1.5s
+gregjones-httpcache ignore [→200 =200/306B | INM+IMS→200 =200/306B | INM+IMS→200 =200/306B] attempts=1 after=0 1.4s
+gregjones-httpcache always-304 [→304 =304/0B | INM→304 =304/0B | INM→304 =304/0B] attempts=1 after=0 1.5s
+gregjones-httpcache mismatch [→200 =200/311B | INM+IMS→304 =200/311B | INM+IMS→200 =200/311B] attempts=1 after=0 1.5s
+gregjones-httpcache no-validator-304 [→200 =200/335B | INM+IMS→304 =200/335B | INM+IMS→304 =200/335B] attempts=1 after=0 1.5s
+gregjones-httpcache unquoted [→200 =200/322B | INM+IMS→304 =200/322B | INM+IMS→304 =200/322B] attempts=1 after=0 1.4s
+gregjones-httpcache bad-date [→200 =200/331B | IMS→304 =200/331B | IMS→304 =200/331B] attempts=1 after=0 1.4s
+gregjones-httpcache future [→200 =200/333B | IMS→304 =200/333B | IMS→304 =200/333B] attempts=1 after=0 1.5s
+nginx-stale ok [→200 =200/307B | INM+IMS→304 =200/307B | INM+IMS→304 =200/307B] attempts=1 after=0 6.4s
+nginx-stale weak [→200 =200/333B | INM+IMS→304 =200/333B | INM+IMS→304 =200/333B] attempts=1 after=0 6.4s
+nginx-stale changing [→200 =200/332B | INM→200 =200/332B | INM→200 =200/332B] attempts=1 after=0 6.3s
+nginx-stale ignore [→200 =200/306B | INM+IMS→200 =200/306B | INM+IMS→200 =200/306B] attempts=1 after=0 6.4s
+nginx-stale always-304 [→304 =304/0B | →304 =304/0B | →304 =304/0B] attempts=1 after=0 6.4s
+nginx-stale mismatch [→200 =200/311B | INM+IMS→304 =200/311B | INM+IMS→304 =200/311B] attempts=1 after=0 6.4s
+nginx-stale no-validator-304 [→200 =200/335B | INM+IMS→304 =200/335B | INM+IMS→304 =200/335B] attempts=1 after=0 6.4s
+nginx-stale unquoted [→200 =200/322B | INM+IMS→304 =200/322B | INM+IMS→304 =200/322B] attempts=1 after=0 6.4s
+nginx-stale bad-date [→200 =200/331B | →200 =200/331B | →200 =200/331B] attempts=1 after=0 6.4s
+nginx-stale future [→200 =200/333B | IMS→304 =200/333B | IMS→304 =200/333B] attempts=1 after=0 6.4s
+varnish ok [→200 =200/307B | →200 =200/307B | →200 =200/307B] attempts=1 after=0 5.3s
+varnish weak [→200 =200/333B | →200 =200/333B | →200 =200/333B] attempts=1 after=0 3.8s
+varnish changing [→200 =200/332B | →200 =200/332B | →200 =200/332B] attempts=1 after=0 3.8s
+varnish ignore [→200 =200/306B | →200 =200/306B | →200 =200/306B] attempts=1 after=0 3.8s
+varnish always-304 [→304 =503/282B | →304 =503/282B | →304 =503/282B] attempts=1 after=0 3.7s
+varnish mismatch [→200 =200/311B | →200 =200/311B | →200 =200/311B] attempts=1 after=0 3.8s
+varnish no-validator-304 [→200 =200/335B | →200 =200/335B | →200 =200/335B] attempts=1 after=0 3.7s
+varnish unquoted [→200 =200/322B | →200 =200/322B | →200 =200/322B] attempts=1 after=0 4.2s
+varnish bad-date [→200 =200/331B | →200 =200/331B | →200 =200/331B] attempts=1 after=0 3.7s
+varnish future [→200 =200/333B | →200 =200/333B | →200 =200/333B] attempts=1 after=0 3.8s
+squid ok [→200 =200/307B | INM+IMS→304 =200/307B | INM+IMS→304 =200/307B] attempts=1 after=0 3.8s
+squid weak [→200 =200/333B | IMS→304 =200/333B | IMS→304 =200/333B] attempts=1 after=0 4.0s
+squid changing [→200 =200/332B | INM+IMS→200 =200/332B | INM+IMS→200 =200/332B] attempts=1 after=0 4.1s
+squid ignore [→200 =200/306B | INM+IMS→200 =200/306B | INM+IMS→200 =200/306B] attempts=1 after=0 3.9s
+squid always-304 [→304 =304/0B | →304 =304/0B | →304 =304/0B] attempts=1 after=0 3.8s
+squid mismatch [→200 =200/311B | INM+IMS→304 =200/311B | INM+IMS→200 =200/311B] attempts=1 after=0 3.8s
+squid no-validator-304 [→200 =200/335B | INM+IMS→304 =200/335B | INM+IMS→304 =200/335B] attempts=1 after=0 3.8s
+squid unquoted [→200 =200/322B | IMS→304 =200/322B | IMS→304 =200/322B] attempts=1 after=0 3.8s
+squid bad-date [→200 =200/331B | IMS→200 =200/331B | IMS→200 =200/331B] attempts=1 after=0 3.8s
+squid future [→200 =200/333B | IMS→304 =200/333B | IMS→304 =200/333B] attempts=1 after=0 3.8s
+trafficserver ok [→200 =200/307B | INM+IMS→304 =200/307B | INM+IMS→304 =200/307B] attempts=1 after=0 3.3s
+trafficserver weak [→200 =200/333B | INM+IMS→304 =200/333B | INM+IMS→304 =200/333B] attempts=1 after=0 2.7s
+trafficserver changing [→200 =200/332B | INM→200 =200/332B | INM→200 =200/332B] attempts=1 after=0 2.7s
+trafficserver ignore [→200 =200/306B | INM+IMS→200 =200/306B | INM+IMS→200 =200/306B] attempts=1 after=0 2.8s
+trafficserver always-304 [→304 =304/0B | →304 =304/0B | →304 =304/0B] attempts=1 after=0 2.7s
+trafficserver mismatch [→200 =200/311B | INM+IMS→304 =200/311B | INM+IMS→200 =200/311B] attempts=1 after=0 2.8s
+trafficserver no-validator-304 [→200 =200/335B | INM+IMS→304 =200/335B | IMS→304 =200/335B] attempts=1 after=0 2.7s
+trafficserver unquoted [→200 =200/322B | INM+IMS→304 =200/322B | INM+IMS→304 =200/322B] attempts=1 after=0 2.8s
+trafficserver bad-date [→200 =200/331B | →200 =200/331B | →200 =200/331B] attempts=1 after=0 2.7s
+trafficserver future [→200 =200/333B | IMS→304 =200/333B | IMS→304 =200/333B] attempts=1 after=0 2.8s
+done: 161 rows written to the capture (21 controls), 0 request_failed

@@ -40,8 +40,10 @@ a resume request correctly (a resumer never sends a suffix range; only `curl -r 
 
 **Every request the client sent is recorded by a local recording reverse proxy** (`scripts/range-witness/recorder.mjs`):
 the client is pointed at a loopback `http://` URL whose path and query are the flavor's; the recorder forwards
-each request verbatim to `https://badhttp.dev` over TLS (HTTP/1.1), returns the response verbatim (status, every header,
-body bytes, Content-Length preserved; no decoding, no re-chunking of a response that had a Content-Length), and writes
+each request to `https://badhttp.dev` over TLS (HTTP/1.1) with its end-to-end headers unchanged (hop-by-hop headers — Connection,
+Keep-Alive, TE, Trailer, Upgrade, Transfer-Encoding, Proxy-* — are the recorder's own on each leg; Host is rewritten to the
+upstream), returns the status, the body and every end-to-end response header unchanged (Content-Length preserved; no decoding, no
+re-chunking of a response that had a Content-Length; "verbatim" in the rows means this), and writes
 one exchange record per request. The row names this (`client.requests_recorded_by`) and the served `url` is the
 badhttp URL; no loopback literal reaches a row (the parser refuses one). What this changes about the test: the client
 speaks plain HTTP/1.1 to the recorder, so TLS, ALPN and HTTP/2 behaviour are out of this family's scope and the index

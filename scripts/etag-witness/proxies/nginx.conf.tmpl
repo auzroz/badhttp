@@ -1,0 +1,26 @@
+# /etag witness: nginx as a caching reverse proxy in front of the recorder. Rendered by ../drivers/proxy.mjs.
+# {{DIR}} the capture's working directory, {{PORT}} the proxy's loopback port,
+# {{ORIGIN_HOST}} {{ORIGIN_PORT}} the recorder. Everything not named here is nginx's default.
+daemon off;
+pid {{DIR}}/nginx.pid;
+error_log {{DIR}}/error.log notice;
+events {}
+http {
+  access_log off;
+  client_body_temp_path {{DIR}}/tmp/client;
+  proxy_temp_path {{DIR}}/tmp/proxy;
+  fastcgi_temp_path {{DIR}}/tmp/fcgi;
+  uwsgi_temp_path {{DIR}}/tmp/uwsgi;
+  scgi_temp_path {{DIR}}/tmp/scgi;
+  proxy_cache_path {{DIR}}/cache keys_zone=etagwitness:1m;
+  server {
+    listen 127.0.0.1:{{PORT}};
+    location / {
+      proxy_pass http://{{ORIGIN_HOST}}:{{ORIGIN_PORT}};
+      proxy_cache etagwitness;
+      proxy_cache_revalidate on;
+{{NGINX_EXTRA}}
+      add_header X-Cache-Status $upstream_cache_status always;
+    }
+  }
+}

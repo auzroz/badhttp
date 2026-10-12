@@ -69,7 +69,9 @@ The expected END of a row therefore depends on the class (table below), and `rea
    was complete and the library would otherwise have reconnected or kept waiting), `harness-timeout` (the
    per-row wall-clock cap below fired first);
 5. `retry_ms_adopted` (the retry value the library exposes, null if it does not), `last_event_id_final` (the
-   library's notion of the last event id at the end, null if not exposed), `wall_ms`.
+   library's notion of the last event id at the end, null if not exposed; for go-sse and httpx-sse, whose last-id state
+   is not readable from outside, the harness records the id of the last event each delivered — true of that event by
+   construction, and unable to show what a reconnect would carry; noted 2026-10-12), `wall_ms`.
 
 **Pacing and caps.** One client at a time, flavors in order, 1 s between rows, 3 s between clients, never while
 `scripts/smoke.sh` runs (one IP, one zone rate limit). Per-row wall cap: 30 s (`stall` is 10 s + close;
@@ -109,7 +111,7 @@ its opening, and stays in the comparison.
   "method":"GET", "flavor":"<flavor>", "probed":"<iso>", "badhttp_version":"<from the first connection>",
   "client": {"id","name","role":"client|control","class":"eventsource|one-shot|raw","version","library","platform","invocation","connections_counted_by"},
   "attempts": 1,
-  "connections": [{"n":1,"status":200,"content_type":"text/event-stream; charset=utf-8","x_badhttp_flavor":"ok","last_event_id_sent":null,"ended":"server-closed|reset|client-closed|harness-timeout|status-204","error":null}],
+  "connections": [{"n":1,"status":200,"content_type":"text/event-stream; charset=utf-8","x_badhttp_flavor":"ok","last_event_id_sent":null,"ended":"server-closed|reset|client-closed|harness-timeout|status-204|error|refused|connect-refused","error":null}],
   "events": [{"type":"tick","id":"1","data":"{\"n\":1,\"of\":5,\"t\":...}","data_bytes":30,"data_sha256":null}],
   "events_delivered": 5,
   "errors": [{"message":"...","had_data":false,"ready_state_after":"connecting"}],
@@ -118,6 +120,7 @@ its opening, and stays in the comparison.
   "control": {"raw_bytes": 412, "raw_sha256": "...", "curl_exit": 0}      // null on client rows
 }
 ```
+`ended` tokens added 2026-10-12 (the v0.24.0 review): `refused` means the library rejected a response that arrived (a status or content type it would not consume), `connect-refused` a TCP refusal before any response, `error` a failure the harness could not classify. The committed 2026-10-05 capture used none of the three.
 The parser adds `outcome`, `diff`, `reference` (a summary of the reference parse) and `license: "CC0-1.0"`. Every
 served row carries every declared field (`events_note` and `control` are null on client rows).
 

@@ -108,6 +108,7 @@ type step struct {
 	body   []byte
 	vh     string
 	err    error
+	inBody bool // err came from reading the response body (a truncation or a timeout), not from the request
 }
 
 func do(c *http.Client, u string) step {
@@ -119,7 +120,7 @@ func do(c *http.Client, u string) step {
 	resp.Body.Close()
 	if err != nil {
 		// a timeout or truncation while reading the body is a transport failure, not an edge page
-		return step{err: err}
+		return step{err: err, inBody: true}
 	}
 	return step{status: resp.StatusCode, body: b, vh: resp.Header.Get("X-Badhttp-Version")}
 }
@@ -186,13 +187,14 @@ func main() {
 			var lastSeen *int
 			failed := ""
 			var ferr error
+			ferrInBody := false
 			for i, su := range urls {
 				res[i] = do(client, su)
 				if i == 0 {
 					hops = append([]hop{}, ct.hops...)
 				}
 				if res[i].err != nil {
-					failed, ferr = "error", res[i].err
+					failed, ferr, ferrInBody = "error", res[i].err, res[i].inBody
 					break
 				}
 				st := res[i].status
@@ -216,7 +218,10 @@ func main() {
 					msg := scrub(ferr.Error())
 					kind := "raised"
 					var ne net.Error
-					if errors.As(ferr, &ne) {
+					// A request error is a *url.Error (a net.Error); a body read that failed (io.ErrUnexpectedEOF is not a net.Error) is a
+					// transport failure too, as the comment in do() says. Before the v0.24.0 follow-up such a truncation was recorded as the
+					// client raising; no row of the committed capture is affected.
+					if ferrInBody || errors.As(ferr, &ne) {
 						kind = "transport"
 					}
 					out.ClientError, out.ErrorKind = &msg, &kind

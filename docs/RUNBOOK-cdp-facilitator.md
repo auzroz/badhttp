@@ -72,5 +72,5 @@ month are free, then $0.001 each; verification is free. At this project's volume
 ## If it fails
 
 - `facilitator_rejected_payload` with the CDP URL in `facilitator`: the JWT was accepted but the payload was not —
-  read the `detail`. A `401` never reaches the payer: whether it arrives at `/verify` or at `/settle`, the payment fails over to PayAI and still settles.
+  read the `detail`. A `401` is never the payer's refusal: whether it arrives at `/verify` or at `/settle`, the payment fails over to the next facilitator (PayAI) and settles there if that one accepts, and the success body names it in `failed_over_from` as `<url> verify|settle 401`. One carve-out (v0.25.0 review): the failover runs on the HTTP status only when the facilitator's body is not a JSON verdict — a 401/403/429 whose body carries a boolean `isValid`/`success` is read as the verdict, per the rule in `src/x402.js` (callFacilitator).
 - To disable without touching secrets: `wrangler secret delete CDP_API_KEY_ID` restores the previous chain.

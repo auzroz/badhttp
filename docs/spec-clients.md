@@ -22,10 +22,10 @@ the finding.** It is the only data in this repository that this project did not 
 
 | Route | Shape |
 |---|---|
-| `GET /clients.jsonl` | NDJSON rows, one per observation — 168 for `/compress` at v0.14.0, 240 in two families at v0.18.0, 632 in five families at v0.22.0, 798 in six since v0.24.0 (`/compress` 168, `/crosshost` 72, `/auth` 144, `/cookies` 136, `/sse` 112, `/range` 166; one section per family below). Headers mirror `/corpus.jsonl`: `application/x-ndjson`, `no-transform`, `x-badhttp-license: CC0-1.0`, `x-badhttp-rows`, `link: rel=license`. |
+| `GET /clients.jsonl` | NDJSON rows, one per observation — 168 for `/compress` at v0.14.0, 240 in two families at v0.18.0, 632 in five families at v0.22.0, 798 in six at v0.24.0 and 959 in seven since v0.25.0 (`/compress` 168, `/crosshost` 72, `/auth` 144, `/cookies` 136, `/sse` 112, `/range` 166, `/etag` 161; one section per family below). Headers mirror `/corpus.jsonl`: `application/x-ndjson`, `no-transform`, `x-badhttp-license: CC0-1.0`, `x-badhttp-rows`, `link: rel=license`. |
 | `GET /clients` | JSON index: roster, outcome legend, `reading_this`, per-role counts, per-flavor disagreement, freshness, reproduce. |
 
-8 profiles × 21 flavors = 168. `corpus_id` on every row joins to a `/corpus.jsonl` row. As of v0.18.0 the file had 240 rows in two families (it now has 798 in six, see above); the 72 `/crosshost` rows are documented in the 2026-09-17 section below.
+8 profiles × 21 flavors = 168. `corpus_id` on every row joins to a `/corpus.jsonl` row. As of v0.18.0 the file had 240 rows in two families (it now has 959 in seven, see above); the 72 `/crosshost` rows are documented in the 2026-09-17 section below.
 
 **No HTML page.** The data is the asset; an eight-column matrix that stays readable in both themes
 is a design problem, and design problems are how sessions end at 80%. Deferred deliberately.
@@ -404,3 +404,20 @@ against where RFC 9110 places the bytes the control received. `src/range.js` com
 `src/witness-range-data.js`, which `node scripts/witness-parse-range.mjs <capture>` regenerates from
 `docs/probe-range-clients-2026-10-12.jsonl` (its `.log` beside it). The capture is run with `scripts/range-witness/all.sh`, never
 while smoke runs.
+
+## Seventh family: `/etag` (session 32, 2026-10-12; v0.25.0)
+
+The design, the row shape, the roster and the refusals are in `docs/spec-etag-witness.md`; this section records only that it
+ships as the seventh family of `GET /clients.jsonl` and `GET /clients`.
+
+Real HTTP caches and conditional-request clients (library caches, `curl --etag-compare` and `-z`, `wget -N`, caching proxies)
+plus a raw-wire control (curl) over the 10 `/etag` flavors: **161 rows**, so the file now holds 959 rows in seven families. Each client fetches the flavor three times in a row through a fresh cache (cold, warm,
+warm-again) and the harness never sends a conditional header for a client; every request is recorded between the client and the
+server, attributed to the fetch that caused it, and the caller's answer is described against a reference derived from the
+control's exchanges: what RFC 9111 implies a textbook cache would have sent and shown given what this server answered the
+control's textbook revalidation. `outcome` describes what the caller received on the warm fetch and what went upstream, never a
+verdict: RFC 9111 §5.2.2.4 forbids reuse of a `no-cache` response without validation and does not forbid an unconditional
+refetch. `src/etag.js` computes the findings from `src/witness-etag-data.js`, which `node scripts/witness-parse-etag.mjs
+<capture>` regenerates from `docs/probe-etag-clients-<date>.jsonl` (its `.log` beside it). The capture is run with
+`scripts/etag-witness/all.sh`, never while smoke runs. The per-client explanations of why a named cache behaved as it did
+(gated findings) ship in `src/etag.js` (fifteen, each gated on the computed facts it names), citing `docs/survey-etag-clients-2026-10-12.md`.

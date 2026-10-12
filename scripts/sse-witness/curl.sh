@@ -52,7 +52,10 @@ for f in $FLAVORS; do
       events: [], events_delivered: null, errors: (if $err == null then [] else [ { message: $err, had_data: false, ready_state_after: null } ] end),
       end: $endv, retry_ms_adopted: null, last_event_id_final: null, wall_ms: $wall,
       control: { raw_base64: $b64, raw_bytes: $bytes, raw_sha256: $sha, curl_exit: $rc } }'
-  echo "curl $f: status ${status:-none} exit $rc bytes $bytes ok" >&2
+  # A row without x-badhttp-version after three attempts is an edge response, not an observation: the parser refuses it, so the
+  # run log must not count it as ok (all.sh counts lines ending " ok").
+  if [ -z "$xver" ]; then echo "curl $f: status ${status:-none} exit $rc bytes $bytes FAILED: no x-badhttp-version after 3 attempts" >&2
+  else echo "curl $f: status ${status:-none} exit $rc bytes $bytes ok" >&2; fi
   sleep 1
 done
 rm -rf "$T"

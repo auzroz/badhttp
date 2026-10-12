@@ -24,8 +24,10 @@ import (
 // Error text can carry the resolver's or the local address; keep the kind of failure, not the machine's addresses.
 var addrRe = regexp.MustCompile(`(\b[0-9]{1,3}(\.[0-9]{1,3}){3}(:[0-9]+)?)|(\[[0-9a-fA-F:]+\](:[0-9]+)?)`)
 
-// Credential needles, as the Python and Node harnesses scrub them: the documented fake credentials, an Authorization
-// value, userinfo in a URL. Every place error text leaves this harness (the row, the run log) goes through scrub().
+// Credential needles, as the Python harness scrubs them (the Node harness does no scrubbing of its own: it records e.name and
+// e.message, and the parser's needle and machine gates are what refuse a leak there; the Python harness scrubs credentials but
+// not addresses or paths): the documented fake credentials, an Authorization value, userinfo in a URL. Every place error text
+// leaves this harness (the row, the run log) goes through scrub(), which also drops addresses (addrRe).
 var credRes = []struct {
 	re   *regexp.Regexp
 	repl string

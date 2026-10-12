@@ -157,10 +157,15 @@ function errText(err) {
 }
 function chain(err) { const out = []; for (let e = err, i = 0; e && i < 5; e = e.cause, i++) out.push(e); return out; }
 // How an HTTP exchange that threw ended, from the transport's side.
+// connections[].ended vocabulary, one meaning per token across all the harnesses (witness-parse-sse.mjs CONN_ENDS):
+//   'refused'         the LIBRARY itself rejected a response that had arrived (its status or Content-Type check), recorded by
+//                     py-clients.py; the Node and Go libraries abort their own request instead and are recorded 'client-closed'.
+//   'connect-refused' the TCP connection was refused (ECONNREFUSED). No row of the 2026-10-05 capture carries it; until the
+//                     v0.24.0 follow-up this harness wrote 'refused' for it, which made one token mean two things.
 function endOfError(err) {
   const c = chain(err);
   if (c.some((e) => e && (e.name === 'AbortError' || e.type === 'aborted' || e.code === 'ABORT_ERR'))) return 'client-closed';
-  if (c.some((e) => e && (e.code === 'ECONNREFUSED'))) return 'refused';
+  if (c.some((e) => e && (e.code === 'ECONNREFUSED'))) return 'connect-refused';
   if (c.some((e) => e && (['UND_ERR_SOCKET', 'ECONNRESET', 'EPIPE', 'UND_ERR_RES_CONTENT_LENGTH_MISMATCH'].includes(e.code) || /other side closed|terminated|socket hang up|premature close|content-length/i.test(String(e.message || ''))))) return 'reset';
   return 'error';
 }
@@ -195,7 +200,7 @@ function newRec(flavor) {
   rec.endConn = (c, how, err) => {
     if (c.ended != null) return;
     c.ended = how;
-    if (err && (how === 'reset' || how === 'error' || how === 'refused')) c.error = sanitize(errText(err));
+    if (err && (how === 'reset' || how === 'error' || how === 'connect-refused')) c.error = sanitize(errText(err));
   };
   rec.eventOf = (type, lastEventId, data) => {
     const d = typeof data === 'string' ? data : String(data ?? '');

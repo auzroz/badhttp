@@ -23,9 +23,16 @@ export function cdpConfigured(env) {
  * Exported for the offline test (scripts/cdp-auth-test.mjs), which compares this module against the SDK.
  */
 export async function importCdpKey(secret) {
-  const s = secret.trim();
-  if (/-----BEGIN (EC )?PRIVATE KEY-----/.test(s)) {
-    // PKCS#8 PEM. ("BEGIN EC PRIVATE KEY" is SEC1, which Web Crypto cannot import: the portal issues PKCS#8.)
+  // A secret pasted into a dashboard field sometimes arrives with literal backslash-n sequences where the PEM had line
+  // breaks; they are whitespace for this purpose. (v0.24.0 review, dropped finding; applied #32.)
+  const s = secret.trim().replace(/\\n/g, '\n');
+  if (/-----BEGIN EC PRIVATE KEY-----/.test(s)) {
+    // SEC1, which Web Crypto cannot import. The CDP portal issues PKCS#8; a named error here instead of a generic
+    // importKey failure so the failure class is legible in the Worker log.
+    throw new Error('CDP_API_KEY_SECRET is a SEC1 "EC PRIVATE KEY" PEM; Web Crypto imports only PKCS#8 ("BEGIN PRIVATE KEY"), which is what the CDP portal issues');
+  }
+  if (/-----BEGIN PRIVATE KEY-----/.test(s)) {
+    // PKCS#8 PEM.
     const der = b64decode(s.replace(/-----[^-]+-----/g, '').replace(/\s+/g, ''));
     const key = await crypto.subtle.importKey('pkcs8', der, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
     return { key, alg: 'ES256' };

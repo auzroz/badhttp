@@ -18,6 +18,7 @@
 // if any row still contains the base64 of a documented credential.
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { checkString, headerSafe } from './witness-gate.mjs';
 import { isAbsolute } from 'node:path';
 
 const SRC = process.argv[2];
@@ -50,7 +51,10 @@ const HARNESS_ENCODED = new Set(['basic-header', 'bearer-header']);
 const ORACLE_KEYS = ['authenticated', 'checked', 'scheme', 'algorithm', 'encoding', 'generations', 'matched', 'error', 'defect', 'note', 'method', 'flavor', 'uri_param_length', 'request_target', 'location', 'authentication_info'];
 // Anything a client could have SENT: the base64 of both encodings of the documented Basic credentials, the raw
 // values, their URL-encoded forms, the token, a Proxy-Authorization line, and a Digest response= parameter.
-const NEEDLES = ['YWdlbnQ6', 'Y29ycmVjdA', 'c8Opc2FtZQ', 'c+lzYW1l', 'agent:correct', 'sésame', 'agent%3A', 's%C3%A9same', 'badhttp-token-ok', 'Proxy-Authorization:', 'proxy-authorization:', 'response='];
+const NEEDLES = ['YWdlbnQ6', 'Y29ycmVjdA', 'c8Opc2FtZQ', 'c+lzYW1l', 'agent:correct', 'sésame', 'agent%3A', 's%C3%A9same', 'badhttp-token-ok', 'Proxy-Authorization:', 'proxy-authorization:', 'response=', 's%E9same', 's\\xe9same'];
+// The ASCII needles that are not base64 are matched case-insensitively (a harness could echo AGENT:CORRECT or agent%3a);
+// the base64 needles stay case-sensitive, because lower-casing them would make false hits.
+const isCaseFree = (n) => /^[\x00-\x7f]*$/.test(n) && !/^[A-Za-z0-9+/]+$/.test(n);
 
 const lines = readFileSync(SRC, 'utf8').split('\n').filter((l) => l.trim());
 const meta = JSON.parse(lines[0]);
@@ -94,6 +98,7 @@ function validateChallenge(v, lineNo) {
 function classify(o, lineNo) {
   if (o.oracle === null) {
     if (o.error_kind === 'raised') return 'client-raised';
+    if (o.final_status === null && o.error_kind === null && !o.reported_error) throw new Error(`line ${lineNo}: no oracle, no status and no error_kind`);
     return o.final_status === null ? 'request-failed' : 'did-not-land';
   }
   const st = o.final_status;
@@ -127,6 +132,10 @@ for (const [i, line] of lines.slice(1).entries()) {
   if (r.version_header != null && r.version_header !== meta.badhttp_version_observed) throw new Error(`line ${lineNo}: badhttp version ${r.version_header} != provenance ${meta.badhttp_version_observed}`);
   if (typeof r.attempts !== 'number') throw new Error(`line ${lineNo}: no attempts count`);
   if (!Array.isArray(r.hops)) throw new Error(`line ${lineNo}: no hops`);
+  // A hop that is a rate limit or a server error is the edge or an outage, not this flavor's answer.
+  for (const h of r.hops) if (typeof h.status === 'number' && (h.status === 429 || h.status >= 500)) throw new Error(`line ${lineNo}: hop status ${h.status} is not an answer from this flavor; re-run the whole capture`);
+  // The row belongs to its flavor. (The oracle's own flavor is not compared: the redirect flavor lands on /auth/basic.)
+  if (typeof r.url !== 'string' || !r.url.endsWith(`/auth/${r.flavor}`)) throw new Error(`line ${lineNo}: url ${r.url} does not end with /auth/${r.flavor}`);
 
   const b = landed ? r.oracle : null;
   const body = b ? Object.fromEntries(Object.entries(b).filter(([k]) => ORACLE_KEYS.includes(k))) : null;
@@ -191,17 +200,24 @@ const clients = ORDER.map((id) => ({ id, name: ROSTER[id].name, role: 'client', 
 // Both gates cover everything that is emitted: the rows, the client metadata (version, platform, invocation),
 // the provenance line and the run log. The credential needles first, then the machine gate (a path or a local
 // host in a client exception message, an invocation or a platform string).
-const MACHINE = [/\/Users\//, /\/Volumes\//, /\/home\//, /\/private\//, /\/var\/folders\//, /\/tmp\//, /\bC:\\/, /file:\/\//, /localhost/, /127\.0\.0\.1/];
-const ALLOWED_HOSTS = ['badhttp.dev', 'alt.badhttp.dev'];
+// The machine and host gate is the shared one, scripts/witness-gate.mjs (the same gate as the other four generators).
 const scanned = [['a row', JSON.stringify(observations)], ['the client metadata', JSON.stringify(clients)], ['the provenance line', JSON.stringify(meta)], ['the run log', logText]];
 for (const [what, text] of scanned) {
-  for (const needle of NEEDLES) if (text.includes(needle)) throw new Error(`refusing to emit: ${what} contains ${JSON.stringify(needle)}`);
-  for (const re of MACHINE) if (re.test(text)) throw new Error(`refusing to emit: ${what} matches ${re}`);
-  for (const m of text.matchAll(/\bhttps?:\/\/([^\/\s"'?#:\\]+)/g)) {
-    if (!ALLOWED_HOSTS.includes(m[1].toLowerCase())) throw new Error(`refusing to emit: ${what} names the host ${JSON.stringify(m[1])}`);
-  }
+  const lowered = text.toLowerCase();
+  for (const needle of NEEDLES) if (isCaseFree(needle) ? lowered.includes(needle.toLowerCase()) : text.includes(needle)) throw new Error(`refusing to emit: ${what} contains ${JSON.stringify(needle)}`);
+  // verdict:false — the committed capture carries the server's own sentence "…so that violates nothing (RFC 7617 §2.1)" in a
+  // row, a quoted description that the verdict-word list reads as a verdict. The gate is not loosened for it; this family
+  // simply does not run the verdict check (its prose is hand-written in src/auth.js and gated by the smoke suite).
+  const why = checkString(text, what, { verdict: false });
+  if (why) throw new Error(`refusing to emit: ${why}`);
 }
 if (/(FAILED|raised)/.test(logText) && !observations.some((o) => o.outcome === 'client-raised' || o.outcome === 'request-failed')) throw new Error('the run log reports a failure the rows do not carry');
+
+// Provenance fields and the capture path are written into the header comment of the generated file.
+for (const [label, v] of [['probed', meta.probed], ['badhttp_version_observed', meta.badhttp_version_observed], ['worker_version', meta.worker_version], ['the capture path', SRC]]) {
+  const why = headerSafe(label, v);
+  if (why) throw new Error(`refusing to emit: ${why}`);
+}
 
 const out = `// GENERATED by scripts/witness-parse-auth.mjs from ${SRC} — do not edit by hand.
 // Re-run the generator after any new capture; the capture scripts are in scripts/auth-witness/.

@@ -24,6 +24,31 @@ import (
 // Error text can carry the resolver's or the local address; keep the kind of failure, not the machine's addresses.
 var addrRe = regexp.MustCompile(`(\b[0-9]{1,3}(\.[0-9]{1,3}){3}(:[0-9]+)?)|(\[[0-9a-fA-F:]+\](:[0-9]+)?)`)
 
+// Credential needles, as the Python and Node harnesses scrub them: the documented fake credentials, an Authorization
+// value, userinfo in a URL. Every place error text leaves this harness (the row, the run log) goes through scrub().
+var credRes = []struct {
+	re   *regexp.Regexp
+	repl string
+}{
+	{regexp.MustCompile(`(?i)basic\s+[A-Za-z0-9+/=]{6,}`), "Basic [redacted]"},
+	{regexp.MustCompile(`(?i)bearer\s+\S+`), "Bearer [redacted]"},
+	{regexp.MustCompile(`(?i)digest\s+\S.*`), "Digest [redacted]"},
+	{regexp.MustCompile(`://[^/@\s]+@`), "://[redacted]@"},
+	{regexp.MustCompile(`(?i)agent(:|%3A)\S*`), "[redacted]"},
+	{regexp.MustCompile(`(?i)s(é|%C3%A9)same`), "[redacted]"},
+}
+
+func scrub(s string) string {
+	s = addrRe.ReplaceAllString(s, "<addr>")
+	for _, c := range credRes {
+		s = c.re.ReplaceAllString(s, c.repl)
+	}
+	if r := []rune(s); len(r) > 300 {
+		s = string(r[:300])
+	}
+	return s
+}
+
 var order = []string{"basic", "bearer", "digest", "digest-sha256", "none", "bare-scheme", "unknown-scheme", "token68", "multi", "case", "quoted", "utf8", "always-401", "accept-any", "forbidden", "stale", "proxy", "redirect"}
 
 type hop struct {
@@ -110,11 +135,11 @@ func main() {
 				out["hops"] = ct.hops
 			}
 			if err != nil {
-				out["client_error"] = err.Error()
+				out["client_error"] = scrub(err.Error())
 				out["final_status"], out["redirects_followed"], out["final_url"], out["challenge_seen"], out["oracle"], out["version_header"] = nil, hops, nil, nil, nil, nil
 				if attempt == 3 {
 					enc.Encode(out)
-					fmt.Fprintln(os.Stderr, "go", f, "FAILED:", err)
+					fmt.Fprintln(os.Stderr, "go", f, "FAILED:", scrub(err.Error()))
 				} else {
 					time.Sleep(12 * time.Second)
 				}
@@ -125,11 +150,11 @@ func main() {
 			if rerr != nil {
 				// a timeout or truncation while reading the body is a transport failure, recorded as one (and retried
 				// as one), not folded into "not an oracle response"
-				out["client_error"] = addrRe.ReplaceAllString(rerr.Error(), "<addr>")
+				out["client_error"] = scrub(rerr.Error())
 				out["final_status"], out["redirects_followed"], out["final_url"], out["challenge_seen"], out["oracle"], out["version_header"] = nil, hops, nil, nil, nil, nil
 				if attempt == 3 {
 					enc.Encode(out)
-					fmt.Fprintln(os.Stderr, "go", f, "FAILED:", rerr)
+					fmt.Fprintln(os.Stderr, "go", f, "FAILED:", scrub(rerr.Error()))
 				} else {
 					time.Sleep(12 * time.Second)
 				}

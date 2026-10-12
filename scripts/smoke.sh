@@ -275,6 +275,8 @@ chk authnoecho "$(curl -s -H 'Authorization: Basic c2VjcmV0OnNlY3JldA==' "$B/aut
 # (8) ~85 requests here: sequential, with sleeps, under the 100/10 s zone limit.
 sleep 2 # breathing room under the zone rate limit
 export PATH="/opt/homebrew/bin:$PATH" # brotli, zstd (their checks self-skip, loudly, when absent)
+# numword N: the word the pages print for a count computed from the rows (src/page.js numWord: zero..twelve, else the digits).
+numword(){ local w; w=(zero one two three four five six seven eight nine ten eleven twelve); echo "${w[$(( $1 + 1 ))]:-$1}"; }
 same(){ if [ "$1" = "$2" ]; then echo same; else echo "$1!=$2"; fi; }
 tr(){ LC_ALL=C command tr "$@"; }; awk(){ LC_ALL=C command awk "$@"; } # gzip bodies flow through tr/awk below; a UTF-8 locale makes macOS complain
 AEG=(-H 'Accept-Encoding: gzip')
@@ -417,9 +419,9 @@ chk bookstransfers "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.transfers.error
 chk bookstransfersselftest "$(printf '%s\n' "$cjson" | jq -r 'if ((.chain.transfers.error? // "") != "") or (.chain.transfers.truncated == true) then "ok" else ([.chain.transfers.items[] | select(.tx == "0x8a331a0a28a26d290984c34bd12ae03bdc31603856b4e46bace3d2045cddc089" or .tx == "0x629b1a478e88c8be043ee0e8ebac67169a386192fde388b9a616fc850b5010b8" or .tx == "0x9eed7b72bdd445317b1a59e5c7cc12f9a44b857132dcc743121b366261e6ca75" or .tx == "0x30e24c0a8d200180906adf54ba011fd26aa2c4fb070ad78c870debd2d286a748" or .tx == "0xba553c25d371527eef124de3151a002b20b276030c1e0368553133098961c6b0") | .label] | if (length == 5) and (map(test("self-test")) | all) then "ok" else "bad" end) end')" ok
 chk bookstransferscurl "$(printf '%s\n' "$cjson" | jq -r '.chain.transfers.reproduce|test("eth_getTransactionReceipt")')" true
 # Since v0.23.0 the list is built from the receipts of the transactions the books name, so every book
-# row must be confirmed by the chain. The named-row floor (15, the count when this was written) keeps
+# row must be confirmed by the chain. The named-row floor (16 since session 31; 15 when this was written) keeps
 # the check from passing vacuously on an empty set; raise it when rows are added, never lower it.
-chk bookstransfersconfirmed "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.transfers.error? // "") != "" then "ok" elif (.chain.transfers.books_rows_named >= 15) and (.chain.transfers.books_rows_named == (([.revenue[]|select(.tx)]|length) + ([.chain_movements[]|select(.tx)]|length))) and (.chain.transfers.books_rows_confirmed == .chain.transfers.books_rows_named) and ((.chain.transfers.books_rows_unconfirmed|length) == 0) and (.chain.transfers.amount_mismatch_count == 0) and ([.chain.transfers.items[] | select(.confirmed_on_chain != true)] | length == 0) then "ok" else "bad" end')" ok
+chk bookstransfersconfirmed "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.transfers.error? // "") != "" then "ok" elif (.chain.transfers.books_rows_named >= 16) and (.chain.transfers.books_rows_named == (([.revenue[]|select(.tx)]|length) + ([.chain_movements[]|select(.tx)]|length))) and (.chain.transfers.books_rows_confirmed == .chain.transfers.books_rows_named) and ((.chain.transfers.books_rows_unconfirmed|length) == 0) and (.chain.transfers.amount_mismatch_count == 0) and ([.chain.transfers.items[] | select(.confirmed_on_chain != true)] | length == 0) then "ok" else "bad" end')" ok
 # When the identity above is reconciled and every named row is confirmed, the rows sum to the balance exactly.
 # Recomputed in jq from the rows and the RPC balance — never from the Worker's own matches_balance, which is
 # derived from the same rows (a check that reads its expectation from the thing it checks proves nothing).
@@ -628,9 +630,17 @@ chk corpusbrzstdae "$(jq -r 'select(.id=="compress.br" or .id=="compress.zstd")|
 
 # /clients — the witness matrix as data. compress: 8 profiles x 21 flavors; crosshost: 8 clients x 9 flavors; auth: 8 clients x 18 flavors; cookies: 8 clients x 17 setter flavors.
 clh=$(curl -s -D - "$B/clients.jsonl" -o "$T/clients.jsonl")
+# The expected row totals are DERIVED from the index's per-family counts (each known family is also asserted individually in
+# clientsindex), so adding a family does not mean retyping a grand total: sum of families[].rows, range rows, range client rows
+# (resumer roster x cells per client) and the control rows that remain.
+cidxc=$(curl -s "$B/clients")
+ctot=$(printf '%s\n' "$cidxc" | jq -r '[.families[].rows]|add')
+rrows=$(printf '%s\n' "$cidxc" | jq -r '.families.range.rows')
+rcl=$(printf '%s\n' "$cidxc" | jq -r '(.families.range.clients|map(select(.role=="client"))|length) * .families.range.cells_per_client')
+nres=$(printf '%s\n' "$cidxc" | jq -r '.families.range.clients|map(select(.role=="client"))|length')
 chk clientsjsonlhdr "$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^content-type: application/x-ndjson')$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^cache-control:.*no-transform')$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^x-badhttp-license: CC0-1.0')$(printf '%s\n' "$clh" | tr -d '\r' | grep -ic '^link: <.*>; rel="license"')" "1111"
-chk clientsrows "$(wc -l < "$T/clients.jsonl" | tr -d ' ')" 632
-chk clientsfamilies "$(jq -r .family "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "144auth;168compress;136cookies;72crosshost;112sse;"
+chk clientsrows "$(wc -l < "$T/clients.jsonl" | tr -d ' ')" "$ctot"
+chk clientsfamilies "$(jq -r .family "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "144auth;168compress;136cookies;72crosshost;${rrows}range;112sse;"
 chk clientsrowcount "$(wc -l < "$T/clients.jsonl" | tr -d ' ')" "$(printf '%s\n' "$clh" | tr -d '\r' | sed -n 's/^x-badhttp-rows: //Ip' | tr -d '\r')"
 chk clientsjsonlvalid "$(while IFS= read -r l; do printf '%s' "$l" | jq -e . >/dev/null 2>&1 || echo BAD; done < "$T/clients.jsonl" | grep -c BAD)" 0
 chk clientsids "$(jq -r .id "$T/clients.jsonl" | sort | uniq -d | wc -l | tr -d ' ')" 0
@@ -641,18 +651,22 @@ chk clientsorigin "$(jq -r --arg b "$B" 'select((.url|startswith($b))|not)|.corp
 chk clientshosts "$(jq -r '.url' "$T/clients.jsonl" | sed -E 's#^https?://([^/:]+).*#\1#' | grep -vcE '^(badhttp\.dev|alt\.badhttp\.dev)$')" 0
 # Six decoding clients and two controls: the split is what keeps the site's "six real clients" claim
 # literally true now that eight profiles are published.
-chk clientsroles "$(jq -r '.client.role' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "576client;56control;"
+chk clientsroles "$(jq -r '.client.role' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr '\n' ';' | tr -d ' ')" "$((576 + rcl))client;$((56 + rrows - rcl))control;"
 # Every /clients row must join to a real /corpus.jsonl row, or the join key is decoration.
 chk clientsjoin "$(comm -23 <(jq -r .corpus_id "$T/clients.jsonl" | sort -u) <(jq -r .id "$T/corpus.jsonl" | sort -u) | wc -l | tr -d ' ')" 0
-cidxc=$(curl -s "$B/clients")
-chk clientsindex "$(printf '%s\n' "$cidxc" | jq -r '[(.rows==632), (.families.compress.rows==168), (.families.crosshost.rows==72), (.families.compress.flavors==21), (.families.crosshost.flavors==9), (.license=="CC0-1.0"), (.families.compress.clients|length==8), (.families.crosshost.clients|length==8), (.jsonl|test("/clients.jsonl$")), (.families.compress.outcome_legend|keys|length==6), (.families.crosshost.outcome_legend|keys|length==5), (.common_fields|length==12)] | join(",")')" "true,true,true,true,true,true,true,true,true,true,true,true"
+# ONE verdict-word ban list for every witness family's reading_this + findings (a description of what a caller received is never a verdict on a named client).
+VERDICT_RE='(correctly|incorrectly|wrongly|fails|broken|conformant|non-compliant|violates|buggy|refuses|\(correct)'
+# Two phrases name the word without passing a verdict on a client ("no client ... is called conformant"; "a jar can be conformant to either" of two specs); they are removed before the grep.
+VERDICT_OK='called conformant|can be conformant to either'
+verdicthits(){ sed -E "s/($VERDICT_OK)//g" | grep -ciwE "$VERDICT_RE"; }
+chk clientsindex "$(printf '%s\n' "$cidxc" | jq -r '[(.rows==([.families[].rows]|add)), (.families.compress.rows==168), (.families.crosshost.rows==72), (.families.auth.rows==144), (.families.cookies.rows==136), (.families.sse.rows==112), (.families.range.rows>=80), ([.families[]]|length==6), (.families.compress.flavors==21), (.families.crosshost.flavors==9), (.license=="CC0-1.0"), (.families.compress.clients|length==8), (.families.crosshost.clients|length==8), (.jsonl|test("/clients.jsonl$")), (.families.compress.outcome_legend|keys|length==6), (.families.crosshost.outcome_legend|keys|length==5), (.common_fields|length==12)] | join(",")')" "true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true"
 chk clientsauthindex "$(printf '%s\n' "$cidxc" | jq -r '[(.families.auth.rows==144), (.families.auth.flavors==18), (.families.auth.clients|length==8), (.families.auth.outcome_legend|keys|length==5), (.families.auth.mechanism_legend|keys|length==8), (.families.auth.findings|length>=10), ([.families.auth.clients[].requests_counted_by]|all(type=="string" and length>20)), (.families.auth.disagreement_by_flavor|keys|length==18)] | join(",")')" "true,true,true,true,true,true,true,true"
 # The honesty guard: the index must say outright that an outcome is not a verdict, and must name the
 # flavor where "differs" is correct behaviour. If this sentence is ever dropped, the table becomes a
 # scoreboard of named third-party libraries, which is not what it is.
 chk clientsreading "$(printf '%s\n' "$cidxc" | jq -r '[(.reading_this|test("never a verdict")), (.families.compress.reading_this|test("never as a verdict")), (.families.compress.reading_this|test("undeclared")), (.families.compress.reading_this|test("truncated")), (.families.crosshost.reading_this|test("never as a verdict")), (.families.crosshost.reading_this|test("RFC 9110")), (.families.crosshost.reading_this|test("echoed")), (.families.auth.reading_this|test("never as a verdict")), (.families.auth.reading_this|test("capability")), (.families.auth.reading_this|test("scrubbed")), (.families.auth.reading_this|test("ORIGIN credentials")), (.families.auth.reading_this|test("by construction"))] | join(",")')" "true,true,true,true,true,true,true,true,true,true,true,true"
 # Verdict words must not appear in the auth family's reading or findings: the rows describe, they do not grade.
-chk clientsauthnoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.auth.reading_this, .families.auth.findings[]] | join(" ")' | grep -ciwE '(correctly|refuses|conformant|non-compliant|violates)')" 0
+chk clientsauthnoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.auth.reading_this, .families.auth.findings[]] | join(" ")' | verdicthits)" 0
 chk clientsdisagree "$(printf '%s\n' "$cidxc" | jq -r '.families.compress.disagreement_by_flavor["not-compressed"].distinct_outcomes')" 4
 # crosshost rows: every one landed (status 200, an arrived object of four booleans, an outcome from the legend), on one of
 # the two hosts, and none carries any of the test values — the rows are booleans and badhttp_-prefixed cookie names by design.
@@ -685,7 +699,7 @@ chk clientscookiesindex "$(printf '%s\n' "$cidxc" | jq -r '[(.families.cookies.r
 chk clientscookiesshape "$(jq -r 'select(.family=="cookies") | [(.jar_kind|IN("own-jar","harness-jar","no-jar")), (.outcome|IN("all-returned","some-returned","none-returned","client-raised","request-failed")), (.hops|type=="array" and length>=1), (.planted_names|type=="array" and length>=1), (.attempts|type=="number"), (.observed|test("^2026-")), (.url|startswith("https://badhttp.dev/cookies/")), ((.echo|type=="object") == (.outcome|IN("all-returned","some-returned","none-returned"))), ((.jar_kind=="no-jar" or (.outcome|IN("client-raised","request-failed"))) == (.after_delete==null)), ((.jar_enumerable==true and (.outcome|IN("all-returned","some-returned","none-returned"))) == (.jar_entries|type=="array"))] | all' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr -d '\n ')" "136true"
 chk clientscookiesoutcomes "$(comm -23 <(jq -r 'select(.family=="cookies")|.outcome' "$T/clients.jsonl" | sort -u) <(printf '%s\n' "$cidxc" | jq -r '.families.cookies.outcome_legend|keys[]' | sort -u) | wc -l | tr -d ' ')$(comm -23 <(jq -r 'select(.family=="cookies")|.jar_kind' "$T/clients.jsonl" | sort -u) <(printf '%s\n' "$cidxc" | jq -r '.families.cookies.jar_legend|keys[]' | sort -u) | wc -l | tr -d ' ')" "00"
 chk clientscookiesfloors "$(jq -r 'select(.family=="cookies" and .flavor=="ok" and .jar_kind!="no-jar")|.outcome' "$T/clients.jsonl" | sort -u | tr '\n' ',')|$(jq -r 'select(.family=="cookies" and .jar_kind=="no-jar")|.outcome' "$T/clients.jsonl" | sort -u | tr '\n' ',')|$(jq -r 'select(.family=="cookies" and .jar_kind=="no-jar")|.flavor' "$T/clients.jsonl" | wc -l | tr -d ' ')|$(jq -r 'select(.family=="cookies" and .flavor=="wrong-domain")|.planted_names[0]' "$T/clients.jsonl" | sort -u | tr '\n' ',')|$(jq -r 'select(.family=="cookies" and .flavor=="public-suffix")|.planted_names[0]' "$T/clients.jsonl" | sort -u | tr '\n' ',')|$(jq -r 'select(.family=="cookies" and .flavor=="many")|.planted_names|length' "$T/clients.jsonl" | sort -u | tr '\n' ',')" "all-returned,|none-returned,|17|badhttp_wrong_domain,|badhttp_supercookie,|10,"
-chk clientscookiesnoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.cookies.reading_this, .families.cookies.findings[]] | join(" ")' | grep -ciwE '(correctly|refuses|non-compliant|violates|broken|are conformant|\(correct)')" 0
+chk clientscookiesnoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.cookies.reading_this, .families.cookies.findings[]] | join(" ")' | verdicthits)" 0
 chk clientscookiesattempts "$(jq -r 'select(.family=="cookies")|.attempts' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr -d '\n ')" "1361"
 chk clientscookiesfinding "$(printf '%s\n' "$cidxc" | jq -r '.families.cookies.findings[-1]' | grep -c "^$(jq -r 'select(.family=="cookies" and (.outcome=="client-raised" or .outcome=="request-failed"))|.id' "$T/clients.jsonl" | wc -l | tr -d ' ') of 136 observations")" 1
 # The /cookies index's witness block is rendered from the same rows: date, count and roster pinned to them.
@@ -695,11 +709,11 @@ chk authwitness "$(curl -s "$B/auth" | jq -r --arg d "$(jq -r 'select(.family=="
 # The home page's auth note is rendered from the rows: its date and count must be the rows' date and count.
 awd=$(jq -r 'select(.family=="auth")|.observed' "$T/clients.jsonl" | sort -u | tr -d '\n')
 awn=$(jq -r 'select(.family=="auth")|.id' "$T/clients.jsonl" | wc -l | tr -d ' '); awc=$(jq -r 'select(.family=="auth")|.client.id' "$T/clients.jsonl" | sort -u | wc -l | tr -d ' ')
-chk authwitnesspagedate "$(curl -s "$B/" | grep -cE "(${awc}|eight) real clients on ${awd%%T*} — ${awn} observations")" 1
+chk authwitnesspagedate "$(curl -s "$B/" | grep -cE "(${awc}|$(numword $awc)) real clients on ${awd%%T*} — ${awn} observations")" 1
 # The home page's cookies note is rendered from the rows too (v0.20.0 replaced the hand-typed 2026-08-23 note).
 cwd=$(jq -r 'select(.family=="cookies")|.observed' "$T/clients.jsonl" | sort -u | tr -d '\n')
 cwn=$(jq -r 'select(.family=="cookies")|.id' "$T/clients.jsonl" | wc -l | tr -d ' '); cwc=$(jq -r 'select(.family=="cookies")|.client.id' "$T/clients.jsonl" | sort -u | wc -l | tr -d ' ')
-chk cookieswitnesspagedate "$(curl -s "$B/" | grep -cE "(${cwc}|eight) real clients on ${cwd%%T*} — ${cwn} observations")" 1
+chk cookieswitnesspagedate "$(curl -s "$B/" | grep -cE "(${cwc}|$(numword $cwc)) real clients on ${cwd%%T*} — ${cwn} observations")" 1
 
 # ---- /clients: the sse family (session 27, 2026-10-05; docs/spec-sse-witness.md). Row count, roster and date are
 # pinned so the capture cannot drift silently; every for-all below carries its own floor so it cannot pass on nothing.
@@ -715,15 +729,41 @@ chk clientssseok "$(jq -r 'select(.family=="sse" and .flavor=="ok" and .client.r
 chk clientssselanded "$(jq -r 'select(.family=="sse" and .client.role=="client") | .outcome' "$T/clients.jsonl" | grep -c 'request-failed')" 0
 chk clientssseattempts "$(jq -r 'select(.family=="sse")|.attempts' "$T/clients.jsonl" | sort -u | tr '\n' ',')" "1,"
 # The verdict-word ban over the family's reading and findings, and the no-machine-path rule over every row
-chk clientsssenoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.sse.reading_this, .families.sse.findings[]] | join(" ")' | grep -ciwE '(correctly|incorrectly|conformant|non-compliant|violates|buggy)')" 0
+chk clientsssenoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.sse.reading_this, .families.sse.findings[]] | join(" ")' | verdicthits)" 0
 chk clientsssenopaths "$(jq -c 'select(.family=="sse")' "$T/clients.jsonl" | grep -cE '/Users/|/home/|/private/|localhost|127\.0\.0\.1')" 0
 # The /sse index's witness block and the home page's SSE paragraph are rendered from the rows: date and count pinned to the rows
 ssew=$(curl -s "$B/sse" | jq -c '.witness')
 chk ssewitness "$(printf '%s\n' "$ssew" | jq -r --arg d "$(jq -r 'select(.family=="sse")|.observed' "$T/clients.jsonl" | sort -u | head -1)" --argjson n "$(jq -r 'select(.family=="sse" and .client.role=="client")|.id' "$T/clients.jsonl" | wc -l | tr -d ' ')" '[(.measured==$d), (.observations==$n), (.control_rows==14), (.findings|length>=10), (.data=="https://badhttp.dev/clients.jsonl"), (.what_this_is|test("DATED CAPTURE")), (.what_this_is|test("never typed"))] | all')" true
 chk homessedate "$(curl -s "$B/" | grep -o 'real SSE client libraries on [0-9-]*' | head -1 | awk '{print $NF}')" "$(jq -r 'select(.family=="sse")|.observed' "$T/clients.jsonl" | sort -u | head -1 | cut -c1-10)"
 chk homesseold "$(curl -s "$B/" | grep -c 'checked against a spec-conformant client')" 0
+
+# ---- /clients: the range family (session 31, 2026-10-12; docs/spec-range-witness.md). Row count, roster and date are derived
+# from the index and pinned against the file; every for-all carries its own floor so it cannot pass on nothing.
+chk clientsrangeindex "$(printf '%s\n' "$cidxc" | jq -r '[(.families.range.rows>=80), (.families.range.flavors==14), (.families.range.cells_per_client==15), (.families.range.clients|map(select(.role=="control"))|map(.id)==["curl-raw"]), (.families.range.clients|map(select(.class=="resumer"))|length>=5), (.families.range.outcome_legend|keys|length==8), (.families.range.class_legend|keys|length==2), (.families.range.shape_legend|keys|length==7), (.families.range.transfer_legend|keys|length==4), (.families.range.reference|keys|length==14), (.families.range.findings|length>=10), (.families.range.observed|startswith("2026-")), (.families.range.reading_this|test("never as a verdict")), (.families.range.reading_this|test("RFC 9110")), (.families.range.reading_this|test("self-describing")), (.families.range.reading_this|test("reference placement")), (.families.range.disagreement_by_flavor|length>=14)] | all')" true
+chk clientsrangecount "$(jq -r 'select(.family=="range")|.id' "$T/clients.jsonl" | wc -l | tr -d ' ')/$(printf '%s\n' "$cidxc" | jq -r '.families.range.rows')" "$rrows/$rrows"
+# Every client row: a scenario, an exchanges array, an outcome from the legend, a SHA-256 or null for the file, a badhttp.dev /range url.
+chk clientsrangeshape "$(jq -r --argjson legend "$(printf '%s\n' "$cidxc" | jq -c '.families.range.outcome_legend|keys')" 'select(.family=="range" and .client.role=="client") | [(.scenario|IN("resume","fresh")), (.exchanges|type=="array"), (.outcome as $o | $legend|index($o) != null), (.file.sha256 == null or (.file.sha256|test("^[0-9a-f]{64}$"))), (.url|startswith("https://badhttp.dev/range/")), (.corpus_id=="range.\(.flavor)"), (.client.class=="resumer"), (.license=="CC0-1.0")] | all' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr -d '\n ')" "${rcl}true"
+chk clientsrangecontrol "$(jq -r 'select(.family=="range" and .client.role=="control") | [(.client.id=="curl-raw"), (.scenario|IN("document","resume-raw","fresh-raw")), (.outcome=="control"), (.client.class=="raw"), (.exchanges|length==1), (.url|startswith("https://badhttp.dev/range/")), (.control.raw_sha256|test("^[0-9a-f]{64}$"))] | all' "$T/clients.jsonl" | sort | uniq -c | tr -s ' ' | tr -d '\n ')" "$((rrows - rcl))true"
+# 15 cells per client, and the always-206 fresh cell exists for every resumer on the roster.
+chk clientsrangecells "$(jq -r 'select(.family=="range" and .client.role=="client")|.client.id' "$T/clients.jsonl" | sort | uniq -c | awk '$1 != 15' | wc -l | tr -d ' ')/$(jq -r 'select(.family=="range" and .client.role=="client")|.client.id' "$T/clients.jsonl" | sort -u | wc -l | tr -d ' ')" "0/$nres"
+chk clientsrangefresh "$(comm -3 <(jq -r 'select(.family=="range" and .client.role=="client" and .flavor=="always-206" and .scenario=="fresh")|.client.id' "$T/clients.jsonl" | sort -u) <(printf '%s\n' "$cidxc" | jq -r '.families.range.clients[]|select(.role=="client")|.id' | sort -u) | wc -l | tr -d ' ')/$(jq -r 'select(.family=="range" and .scenario=="fresh")|.id' "$T/clients.jsonl" | wc -l | tr -d ' ')" "0/$nres"
+# No recorded exchange lacks x_badhttp_version (a response without it is not an observation); the floor keeps the loop from passing on nothing.
+rnex=$(jq -r 'select(.family=="range")|.exchanges[]|.n' "$T/clients.jsonl" | wc -l | tr -d ' ')
+chk clientsrangeversion "$(jq -r 'select(.family=="range")|.exchanges[]|select((.x_badhttp_version|type=="string" and length>0)|not)|.n' "$T/clients.jsonl" | wc -l | tr -d ' ')/$([ "$rnex" -ge 80 ] && echo floor)" "0/floor"
+# Every resumer row landed: a request-failed row would be the rate limit (or a driver that never reached the recorder) published as an observation. Floor: the client-row count.
+chk clientsrangelanded "$(jq -r 'select(.family=="range" and .client.role=="client") | .outcome' "$T/clients.jsonl" | grep -c 'request-failed')/$([ "$(jq -r 'select(.family=="range" and .client.role=="client")|.id' "$T/clients.jsonl" | wc -l | tr -d ' ')" -ge 80 ] && echo floor)" "0/floor"
+# The verdict-word ban over the family's reading and findings, and the no-machine-path rule over every row
+chk clientsrangenoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.range.reading_this, .families.range.findings[]] | join(" ")' | verdicthits)" 0
+chk clientsrangenopaths "$(jq -c 'select(.family=="range")' "$T/clients.jsonl" | grep -cE '/Users/|/home/|/private/|localhost|127\.0\.0\.1|\[::1\]')" 0
+# The /range index's witness block and the home page's range paragraph are rendered from the rows: date and count pinned to the rows
+rangew=$(curl -s "$B/range" | jq -c '.witness')
+rwd=$(jq -r 'select(.family=="range")|.observed' "$T/clients.jsonl" | sort -u | head -1)
+chk rangewitness "$(printf '%s\n' "$rangew" | jq -r --arg d "$rwd" --argjson n "$rcl" --argjson c "$((rrows - rcl))" --argjson r "$nres" '[(.measured==$d), (.observations==$n), (.control_rows==$c), (.clients|length==$r), (.findings|length>=10), (.data=="https://badhttp.dev/clients.jsonl"), (.what_this_is|test("DATED CAPTURE")), (.what_this_is|test("RFC 9110")), (.what_the_rows_cannot_say|test("HTTP/2")), (.what_the_rows_cannot_say|test("aria2")), (.not_in_roster|map(.client)|index("axel") != null and index("pip") != null and length>=5), (.not_in_roster|all(.reason|length>20)), (.reproduce|test("scripts/range-witness"))] | all')" true
+chk homerangedate "$(curl -s "$B/" | grep -cE "(${nres}|$(numword $nres)) real resuming download clients on ${rwd%%T*} — ${rcl} observations")" 1
+chk homerangeold "$(curl -s "$B/" | grep -c 'Checked live with curl 8.7 (2026-08-23)')" 0
+chk llmsrange "$(curl -s "$B/llms.txt" | grep -c 'six families so far')$(curl -s "$B/llms.txt" | grep -c 'GET /range also carries a witness block')" "11"
 chk clientscors "$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS "$B/clients.jsonl")" 204
-chk clientssurfaces "$(curl -s "$B/llms.txt" | grep -c '/clients.jsonl')$(curl -s "$B/" | grep -c 'clients.jsonl')$(curl -s "$B/sitemap.xml" | grep -c '/clients<')" "361"
+chk clientssurfaces "$(curl -s "$B/llms.txt" | grep -c '/clients.jsonl')$(curl -s "$B/" | grep -c 'clients.jsonl')$(curl -s "$B/sitemap.xml" | grep -c '/clients<')" "481"
 chk openapiclients "$(curl -s "$B/openapi.json" | jq -r '[(.paths|has("/clients")), (.paths|has("/clients.jsonl"))] | join(",")')" "true,true"
 # The one revenue-surface repair of session 19: robots.txt was telling every polite crawler — the
 # only population that has ever paid this project — to skip the three routes that can take money.
@@ -856,12 +896,12 @@ chk chsurfaces "$(curl -s "$B/llms.txt" | grep -qc '/crosshost' && echo y)$(curl
 # roster of 8, findings present. Within one deploy the date cannot disagree with the rows, so this does not catch a hand-edited
 # date on its own; the home-page pin two lines down does that, because the note there is typed by hand.
 chk chwitness "$(curl -s "$B/crosshost" | jq -r --arg d "$(jq -r 'select(.family=="crosshost")|.observed' "$T/clients.jsonl" | sort -u | tr -d '\n')" '[(.witness.measured==$d), (.witness.observations), (.witness.clients|length), (.witness.findings|length >= 8), (.witness.data|test("/clients.jsonl$")), (.witness.what_this_is|test("DATED CAPTURE")), (.witness.what_this_is|test("never a verdict")), (.witness.what_the_oracle_cannot_tell_you|test("unverifiable"))] | join(",")')" "true,72,8,true,true,true,true,true"
-chwd=$(jq -r 'select(.family=="crosshost")|.observed' "$T/clients.jsonl" | sort -u | tr -d '\n'); chwn=$(jq -r 'select(.family=="crosshost")|.id' "$T/clients.jsonl" | wc -l | tr -d ' '); chwh=$(curl -s "$B/")
-chk chwitnesspagedate "$(printf '%s' "$chwh" | grep -c "eight real clients on ${chwd%%T*} — $chwn observations")$(printf '%s' "$chwh" | grep -c "arrived intact in all $chwn</strong>")$(printf '%s' "$chwh" | grep -c "every row of the ${chwd%%T*} capture records <code>attempts: 1</code>")" 111
+chwd=$(jq -r 'select(.family=="crosshost")|.observed' "$T/clients.jsonl" | sort -u | tr -d '\n'); chwn=$(jq -r 'select(.family=="crosshost")|.id' "$T/clients.jsonl" | wc -l | tr -d ' '); chwc=$(jq -r 'select(.family=="crosshost")|.client.id' "$T/clients.jsonl" | sort -u | wc -l | tr -d ' '); chwh=$(curl -s "$B/")
+chk chwitnesspagedate "$(printf '%s' "$chwh" | grep -c "$(numword $chwc) real clients on ${chwd%%T*} — $chwn observations")$(printf '%s' "$chwh" | grep -c "arrived intact in all $chwn</strong>")$(printf '%s' "$chwh" | grep -c "every row of the ${chwd%%T*} capture records <code>attempts: 1</code>")" 111
 chk chaltwitnessdata "$(curl -s "$ALT/crosshost" | jq -r .witness.data)" "https://badhttp.dev/clients.jsonl"
 chk booksalthost "$(curl -s "$B/books.json" | jq -r '[(.infrastructure|length), (.infrastructure[0].cost_usd==0), (.infrastructure[0].item|test("alt.badhttp.dev"))] | join(",")')" "1,true,true"
-# One "dated capture" sentence per family whose witness note is on the page: crosshost, auth, cookies and sse (the compress note predates the phrase).
-chk chwitnesspage "$(curl -s "$B/" | grep -c 'dated capture')" 4
+# One "dated capture" sentence per family whose witness note is on the page: crosshost, auth, cookies, sse and range (the compress note predates the phrase).
+chk chwitnesspage "$(curl -s "$B/" | grep -c 'dated capture')" 5
 # The oracle reports the port, because one flavor's entire subject is a port change and hostname omits it.
 chk chport "$(curl -s "$B/crosshost/land" | jq -r .port)$(curl -s "https://badhttp.dev:8443/crosshost/land" | jq -r .port)" "4438443"
 chk openapicrosshost "$(curl -s "$B/openapi.json" | jq -r '[(.paths|has("/crosshost")), (.paths|has("/crosshost/land")), (.paths["/crosshost/{flavor}"].get.parameters[0].schema.enum|length==9)] | join(",")')" "true,true,true"

@@ -12,8 +12,8 @@ REPO="$(pwd)"
 export PATH="/opt/homebrew/bin:$PATH"
 unset COOKIE_FLAVORS  # a published capture is always the full grid; dry runs use the harnesses directly
 PY="${PYTHON:-python3}"
-GOMOD_DIR="${GOMOD_DIR:-/private/tmp/claude-501/-Volumes-External-Repositories-claude-design/5d3b1149-d4ce-4165-ab33-820410234165/scratchpad/gomod}"
 # node-fetch.mjs falls back to a stale scratchpad path when COOKIE_NODEMODS is unset; a capture never relies on it.
+: "${GOMOD_DIR:?set GOMOD_DIR to a Go module dir with golang.org/x/net fetched (its go.mod version is recorded in client_version)}"
 : "${COOKIE_NODEMODS:?set COOKIE_NODEMODS to a dir holding node_modules/tough-cookie}"
 if [ ! -d "$COOKIE_NODEMODS/node_modules/tough-cookie" ]; then echo "COOKIE_NODEMODS has no node_modules/tough-cookie: $COOKIE_NODEMODS" >&2; exit 1; fi
 export COOKIE_NODEMODS

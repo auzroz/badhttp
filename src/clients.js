@@ -1,4 +1,4 @@
-// /clients — what real HTTP clients did, as data. Five families so far.
+// /clients — what real HTTP clients did, as data. Six families so far.
 //
 // Why this exists (session 19, 2026-09-07). Since v0.12.0 the home page has carried a paragraph
 // asserting how six real HTTP clients behave against twenty-one content-coding flavors, and cited
@@ -36,6 +36,8 @@ import { WITNESS_COOKIES, CLIENTS_COOKIES, OBSERVATIONS_COOKIES } from './witnes
 import { cookieFindings } from './cookies.js';
 import { WITNESS_SSE, CLIENTS_SSE, REFERENCE_SSE, OBSERVATIONS_SSE } from './witness-sse-data.js';
 import { sseFindings } from './sse.js';
+import { WITNESS_RANGE, CLIENTS_RANGE, REFERENCE_RANGE, OBSERVATIONS_RANGE } from './witness-range-data.js';
+import { rangeFindings } from './range.js';
 
 // The keys every row carries whatever its family. Family-specific fields are listed per family below.
 export const COMMON_FIELDS = ['id', 'corpus_id', 'family', 'flavor', 'url', 'client', 'observed', 'badhttp_version_observed', 'status', 'reported_error', 'outcome', 'license'];
@@ -54,13 +56,25 @@ const COMPRESS_OUTCOMES = {
   'request-failed': 'The client raised before any usable response reached the caller.',
 };
 
+// The truncated-flavor counts in COMPRESS_READING come from the rows: the clients (not the controls) that reported
+// nothing, split into those that returned some of the document and those that returned an empty body.
+const CW = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+const cw = (n) => CW[n] || String(n);
+// Number words for the flavor and client counts the prose spells out: computed from the witness data so a re-capture cannot leave them behind.
+const NUM_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty-one'];
+const numWord = (n) => NUM_WORDS[n] || String(n);
+const TRUNC_ROWS = OBSERVATIONS.filter((o) => o.flavor === 'truncated' && CLIENTS.find((c) => c.id === o.client)?.role === 'client');
+const TRUNC_SILENT = TRUNC_ROWS.filter((o) => o.outcome === 'differs-silently');
+const TRUNC_PARTIAL = TRUNC_SILENT.filter((o) => o.bytes_received > 0).length;
+const TRUNC_EMPTY = TRUNC_SILENT.filter((o) => o.bytes_received === 0).length;
 const COMPRESS_READING =
   'Read `outcome` as a description of what the caller received, never as a verdict on the client. ' +
   '"differs-silently" is the CORRECT behaviour on some flavors and the finding on others, and the ' +
   'difference is a property of the flavor, not of the client. On `undeclared` and `double-hidden` ' +
   'this server declares no coding for the client to strip, so returning the bytes exactly as sent ' +
-  'is right — and all six clients do. On `truncated` the identical outcome is the finding: five of ' +
-  'six returned a partial document as though it were whole. GET /compress documents which is which, ' +
+  'is right — and all six clients do. On `truncated` the identical outcome is the finding: ' +
+  `${cw(TRUNC_SILENT.length)} of ${cw(TRUNC_ROWS.length)} reported no error: ${cw(TRUNC_PARTIAL)} returned a partial document as though it were whole` +
+  `${TRUNC_EMPTY ? ` and ${cw(TRUNC_EMPTY)} an empty body` : ''}. GET /compress documents which is which, ` +
   'per flavor. No client here is scored, ranked, or called conformant: no specification says what a ' +
   'client must surface to its caller for most of these cases, which is exactly why the observations ' +
   'are worth more than an opinion.';
@@ -298,7 +312,7 @@ const AUTH_MECHANISMS = {
   'any-handler': 'A mechanism that reads the challenge and chooses among the schemes it speaks: curl --anyauth (Basic, Digest, NTLM, Negotiate as offered) and urllib with both its Basic and Digest handlers installed on one opener.',
   'bearer-auth': 'The client\'s own Bearer option (curl --oauth2-bearer) with the documented test token.',
   'bearer-header': 'A hand-set Authorization: Bearer header with the documented test token: no client here but curl has a Bearer option.',
-  'no-mechanism': 'The client has no mechanism for the scheme the flavor demands (net/http, fetch and urllib3 have no Digest and no challenge handling of any kind), so the request was sent with no credentials at all. The row is a capability, not a bug.',
+  'no-mechanism': 'The client has no mechanism for the scheme the flavor demands (net/http, fetch and urllib3 have no Digest and no WWW-Authenticate handling), so the request was sent with no credentials at all. The row is a capability, not a bug.',
 };
 
 const AUTH_OUTCOMES = {
@@ -430,7 +444,7 @@ function authFamily({ rows }) {
   for (const o of OBSERVATIONS_AUTH) kindCounts[o.mechanism_kind] = (kindCounts[o.mechanism_kind] || 0) + 1;
   return {
     what:
-      'What eight HTTP clients did with the eighteen /auth flavors when handed the documented fake ' +
+      `What ${numWord(CLIENTS_AUTH.length)} HTTP clients did with the ${numWord(WITNESS_AUTH.flavors)} /auth flavors when handed the documented fake ` +
       'credentials through their own mechanism for the flavor\'s scheme, one row per observation. Each row ' +
       'is one call from the caller\'s point of view: the client was configured, asked for the flavor url, ' +
       'followed any challenge or redirect on its own, and the /auth response it finally handed back is the ' +
@@ -570,7 +584,7 @@ function cookieFamily({ rows }) {
   for (const o of OBSERVATIONS_COOKIES) jarCounts[o.jar_kind] = (jarCounts[o.jar_kind] || 0) + 1;
   return {
     what:
-      'What eight HTTP clients did with the seventeen /cookies setter flavors, one row per observation. ' +
+      `What ${numWord(CLIENTS_COOKIES.length)} HTTP clients did with the ${numWord(WITNESS_COOKIES.flavors)} /cookies setter flavors, one row per observation. ` +
       'Each row is four requests with one fresh jar where the client has one (requests_made and hops count the setter fetch and its redirects only): the setter (redirects followed), /cookies/echo, ' +
       '/cookies/delete, and /cookies/echo again. The oracle is /cookies/echo — the Cookie header exactly as ' +
       'it reached the Worker — and what the row adds from the harness\'s side is the jar\'s own record where ' +
@@ -717,7 +731,7 @@ function sseFamily({ rows }) {
   for (const c of CLIENTS_SSE) classCounts[c.class] = (classCounts[c.class] || 0) + 1;
   return {
     what:
-      `What ${CLIENTS_SSE.filter((c) => c.role === 'client').length} real SSE client libraries did with the fourteen /sse flavors, one row per observation, ` +
+      `What ${CLIENTS_SSE.filter((c) => c.role === 'client').length} real SSE client libraries did with the ${numWord(WITNESS_SSE.flavors)} /sse flavors, one row per observation, ` +
       'plus one raw-wire control row per flavor (curl). Each row is one fresh client pointed at GET /sse/{flavor} with default ' +
       'parameters: every event it delivered, every connection it opened and what that connection carried, every error it ' +
       'surfaced, and how it ended. The oracle is the reference WHATWG parse of the bytes the control received.',
@@ -752,9 +766,162 @@ function sseFamily({ rows }) {
 }
 
 // ---------------------------------------------------------------------------------------------------
+// range: real resuming download clients plus a raw-wire control x 14 /range flavors (one resume of a 400-byte partial
+// each, plus a fresh download at always-206); the reference is where RFC 9110 places the bytes the control received
+// (session 31, 2026-10-12; docs/spec-range-witness.md).
+
+const RANGE_CLASSES = {
+  resumer: 'A real download client or library told to resume a partial file from the row\'s url. The harness never sends a Range header itself: the client decides, from the size of the partial, what to ask for and what to do with the answer. Every request it sent went through a local recording proxy, so exchanges lists them all.',
+  raw: 'The control: curl sending exactly Range: bytes=400-, with no resume logic and no file handling at all. Its control.raw_sha256 is the hash of the bytes the reference placement was derived from; on the document row it fetched the whole document with no Range, which is the true document every file is compared with.',
+};
+
+const RANGE_OUTCOMES = {
+  complete: 'The file on disk is the whole 1,000-byte document, byte for byte. transfer says how, judged by the deciding exchange (the last request other than HEAD): resumed (it carried a Range and returned fewer bytes than the document, so the partial was kept), restarted (it returned the whole document, so the partial was thrown away), restarted-after-range (an earlier non-HEAD request asked for a range and got fewer bytes than the document, then a full fetch followed), or fresh (the download from nothing). When the deciding exchange has no Range and is short, the bytes summed across the exchanges decide.',
+  refused: 'The file is the untouched partial (for the fresh cell, absent or empty) and the client reported an error: it stopped with an error and nothing was written.',
+  unchanged: 'The file is the untouched partial, byte for byte, and the client reported no error: it exited without complaint and wrote nothing.',
+  corrupt: 'The file differs from the document and is not the untouched partial. shape says how, computed from the self-describing lines.',
+  'incomplete-reported': 'The file is a prefix of the document shorter than 1,000 bytes and the client reported an error: it stopped and said so.',
+  'harness-timeout': 'The harness\'s 30 s per-row cap fired; the row describes the file as it stood and the exchanges made so far.',
+  'request-failed': 'No observation: the rate limit never cleared, or the recorder saw no response carrying x-badhttp-version. Such a row has no exchanges.',
+  control: 'A curl control row: bytes, not a file. It is the source of the reference placement (resume-raw, fresh-raw) or of the true document (document).',
+};
+
+const RANGE_SHAPES = {
+  'duplicated-prefix': 'The document\'s head appears again after byte 400: the partial was kept and the whole document was appended to it.',
+  shifted: 'Lines whose embedded offset is one away from the position they sit at: bytes a+1..b+1 were written where a..b belong.',
+  short: 'A prefix of the document shorter than 1,000 bytes with the client reporting success; missing_bytes says how many bytes are absent.',
+  'mixed-generation': 'Lines from more than one generation (the if-range-ignored flavor stamps a generation into every line).',
+  'suffix-misplaced': 'The duplicated-prefix pattern on the suffix-as-prefix flavor, where the head of the document is served under a Content-Range that names its tail.',
+  'body-only': 'The file is the deciding response\'s body alone: the partial was discarded and the file holds only what the server sent in the response.',
+  other: 'A file that differs from the document in a way none of the other shapes names; first_bad_offset on the row says where, and diff says what.',
+};
+
+const RANGE_TRANSFERS = {
+  resumed: 'Kept the partial: the deciding exchange (the last request other than HEAD) carried a Range and returned fewer bytes than the document. A leading HEAD, or a GET with no Range that comes first, is a probe and is not counted. When the deciding exchange has no Range and is short, the bytes summed across the exchanges decide.',
+  restarted: 'Threw the partial away and wrote the whole representation from a single response.',
+  'restarted-after-range': 'Asked for a range first, then fetched the whole document.',
+  fresh: 'The fresh cell: no partial existed, the client downloaded from nothing.',
+};
+
+const RANGE_REFERENCE_LEGEND = {
+  'as-reference': 'The file is what applying the reference placement (where RFC 9110 puts the bytes the control received) to the true partial yields. On a flavor whose reference placement does not yield the document, this includes a corrupt file.',
+  differs: 'The file is not what the reference placement yields; diff names the first difference.',
+  undefined: 'No reference placement exists: the control\'s response says nothing about where its bytes belong (a 206 without Content-Range, a 416 at an offset inside the document).',
+};
+
+const RANGE_NO_YIELD = Object.entries(REFERENCE_RANGE).filter(([, r]) => r.yields_document === false).map(([f]) => f).join(', ') || 'no flavor in this capture';
+const RANGE_READING =
+  'Read outcome as a description of the file on disk and the client\'s exit after one resume, never as a verdict on the ' +
+  'client. RFC 9110 defines what a 206 means (its Content-Range says where its body belongs in the representation), what a ' +
+  '200 carries (the whole representation) and what a 416 says (the complete length); it defines no algorithm for a client ' +
+  'that resumes. A client that starts over on a 200 and one that stops with an error are both doing something the ' +
+  'specification allows, so refused and complete are different answers, not a better and a worse one. Each row is also ' +
+  'described relative to its reference placement: where RFC 9110 puts the bytes the curl control received for Range: ' +
+  'bytes=400-, applied to the true 400-byte partial. Where that placement itself does not yield the document (' + RANGE_NO_YIELD + ') the lie is invisible to anyone not reading the body, and the ' +
+  'document is self-describing — 64-byte lines that each carry their own offset — so the file convicts itself: shape and ' +
+  'first_bad_offset come from those lines. outcome_vs_reference says whether the file matches the placement; it is null on a harness-timeout row, whose file is a mid-transfer snapshot that was never compared. The ' +
+  'exchanges array is every request the client sent and every response it got, recorded between the client and this ' +
+  'service; the clients spoke HTTP/1.1 to a local proxy, so TLS and HTTP/2 behaviour is out of scope. No client here is ' +
+  'scored or ranked.';
+
+const RANGE_FIELDS = ['class', 'scenario', 'partial_bytes', 'partial_sha256', 'exchanges', 'exit', 'file', 'end', 'wall_ms', 'attempts', 'shape', 'transfer', 'missing_bytes', 'outcome_vs_reference', 'diff', 'reference', 'control', 'oracle'];
+
+/** One row per observation: clients x 15 cells (14 flavors resumed, plus always-206 fresh), plus the control rows. */
+function rangeRows() {
+  return OBSERVATIONS_RANGE.map((o) => {
+    const c = o.client;
+    return {
+      id: o.id,
+      corpus_id: `range.${o.flavor}`,
+      family: 'range',
+      flavor: o.flavor,
+      scenario: o.scenario,
+      url: o.url,
+      client: { id: c.id, name: c.name, version: c.version, platform: c.platform, invocation: c.invocation, role: c.role, class: c.class, library: c.library, requests_recorded_by: c.requests_recorded_by },
+      observed: WITNESS_RANGE.probed,
+      badhttp_version_observed: WITNESS_RANGE.badhttp_version_observed,
+      status: o.exchanges && o.exchanges[0] ? o.exchanges[0].status : null,
+      class: c.class,
+      partial_bytes: o.partial_bytes,
+      partial_sha256: o.partial_sha256,
+      exchanges: o.exchanges,
+      exit: o.exit,
+      reported_error: o.reported_error ?? null,
+      file: o.file,
+      end: o.end,
+      wall_ms: o.wall_ms,
+      attempts: o.attempts,
+      outcome: o.outcome,
+      shape: o.shape ?? null,
+      transfer: o.transfer ?? null,
+      missing_bytes: o.missing_bytes ?? null,
+      outcome_vs_reference: o.outcome_vs_reference ?? null,
+      diff: o.diff ?? null,
+      reference: o.reference ?? null,
+      control: o.control ?? null,
+      oracle: 'the reference placement: where RFC 9110 puts the bytes the curl control received for this flavor on the same date, applied to the first 400 bytes of the true document the control fetched whole (REFERENCE in the /clients range family block carries the status, Content-Range, size and hash of what the control received); the file is also checked line by line against the document\'s own offsets',
+      license: LICENSE.responses.id,
+    };
+  });
+}
+
+function rangeFamily({ rows }) {
+  const outcomeCounts = {};
+  for (const o of OBSERVATIONS_RANGE) outcomeCounts[o.outcome] = (outcomeCounts[o.outcome] || 0) + 1;
+  const classCounts = {};
+  for (const c of CLIENTS_RANGE) classCounts[c.class] = (classCounts[c.class] || 0) + 1;
+  const shapeCounts = {};
+  for (const o of OBSERVATIONS_RANGE) if (o.shape) shapeCounts[o.shape] = (shapeCounts[o.shape] || 0) + 1;
+  const transferCounts = {};
+  for (const o of OBSERVATIONS_RANGE) if (o.transfer) transferCounts[o.transfer] = (transferCounts[o.transfer] || 0) + 1;
+  return {
+    what:
+      `What ${CLIENTS_RANGE.filter((c) => c.role === 'client').length} real resuming download clients did with the ${numWord(WITNESS_RANGE.flavors)} /range flavors, one row per observation, ` +
+      `plus one raw-wire control row per flavor (curl). Each cell holds the first ${WITNESS_RANGE.partial_bytes} bytes of the ${WITNESS_RANGE.document_bytes}-byte ` +
+      'document in a fresh working directory and tells the client to resume it from GET /range/{flavor}; one extra cell per client downloads from nothing at always-206. ' +
+      'Each row lists every request the client sent, what was left on disk and how the client exited. The oracle is the reference placement ' +
+      'of the bytes the control received, checked against the true document.',
+    rows: rows.length,
+    flavors: WITNESS_RANGE.flavors,
+    cells_per_client: WITNESS_RANGE.cells_per_client,
+    observed: WITNESS_RANGE.probed,
+    badhttp_version_observed: WITNESS_RANGE.badhttp_version_observed,
+    worker_version: WITNESS_RANGE.worker_version,
+    clients: CLIENTS_RANGE,
+    fields: [...COMMON_FIELDS, ...RANGE_FIELDS],
+    class_legend: RANGE_CLASSES,
+    outcome_legend: RANGE_OUTCOMES,
+    shape_legend: RANGE_SHAPES,
+    transfer_legend: RANGE_TRANSFERS,
+    reference_legend: RANGE_REFERENCE_LEGEND,
+    reading_this: RANGE_READING,
+    outcome_counts: outcomeCounts,
+    shape_counts: shapeCounts,
+    transfer_counts: transferCounts,
+    class_counts: classCounts,
+    reference: REFERENCE_RANGE,
+    disagreement_by_flavor: WITNESS_RANGE.disagreement_by_flavor,
+    answers_by_flavor: WITNESS_RANGE.answers_by_flavor,
+    disagreement_note: 'disagreement_by_flavor is, per flavor, the number of distinct answers — (outcome, shape, transfer) — among resumer rows; answers_by_flavor lists them with the clients that gave each. The always-206/fresh key is the fresh cell. Control rows are excluded.',
+    findings: rangeFindings(),
+    freshness:
+      `A dated capture, not a live measurement: taken ${WITNESS_RANGE.probed} against badhttp version ` +
+      `${WITNESS_RANGE.badhttp_version_observed}, with the client versions on each row. Client behaviour changes between ` +
+      `releases and this table does not update itself. Re-run it from ${WITNESS_RANGE.capture_scripts} in the source and ` +
+      'the numbers move; the date on every row is how you know whether to trust it.',
+    reproduce:
+      'Write the first 400 bytes of GET /range/ok?length=1000 to a fresh file, point the row\'s client at the row\'s url with the ' +
+      'instruction to resume that file through a recording proxy, and compare the file and the exit with the row. For the ' +
+      'reference, fetch the same url with curl -sS --http1.1 -H \'Range: bytes=400-\' and place the response as RFC 9110 §15.3.7 says ' +
+      '(scripts/witness-parse-range.mjs carries the placement rules). Pace the calls against the zone limit of 100 per 10 s, and ' +
+      'treat a response without x-badhttp-version as no observation.',
+  };
+}
+
+// ---------------------------------------------------------------------------------------------------
 
 export function clientRows({ origin }) {
-  return [...compressRows({ origin }), ...crosshostRows(), ...authRows(), ...cookieRows(), ...sseRows()];
+  return [...compressRows({ origin }), ...crosshostRows(), ...authRows(), ...cookieRows(), ...sseRows(), ...rangeRows()];
 }
 
 export function clientsIndex({ origin }) {
@@ -763,33 +930,38 @@ export function clientsIndex({ origin }) {
   const auth = authRows();
   const cookies = cookieRows();
   const sse = sseRows();
+  const range = rangeRows();
   return {
     what:
       'What real HTTP clients actually did with this server\'s misbehaviour, as data: one row per ' +
-      'observation, across five families so far — the 21 /compress flavors (six decoding clients and ' +
-      'two non-decoding controls), the 9 /crosshost flavors (eight clients; eight boundaries and a ' +
-      'same-origin control), the 18 /auth flavors (the same eight clients, each handed the documented ' +
-      'fake credentials through its own mechanism), the 17 /cookies setter flavors (the same eight, ' +
-      'each with a fresh jar where the client has one, through set, echo, delete and echo again) and the 14 /sse flavors (real ' +
+      'observation, across six families so far — the ' + WITNESS.flavors + ' /compress flavors (six decoding clients and ' +
+      'two non-decoding controls), the ' + WITNESS_CROSSHOST.flavors + ' /crosshost flavors (eight clients; eight boundaries and a ' +
+      'same-origin control), the ' + WITNESS_AUTH.flavors + ' /auth flavors (the same eight clients, each handed the documented ' +
+      'fake credentials through its own mechanism), the ' + WITNESS_COOKIES.flavors + ' /cookies setter flavors (the same eight, ' +
+      'each with a fresh jar where the client has one, through set, echo, delete and echo again), the ' + WITNESS_SSE.flavors + ' /sse flavors (real ' +
       'SSE client libraries plus a raw-wire control, each row described against a WHATWG parse of the ' +
-      'bytes the control received). Every row names ' +
+      'bytes the control received) and the ' + WITNESS_RANGE.flavors + ' /range flavors (real resuming download clients, each handed a ' +
+      WITNESS_RANGE.partial_bytes + '-byte partial of the document and told to resume it, plus a fresh download, with every request ' +
+      'recorded and the file on disk described against where RFC 9110 places the bytes a control received). Every row names ' +
       'the client and its version, the date, what it received, and what it reported.',
     why:
       'For /compress the home page has claimed these results since v0.12.0 and cited a private ' +
       'repository as the evidence; for /crosshost the family index carried them as prose from ' +
       'v0.17.0 (2026-09-10); for /auth the home page carried a three-client note from v0.9.0 ' +
       '(2026-08-27); for /cookies the home page carried a three-jar note from v0.6.0 (2026-08-24); for /sse ' +
-      'the home page carried a one-client note from v0.4.0 (2026-08-23). Here ' +
-      'are all five as rows. It is also the only data on this service that ' +
+      'the home page carried a one-client note from v0.4.0 (2026-08-23); for /range the home page carried a ' +
+      'hand-typed curl note from v0.5.0 (2026-08-23). Here ' +
+      'are all six as rows. It is also the only data on this service that ' +
       'badhttp did not write about itself.',
     jsonl: `${origin}/clients.jsonl`,
-    rows: compress.length + crosshost.length + auth.length + cookies.length + sse.length,
+    rows: compress.length + crosshost.length + auth.length + cookies.length + sse.length + range.length,
     families: {
       compress: compressFamily({ rows: compress }),
       crosshost: crosshostFamily({ rows: crosshost }),
       auth: authFamily({ rows: auth }),
       cookies: cookieFamily({ rows: cookies }),
       sse: sseFamily({ rows: sse }),
+      range: rangeFamily({ rows: range }),
     },
     common_fields: COMMON_FIELDS,
     join: 'corpus_id joins each row to a row of ' + `${origin}/corpus.jsonl` + '; family names the block above whose legend and fields apply',

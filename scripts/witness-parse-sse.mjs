@@ -21,23 +21,32 @@
 //
 // Refusals (the generator exits non-zero rather than emit): a client missing a flavor, a flavor missing a control
 // row, a row where ANY connection has no x-badhttp-version, a row carrying a machine path or a hostname other than
-// badhttp.dev (compared exactly, port ignored), a control whose raw bytes do not hash to its raw_sha256, an end value outside the vocabulary.
+// badhttp.dev (compared exactly, port ignored), a control whose raw bytes do not hash to its raw_sha256, an end value outside the vocabulary,
+// a duplicate (client, flavor) row, a roster other than the one the harnesses run, a grid that is not clients x flavors, a connection (any, not
+// just the first) whose x-badhttp-version differs, anything but exactly one control, a machine path in the provenance line or the run log beside
+// the capture, an absolute or parent-relative capture path.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { isAbsolute } from 'node:path';
 
 const OUT = 'src/witness-sse-data.js';
 const isMain = process.argv[1] && /witness-parse-sse\.mjs$/.test(process.argv[1]);
 const SRC = isMain ? process.argv[2] : null;
 if (isMain && !SRC) throw new Error('usage: node scripts/witness-parse-sse.mjs <capture.jsonl>');
+// source_file and run_log are written into the committed data file, so the capture path must be repo-relative:
+if (isMain && (isAbsolute(SRC) || SRC.split(/[\\/]/).includes('..'))) throw new Error(`refusing to emit: ${SRC} must be a repo-relative path (the path is written into ${OUT})`);
 
 export const FLAVOR_ORDER = ['ok', 'stall', 'cut', 'drop', 'crlf', 'cr', 'no-space', 'multiline', 'comments', 'split-utf8', 'wrong-type', 'error-event', 'big', 'resume'];
+// The roster a published capture must hold (the harnesses in scripts/sse-witness/ run exactly these). A client dropped from
+// the capture would otherwise leave a smaller but internally complete grid; add an id here when a harness gains a client.
+const ROSTER_IDS = ['curl', 'aiohttp-sse-client', 'eventsource-npm', 'go-sse', 'httpx-sse', 'node-eventsource', 'r3labs-sse', 'sseclient-py'];
 const CLASSES = ['eventsource', 'one-shot', 'raw'];
 const ENDS = ['clean', 'error', 'reconnecting', 'stopped', 'closed-by-harness', 'harness-timeout'];
 const CONN_ENDS = ['server-closed', 'reset', 'client-closed', 'harness-timeout', 'status-204', 'error', 'refused'];
 const CLEAN_CLOSE = ['ok', 'stall', 'cut', 'crlf', 'cr', 'no-space', 'multiline', 'comments', 'split-utf8', 'error-event', 'big'];
 const VERDICT_WORDS = /\b(correctly|incorrectly|conformant|non-compliant|noncompliant|violates|buggy|broken client|wrong client|passes|fails the spec)\b/i;
-const MACHINE = /\/(Users|home|private|tmp|Volumes|var|opt|Library)\/|[A-Za-z]:\\\\|file:\/\/|localhost|127\.0\.0\.1/;
+const MACHINE = /\/(Users|home|private|tmp|Volumes|var|opt|Library)\/|[A-Za-z]:\\\\|file:\/\/|localhost|127\.0\.0\.1|\[::1\]|(?<![\d.])0\.0\.0\.0(?![\d.])/;
 
 // ---------- the reference parser: WHATWG HTML §9.2.6, byte-faithful ----------
 // Lines end at CRLF, LF or CR; one leading BOM is stripped; a field is `name: value` with exactly one leading
@@ -113,9 +122,16 @@ const prov = lines.shift();
 if (!prov || prov.capture !== 'sse') throw new Error('line 1 must be the provenance line with capture: "sse"');
 const rows = lines;
 const bad = (m) => { throw new Error(`REFUSED: ${m}`); };
+if (MACHINE.test(JSON.stringify(prov))) bad('the provenance line carries a machine path or local host');
+// The run log is committed beside the capture; it is not emitted, but a machine path in it would be published with the repo.
+const LOG_PATH = SRC.replace(/\.jsonl$/, '.log');
+let LOG_TEXT = '';
+try { LOG_TEXT = readFileSync(LOG_PATH, 'utf8'); } catch { bad(`the run log ${LOG_PATH} must be committed beside the capture`); }
+if (MACHINE.test(LOG_TEXT)) bad(`the run log ${LOG_PATH} carries a machine path or local host`);
 
 // Roster and grid checks
 const clients = new Map();
+const seen = new Set();
 for (const r of rows) {
   if (!r.client || !r.client.id) bad(`row without client.id: ${JSON.stringify(r).slice(0, 120)}`);
   if (!FLAVOR_ORDER.includes(r.flavor)) bad(`unknown flavor ${r.flavor}`);
@@ -126,7 +142,10 @@ for (const r of rows) {
   if (!conns.length) bad(`${r.client.id}/${r.flavor}: no connection recorded (did not land)`);
   conns.forEach((c, i) => { if (!c.x_badhttp_version) bad(`${r.client.id}/${r.flavor}: connection ${i + 1} of ${conns.length} has no x-badhttp-version (did not land, or an edge response was recorded as the client's)`); });
   if (MACHINE.test(JSON.stringify(r))) bad(`${r.client.id}/${r.flavor}: row carries a machine path or local host`);
-  for (const m of JSON.stringify(r).matchAll(/https?:\/\/([a-z0-9.:-]+)/gi)) if (!['badhttp.dev', 'alt.badhttp.dev'].includes(m[1].toLowerCase().replace(/:\d+$/, ''))) bad(`${r.client.id}/${r.flavor}: foreign host ${m[1]}`);
+  for (const m of JSON.stringify(r).matchAll(/\bhttps?:\/\/([^\/\s"'?#:\\]+)/gi)) if (!['badhttp.dev', 'alt.badhttp.dev'].includes(m[1].toLowerCase())) bad(`${r.client.id}/${r.flavor}: foreign host ${m[1]}`);
+  const key = `${r.client.id}/${r.flavor}`;
+  if (seen.has(key)) bad(`duplicate observation ${key}: one row per (client, flavor)`);
+  seen.add(key);
   if (!clients.has(r.client.id)) clients.set(r.client.id, { ...r.client, flavors: new Set() });
   clients.get(r.client.id).flavors.add(r.flavor);
 }
@@ -134,9 +153,20 @@ for (const [id, c] of clients) {
   const missing = FLAVOR_ORDER.filter((f) => !c.flavors.has(f));
   if (missing.length) bad(`client ${id} is missing flavors: ${missing.join(', ')} (a published capture is the full grid)`);
 }
+if (rows.length !== clients.size * FLAVOR_ORDER.length) bad(`${rows.length} rows for ${clients.size} roster entries x ${FLAVOR_ORDER.length} flavors: the grid is not complete`);
+{
+  const have = [...clients.keys()].sort(), want = [...ROSTER_IDS].sort();
+  if (have.join() !== want.join()) bad(`the roster in the capture (${have.join(', ')}) is not the roster the harnesses run (${want.join(', ')})`);
+}
+// provenance.clients_run (roster entries, the control included) is checked when present; captures made before it existed lack it.
+if (prov.clients_run != null && prov.clients_run !== clients.size) bad(`provenance says clients_run ${prov.clients_run}, the rows hold ${clients.size} roster entries`);
+if (prov.flavors_run != null && prov.flavors_run !== FLAVOR_ORDER.length) bad(`provenance says flavors_run ${prov.flavors_run}, the parser knows ${FLAVOR_ORDER.length} flavors`);
+const controlIds = new Set(rows.filter((r) => r.client.role === 'control').map((r) => r.client.id));
+if (controlIds.size !== 1) bad(`exactly one roster entry must have role control; found ${controlIds.size}${controlIds.size ? ` (${[...controlIds].join(', ')})` : ''}`);
 const control = rows.filter((r) => r.client.role === 'control');
 if (new Set(control.map((r) => r.flavor)).size !== FLAVOR_ORDER.length) bad('the control must cover every flavor');
-const versions = new Set(rows.map((r) => r.connections[0].x_badhttp_version));
+// Every connection of every row, not only the first: a deploy mid-capture can change the version between connections.
+const versions = new Set(rows.flatMap((r) => r.connections.map((c) => c.x_badhttp_version)));
 if (versions.size !== 1) bad(`rows span badhttp versions ${[...versions].join(', ')}: a deploy happened mid-capture`);
 const BADHTTP_VERSION = [...versions][0];
 

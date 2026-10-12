@@ -1,17 +1,20 @@
 // Render the ledger-digest workflow result as the "Session digests" markdown section.
-// Usage: node render-digests.mjs <task-output-file> > digests.md
+// Usage: node scripts/ledger-digest-render.mjs <task-output-file> [ids,comma,separated] > digests.md
 import { readFileSync } from 'node:fs';
 const raw = readFileSync(process.argv[2], 'utf8');
 let obj;
 try { obj = JSON.parse(raw); } catch { const i = raw.indexOf('{'); obj = JSON.parse(raw.slice(i)); }
 const result = obj.result || obj;
-const order = (process.argv[3] ? process.argv[3].split(',') : ['1','2','3','4','5','5a','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28']);
+// Order: the ids given as the third argument, else the ids present in the result (session 31: the fixed 1..28 default rendered
+// "digest missing" for every id a later run did not cover).
+const order = (process.argv[3] ? process.argv[3].split(',') : null);
 const pad = (n) => /^\d+$/.test(n) ? n.padStart(2, '0') : n.slice(0, -1).padStart(2, '0') + n.slice(-1);
 const byId = new Map(result.digests.map((r) => [String(r.id), r]));
+const ids = order || [...byId.keys()];
 const clean = (s) => String(s).replace(/`/g, '').replace(/\s+/g, ' ').trim();
 const li = (arr) => (arr || []).filter(Boolean).map((x) => '  - ' + clean(x)).join('\n');
 const out = [];
-for (const id of order) {
+for (const id of ids) {
   const r = byId.get(id);
   if (!r) { out.push(`### #${id} — (digest missing; read ledger/entry-${pad(id)}.md)\n`); continue; }
   const d = r.digest;

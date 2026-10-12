@@ -29,6 +29,7 @@ import (
 	"os"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -128,6 +129,29 @@ var addrRe = regexp.MustCompile(`(\b[0-9]{1,3}(\.[0-9]{1,3}){3}(:[0-9]+)?)|(\[[0
 // Error text can carry the resolver's or the local address; keep the kind of failure, not the machine's addresses.
 func scrub(s string) string { return addrRe.ReplaceAllString(s, "<addr>") }
 
+// publicsuffix.List decides the public-suffix and wrong-domain rows and its table changes between x/net releases,
+// so the version in use is recorded on every row (client_version).
+func moduleVersion(path string) string {
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		for _, d := range bi.Deps {
+			if d.Path == path {
+				if d.Replace != nil {
+					return d.Replace.Version
+				}
+				return d.Version
+			}
+		}
+	}
+	// `go run file.go` embeds no dependency list: read the module the harness is run from (its go.mod)
+	if b, err := os.ReadFile("go.mod"); err == nil {
+		re := regexp.MustCompile(`(?m)^\s*(?:require\s+)?` + regexp.QuoteMeta(path) + `\s+(v[^\s]+)`)
+		if m := re.FindSubmatch(b); m != nil {
+			return string(m[1])
+		}
+	}
+	return "unknown"
+}
+
 func main() {
 	b := "https://badhttp.dev"
 	if len(os.Args) > 1 {
@@ -137,7 +161,7 @@ func main() {
 		order = strings.Fields(strings.ReplaceAll(only, ",", " "))
 	}
 	enc := json.NewEncoder(os.Stdout)
-	base := row{Client: "go-nethttp", ClientVersion: runtime.Version(), Platform: runtime.GOOS + "/" + runtime.GOARCH, Invocation: invocation, JarKind: "own-jar", Jar: jarDesc, JarEnumerable: false, JarEntries: nil, JarRejections: []rejection{}}
+	base := row{Client: "go-nethttp", ClientVersion: runtime.Version() + " / golang.org/x/net " + moduleVersion("golang.org/x/net"), Platform: runtime.GOOS + "/" + runtime.GOARCH, Invocation: invocation, JarKind: "own-jar", Jar: jarDesc, JarEnumerable: false, JarEntries: nil, JarRejections: []rejection{}}
 	for _, f := range order {
 		u := b + "/cookies/" + f
 		urls := []string{u, b + "/cookies/echo", b + "/cookies/delete", b + "/cookies/echo"}

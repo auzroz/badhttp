@@ -22,10 +22,10 @@ the finding.** It is the only data in this repository that this project did not 
 
 | Route | Shape |
 |---|---|
-| `GET /clients.jsonl` | NDJSON rows, one per observation — 168 for `/compress` at v0.14.0, 240 in two families at v0.18.0, 632 in five families since v0.22.0 (`/compress` 168, `/crosshost` 72, `/auth` 144, `/cookies` 136, `/sse` 112; one section per family below). Headers mirror `/corpus.jsonl`: `application/x-ndjson`, `no-transform`, `x-badhttp-license: CC0-1.0`, `x-badhttp-rows`, `link: rel=license`. |
+| `GET /clients.jsonl` | NDJSON rows, one per observation — 168 for `/compress` at v0.14.0, 240 in two families at v0.18.0, 632 in five families at v0.22.0, 798 in six since v0.24.0 (`/compress` 168, `/crosshost` 72, `/auth` 144, `/cookies` 136, `/sse` 112, `/range` 166; one section per family below). Headers mirror `/corpus.jsonl`: `application/x-ndjson`, `no-transform`, `x-badhttp-license: CC0-1.0`, `x-badhttp-rows`, `link: rel=license`. |
 | `GET /clients` | JSON index: roster, outcome legend, `reading_this`, per-role counts, per-flavor disagreement, freshness, reproduce. |
 
-8 profiles × 21 flavors = 168. `corpus_id` on every row joins to a `/corpus.jsonl` row. As of v0.18.0 the file had 240 rows in two families (it now has 632 in five, see above); the 72 `/crosshost` rows are documented in the 2026-09-17 section below.
+8 profiles × 21 flavors = 168. `corpus_id` on every row joins to a `/corpus.jsonl` row. As of v0.18.0 the file had 240 rows in two families (it now has 798 in six, see above); the 72 `/crosshost` rows are documented in the 2026-09-17 section below.
 
 **No HTML page.** The data is the asset; an eight-column matrix that stays readable in both themes
 is a design problem, and design problems are how sessions end at 80%. Deferred deliberately.
@@ -58,8 +58,9 @@ smoke check.
 **`differs-silently` is the correct behaviour on some flavors and the finding on others**, and which
 is which is a property of the flavor, not the client. On `undeclared` and `double-hidden` this server
 declares no coding for the client to strip, so returning the bytes exactly as sent is right — and all
-six do it. On `truncated` the identical outcome is the finding: five of six returned a partial
-document as though it were whole, and only Go reported it.
+six do it. On `truncated` the identical outcome is the finding: five of six reported no error — four
+returned a partial document as though it were whole and one (Ruby) an empty body — and only Go reported it
+(corrected 2026-10-12, session 31: the rows always said four and one; the sentence said five).
 
 No client is scored, ranked, or called conformant. For almost every one of these flavors no
 specification says what a client must surface to its caller — which is precisely why observations are
@@ -390,3 +391,16 @@ rows' date.
 (never while smoke runs); `docs/probe-sse-clients-2026-10-05.jsonl` with its `.log` beside it;
 `node scripts/witness-parse-sse.mjs <capture>` regenerates `src/witness-sse-data.js` (and refuses a row in which ANY connection lacks `x-badhttp-version`). The findings prose in
 `src/sse.js` is computed, but its gated explanations must be re-read against a new matrix.
+
+## Sixth family: `/range` (session 31, 2026-10-12; v0.24.0)
+
+The design, the row shape, the roster and the refusals are in `docs/spec-range-witness.md`; this section records only that it
+shipped as the sixth family of `GET /clients.jsonl` and `GET /clients`.
+
+Real resuming download clients plus a raw-wire control (curl) over the 14 `/range` flavors: **166 rows**, so the file now holds
+798 rows in six families. Each resumer is handed a 400-byte partial of the 1,000-byte document and told to resume it, plus a
+fresh download at `always-206`, with every request recorded between the client and the server and the file on disk described
+against where RFC 9110 places the bytes the control received. `src/range.js` computes the findings from
+`src/witness-range-data.js`, which `node scripts/witness-parse-range.mjs <capture>` regenerates from
+`docs/probe-range-clients-2026-10-12.jsonl` (its `.log` beside it). The capture is run with `scripts/range-witness/all.sh`, never
+while smoke runs.

@@ -1,0 +1,168 @@
+provenance: badhttp 0.23.0, 14 flavors, 10 clients + control
+curl-raw ok/document [200] raw=1000B attempts=1
+curl-raw ok/resume-raw [206] raw=600B attempts=1
+curl-raw ignore/resume-raw [200] raw=1000B attempts=1
+curl-raw advertise-only/resume-raw [200] raw=1000B attempts=1
+curl-raw off-by-one/resume-raw [206] raw=599B attempts=1
+curl-raw shifted/resume-raw [206] raw=599B attempts=1
+curl-raw suffix-as-prefix/resume-raw [206] raw=600B attempts=1
+curl-raw from-zero/resume-raw [206] raw=1000B attempts=1
+curl-raw wrong-total/resume-raw [206] raw=600B attempts=1
+curl-raw no-content-range/resume-raw [206] raw=600B attempts=1
+curl-raw always-206/resume-raw [206] raw=600B attempts=1
+curl-raw always-206/fresh-raw [206] raw=1000B attempts=1
+curl-raw 200-content-range/resume-raw [200] raw=600B attempts=1
+curl-raw always-416/resume-raw [416] raw=0B attempts=1
+curl-raw unknown-total/resume-raw [206] raw=600B attempts=1
+curl-raw if-range-ignored/resume-raw [206] raw=600B attempts=1
+curl ok/resume [206] file=1000B attempts=1 0.1s
+curl ignore/resume [200] file=400B attempts=1 0.1s
+curl advertise-only/resume [200] file=400B attempts=1 0.1s
+curl off-by-one/resume [206] file=999B attempts=1 0.1s
+curl shifted/resume [206] file=999B attempts=1 0.1s
+curl suffix-as-prefix/resume [206] file=1000B attempts=1 0.1s
+curl from-zero/resume [206] file=400B attempts=1 0.1s
+curl wrong-total/resume [206] file=1000B attempts=1 0.1s
+curl no-content-range/resume [206] file=400B attempts=1 0.1s
+curl always-206/resume [206] file=1000B attempts=1 0.1s
+curl 200-content-range/resume [200] file=1000B attempts=1 0.1s
+curl always-416/resume [416] file=400B attempts=1 0.1s
+curl unknown-total/resume [206] file=1000B attempts=1 0.1s
+curl if-range-ignored/resume [206] file=1000B attempts=1 0.1s
+curl always-206/fresh [206] file=1000B attempts=1 0.1s
+wget ok/resume [206] file=1000B attempts=1 0.1s
+wget ignore/resume [200] file=1000B attempts=1 0.1s
+wget advertise-only/resume [200] file=1000B attempts=1 0.1s
+wget off-by-one/resume [206] file=999B attempts=1 harness-timeout 30.0s
+wget shifted/resume [206] file=999B attempts=1 harness-timeout 30.0s
+wget suffix-as-prefix/resume [206] file=1000B attempts=1 0.1s
+wget from-zero/resume [206] file=400B attempts=1 0.1s
+wget wrong-total/resume [206] file=1000B attempts=1 0.1s
+wget no-content-range/resume [206] file=400B attempts=1 0.1s
+wget always-206/resume [206] file=1000B attempts=1 0.1s
+wget 200-content-range/resume [200] file=1000B attempts=1 0.1s
+wget always-416/resume [416] file=400B attempts=1 0.1s
+wget unknown-total/resume [206] file=1000B attempts=1 0.1s
+wget if-range-ignored/resume [206] file=1000B attempts=1 0.1s
+wget always-206/fresh [206] file=1000B attempts=1 0.1s
+wget2 ok/resume [206] file=1000B attempts=1 0.1s
+wget2 ignore/resume [200] file=1400B attempts=1 0.1s
+wget2 advertise-only/resume [200] file=1400B attempts=1 0.1s
+wget2 off-by-one/resume [206] file=999B attempts=1 0.1s
+wget2 shifted/resume [206] file=999B attempts=1 0.1s
+wget2 suffix-as-prefix/resume [206] file=1000B attempts=1 0.1s
+wget2 from-zero/resume [206] file=1400B attempts=1 0.1s
+wget2 wrong-total/resume [206] file=1000B attempts=1 0.1s
+wget2 no-content-range/resume [206] file=1000B attempts=1 0.1s
+wget2 always-206/resume [206] file=1000B attempts=1 0.1s
+wget2 200-content-range/resume [200] file=1000B attempts=1 0.1s
+wget2 always-416/resume [416] file=400B attempts=1 0.1s
+wget2 unknown-total/resume [206] file=1000B attempts=1 0.1s
+wget2 if-range-ignored/resume [206] file=1000B attempts=1 0.1s
+wget2 always-206/fresh [206] file=1000B attempts=1 0.1s
+httpie ok/resume [206] file=1000B attempts=1 0.3s
+httpie ignore/resume [200] file=1000B attempts=1 0.2s
+httpie advertise-only/resume [200] file=1000B attempts=1 0.2s
+httpie off-by-one/resume [206] file=999B attempts=1 0.2s
+httpie shifted/resume [206] file=999B attempts=1 0.2s
+httpie suffix-as-prefix/resume [206] file=1000B attempts=1 0.3s
+httpie from-zero/resume [206] file=400B attempts=1 0.2s
+httpie wrong-total/resume [206] file=400B attempts=1 0.2s
+httpie no-content-range/resume [206] file=400B attempts=1 0.2s
+httpie always-206/resume [206] file=1000B attempts=1 0.3s
+httpie 200-content-range/resume [200] file=600B attempts=1 0.2s
+httpie always-416/resume [416] file=400B attempts=1 0.2s
+httpie unknown-total/resume [206] file=1000B attempts=1 0.3s
+httpie if-range-ignored/resume [206] file=1000B attempts=1 0.3s
+httpie always-206/fresh [206] file=1000B attempts=1 0.3s
+yt-dlp ok/resume [200 206] file=1000B attempts=1 0.6s
+yt-dlp ignore/resume [200 200] file=1000B attempts=1 0.5s
+yt-dlp advertise-only/resume [200 200] file=1000B attempts=1 0.5s
+yt-dlp off-by-one/resume [200 206] file=999B attempts=1 0.5s
+yt-dlp shifted/resume [200 206] file=999B attempts=1 0.5s
+yt-dlp suffix-as-prefix/resume [200 206] file=1000B attempts=1 0.5s
+yt-dlp from-zero/resume [200 206] file=1000B attempts=1 0.5s
+yt-dlp wrong-total/resume [200 206] file=1000B attempts=1 0.6s
+yt-dlp no-content-range/resume [200 206] file=600B attempts=1 0.5s
+yt-dlp always-206/resume [206 206] file=1000B attempts=1 0.5s
+yt-dlp 200-content-range/resume [200 200] file=1000B attempts=1 0.5s
+yt-dlp always-416/resume [200 416 416] file=400B attempts=1 0.7s
+yt-dlp unknown-total/resume [200 206] file=1000B attempts=1 0.5s
+yt-dlp if-range-ignored/resume [200 206] file=1000B attempts=1 0.6s
+yt-dlp always-206/fresh [206 206] file=1000B attempts=1 0.6s
+huggingface_hub ok/resume [206] file=1000B attempts=1 0.3s
+huggingface_hub ignore/resume [200] file=1000B attempts=1 0.3s
+huggingface_hub advertise-only/resume [200] file=1000B attempts=1 0.2s
+huggingface_hub off-by-one/resume [206] file=999B attempts=1 0.2s
+huggingface_hub shifted/resume [206] file=999B attempts=1 0.3s
+huggingface_hub suffix-as-prefix/resume [206] file=1000B attempts=1 0.2s
+huggingface_hub from-zero/resume [206] file=1400B attempts=1 0.2s
+huggingface_hub wrong-total/resume [206] file=1000B attempts=1 0.2s
+huggingface_hub no-content-range/resume [206] file=1000B attempts=1 0.2s
+huggingface_hub always-206/resume [206] file=1000B attempts=1 0.2s
+huggingface_hub 200-content-range/resume [200] file=600B attempts=1 0.2s
+huggingface_hub always-416/resume [416] file=400B attempts=1 0.2s
+huggingface_hub unknown-total/resume [206] file=400B attempts=1 0.2s
+huggingface_hub if-range-ignored/resume [206] file=1000B attempts=1 0.2s
+huggingface_hub always-206/fresh [206] file=1000B attempts=1 0.2s
+node-downloader-helper ok/resume [HEAD:200 206] file=1000B attempts=1 0.3s
+node-downloader-helper ignore/resume [HEAD:200 200] file=1000B attempts=1 0.3s
+node-downloader-helper advertise-only/resume [HEAD:200 200] file=1000B attempts=1 0.3s
+node-downloader-helper off-by-one/resume [HEAD:200 206] file=999B attempts=1 0.3s
+node-downloader-helper shifted/resume [HEAD:200 206] file=999B attempts=1 0.3s
+node-downloader-helper suffix-as-prefix/resume [HEAD:200 206] file=1000B attempts=1 0.3s
+node-downloader-helper from-zero/resume [HEAD:200 206] file=1400B attempts=1 0.3s
+node-downloader-helper wrong-total/resume [HEAD:200 206] file=1000B attempts=1 0.3s
+node-downloader-helper no-content-range/resume [HEAD:200 206] file=1000B attempts=1 0.3s
+node-downloader-helper always-206/resume [HEAD:206 206] file=1000B attempts=1 0.3s
+node-downloader-helper 200-content-range/resume [HEAD:200 200] file=600B attempts=1 0.3s
+node-downloader-helper always-416/resume [HEAD:200 416] file=400B attempts=1 0.3s
+node-downloader-helper unknown-total/resume [HEAD:200 206] file=1000B attempts=1 0.3s
+node-downloader-helper if-range-ignored/resume [HEAD:200 206] file=1000B attempts=1 0.3s
+node-downloader-helper always-206/fresh [HEAD:206 206] file=1000B attempts=1 0.3s
+nugget ok/resume [200 206] file=1000B attempts=1 0.3s
+nugget ignore/resume [200 200] file=1400B attempts=1 0.3s
+nugget advertise-only/resume [200 200] file=1400B attempts=1 0.3s
+nugget off-by-one/resume [200 206] file=999B attempts=1 0.3s
+nugget shifted/resume [200 206] file=999B attempts=1 0.3s
+nugget suffix-as-prefix/resume [200 206] file=1000B attempts=1 0.3s
+nugget from-zero/resume [200 206] file=1400B attempts=1 0.3s
+nugget wrong-total/resume [200 206] file=1000B attempts=1 0.3s
+nugget no-content-range/resume [200 206] file=1000B attempts=1 0.3s
+nugget always-206/resume [206 206] file=1000B attempts=1 0.3s
+nugget 200-content-range/resume [200 200] file=1000B attempts=1 0.3s
+nugget always-416/resume [200 416] file=400B attempts=1 0.3s
+nugget unknown-total/resume [200 206] file=1000B attempts=1 0.3s
+nugget if-range-ignored/resume [200 206] file=1000B attempts=1 0.4s
+nugget always-206/fresh [206] file=1000B attempts=1 0.2s
+grab ok/resume [HEAD:200 206] file=1000B attempts=1 0.3s
+grab ignore/resume [HEAD:200 200] file=1000B attempts=1 0.2s
+grab advertise-only/resume [HEAD:200 200] file=1400B attempts=1 0.2s
+grab off-by-one/resume [HEAD:200 206] file=999B attempts=1 0.2s
+grab shifted/resume [HEAD:200 206] file=999B attempts=1 0.2s
+grab suffix-as-prefix/resume [HEAD:200 206] file=1000B attempts=1 0.2s
+grab from-zero/resume [HEAD:200 206] file=1400B attempts=1 0.2s
+grab wrong-total/resume [HEAD:200 206] file=1000B attempts=1 0.2s
+grab no-content-range/resume [HEAD:200 206] file=1000B attempts=1 0.2s
+grab always-206/resume [HEAD:206 206] file=1000B attempts=1 0.2s
+grab 200-content-range/resume [HEAD:200 200] file=1000B attempts=1 0.2s
+grab always-416/resume [HEAD:200 416] file=400B attempts=1 0.2s
+grab unknown-total/resume [HEAD:200 206] file=1000B attempts=1 0.2s
+grab if-range-ignored/resume [HEAD:200 206] file=1000B attempts=1 0.2s
+grab always-206/fresh [206] file=1000B attempts=1 0.1s
+go-getter ok/resume [HEAD:200 206] file=1000B attempts=1 0.2s
+go-getter ignore/resume [HEAD:200 200] file=1000B attempts=1 0.2s
+go-getter advertise-only/resume [HEAD:200 200] file=1400B attempts=1 0.2s
+go-getter off-by-one/resume [HEAD:200 206] file=999B attempts=1 0.2s
+go-getter shifted/resume [HEAD:200 206] file=999B attempts=1 0.2s
+go-getter suffix-as-prefix/resume [HEAD:200 206] file=1000B attempts=1 0.2s
+go-getter from-zero/resume [HEAD:200 206] file=1400B attempts=1 0.2s
+go-getter wrong-total/resume [HEAD:200 206] file=1000B attempts=1 0.2s
+go-getter no-content-range/resume [HEAD:200 206] file=1000B attempts=1 0.2s
+go-getter always-206/resume [HEAD:206 206] file=1000B attempts=1 0.2s
+go-getter 200-content-range/resume [HEAD:200 200] file=1000B attempts=1 0.2s
+go-getter always-416/resume [HEAD:200 416] file=400B attempts=1 0.2s
+go-getter unknown-total/resume [HEAD:200 206] file=1000B attempts=1 0.2s
+go-getter if-range-ignored/resume [HEAD:200 206] file=1000B attempts=1 0.2s
+go-getter always-206/fresh [HEAD:206 206] file=1000B attempts=1 0.2s
+done: 166 rows written to the capture, 0 request_failed

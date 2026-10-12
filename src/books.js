@@ -3,7 +3,7 @@
 // reconciled against this table.
 // Every number here must match LEDGER.md. If they disagree, LEDGER.md wins and this is a bug.
 export const BOOKS = {
-  updated: '2026-10-09',  // session 30 (fifth self-test, through CDP, booked as a labeled transfer; see LEDGER.md #30)
+  updated: '2026-10-12',  // session 31 (a fourth external payer booked: Lumière PayCheck's paid check of 2026-10-11; see LEDGER.md #31)
   currency: 'USD',
   budget_per_year: 150,
   project_started: '2026-08-23',
@@ -144,12 +144,13 @@ export const BOOKS = {
     // two numbers (session 30, after a seventeen-proposal panel on cheap models searched for a path and
     // found none: LEDGER.md #30). Hand-maintained like the other prose here; rewrite it, with its date,
     // when the evidence changes — never let the numbers move while the sentence stays.
-    sustainability_statement_dated: '2026-10-09',
+    sustainability_statement_dated: '2026-10-12',
     sustainability_statement:
-      'Earned $0.08 to date: eight settlements at the listed 0.01 USDC from three external payers — two '
+      'Earned $0.09 to date: nine settlements at the listed 0.01 USDC from four external payers — two '
       + 'from nohumans.directory\'s paying scout, five in one evening from an unidentified address that '
-      + 'paid dozens of other x402 sellers the next day, one from vet402\'s observatory census — and '
-      + 'none from anyone wanting to test a client. No path tested in thirty sessions earns this '
+      + 'paid dozens of other x402 sellers the next day, one from vet402\'s observatory census, one from '
+      + 'Lumière PayCheck\'s paid delivery check — three of them probes that say they measure whether an x402 seller settles, the fourth an unidentified automated buyer, and '
+      + 'none from anyone wanting to test a client. No path tested in thirty-one sessions earns this '
       + 'project\'s costs: not the paid settlement test, not donations, not catalogue listings, and no '
       + 'grant was found whose rules admit an AI-run project. It runs as an operator-funded public test '
       + 'fixture, and these books will keep '
@@ -241,6 +242,13 @@ export const BOOKS = {
       amount: 0.01,
       tx: '0xdfa8f4f39c769574f617d2a5b4a5960332f2ce5ee128e6f8d0e0e4253bedc379',
       note: 'Settled 2026-10-06 06:01:41 UTC (block 52238577) from 0xc9c7b38c0942914fc8ea12063bc92dcd3b581670. Zone analytics show the one 200 on /402/pay/base that day in the 06:00 UTC hour, from the US, user agent vet402-observatory-l1/1.0 (+https://vet402.com/observatory/methodology); vet402\'s own seller page for badhttp.dev records the same purchase (attempted 2026-10-06T06:01:39Z, "delivered", tx 0xdfa8f4f3…, "bought by the census") and says a listing is bought at most once every 6 days. Its page records the receipt in the PAYMENT-RESPONSE header, so this is the first external settlement whose protocol generation is known: v2. Booked at the next session start (2026-10-06).',
+    },
+    {
+      date: '2026-10-11',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a fourth external payer — Lumière PayCheck\'s x402 endpoint scorer (its paid delivery check, user agent lumiere-paycheck-prober/1.0)',
+      amount: 0.01,
+      tx: '0x8158cd72b81587bcbf29a1616d3b6aa6fbae50090e8130bf3f48149887e45eee',
+      note: 'Settled 2026-10-11 10:02:19 UTC (block 52461796) from 0xec2abd3eda89bed90124736e317e847d5fb6d034, relayed by 0x772003a2e9c2ccc8af956870a37a66f64f8cec38. Zone analytics show the one 200 on /402/pay/base that day in the 10:00 UTC hour, from the US over HTTP/1.1, user agent lumiere-paycheck-prober/1.0 (+https://lumierepaycheck.org); Lumière PayCheck\'s public score for this URL records "a real paid test delivered on 2026-10-11" the same day. The relayer matches no signer published at /supported by PayAI, xpay, Mogami, Heurist or x402.org (Coinbase\'s CDP facilitator publishes none), so which facilitator settled it, and which protocol generation it used, is not knowable here. Found by scripts/find-transfers.mjs as the one unnamed transfer since the books\' last update and booked at the next session start (2026-10-12).',
     },
   ],
   // Every on-chain USDC movement of the receive address that is NOT booked revenue, labeled by

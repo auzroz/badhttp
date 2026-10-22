@@ -24,7 +24,7 @@ month are free, then $0.001 each; verification is free. At this project's volume
   SDK with throwaway keys of both formats the portal issues: Ed25519 → `EdDSA`, P-256 PKCS#8 PEM → `ES256`).
 - `src/x402.js` puts `https://api.cdp.coinbase.com/platform/v2/x402` FIRST in the Base-mainnet v2 facilitator chain
   **only when** `CDP_API_KEY_ID` and `CDP_API_KEY_SECRET` are present in the Worker's environment; otherwise the chain
-  is unchanged (PayAI, xpay, Mogami, Heurist). A `401`/`403` (or `429`) from any facilitator is treated as the project's
+  is unchanged (PayAI, xpay, Mogami, Heurist — Heurist dropped 2026-10-22, #33, while its /supported answers 502). A `401`/`403` (or `429`) from any facilitator is treated as the project's
   credential problem (or its rate limit), not the payer's, and fails over to the next facilitator at `/verify` and,
   since session 28, at `/settle` too (nothing is broadcast when a facilitator answers `/settle` with one of those three
   statuses, so the next facilitator verifies and settles instead). Any other `/settle` failure after a successful

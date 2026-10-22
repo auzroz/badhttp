@@ -3,7 +3,7 @@
 // reconciled against this table.
 // Every number here must match LEDGER.md. If they disagree, LEDGER.md wins and this is a bug.
 export const BOOKS = {
-  updated: '2026-10-12',  // session 31 (a fourth external payer booked: Lumière PayCheck's paid check of 2026-10-11; see LEDGER.md #31)
+  updated: '2026-10-22',  // session 33 (a fifth external payer booked: SettledScout's paid delivery check of 2026-10-15; the /compress/bomb flood's Workers overage booked as an estimate; see LEDGER.md #33)
   currency: 'USD',
   budget_per_year: 150,
   project_started: '2026-08-23',
@@ -144,17 +144,17 @@ export const BOOKS = {
     // two numbers (session 30, after a seventeen-proposal panel on cheap models searched for a path and
     // found none: LEDGER.md #30). Hand-maintained like the other prose here; rewrite it, with its date,
     // when the evidence changes — never let the numbers move while the sentence stays.
-    sustainability_statement_dated: '2026-10-12',
+    sustainability_statement_dated: '2026-10-22',
     sustainability_statement:
-      'Earned $0.09 to date: nine settlements at the listed 0.01 USDC from four external payers — two '
+      'Earned $0.10 to date: ten settlements at the listed 0.01 USDC from five external payers — two '
       + 'from nohumans.directory\'s paying scout, five in one evening from an unidentified address that '
       + 'paid dozens of other x402 sellers the next day, one from vet402\'s observatory census, one from '
-      + 'Lumière PayCheck\'s paid delivery check — three of them probes that say they measure whether an x402 seller settles, the fourth an unidentified automated buyer, and '
-      + 'none from anyone wanting to test a client. No path tested in thirty-one sessions earns this '
+      + 'Lumière PayCheck\'s paid delivery check, one from SettledScout\'s delivery check — four of them probes that say they measure whether an x402 seller settles, the fifth an unidentified automated buyer, and '
+      + 'none from anyone wanting to test a client. No path tested in thirty-three sessions earns this '
       + 'project\'s costs: not the paid settlement test, not donations, not catalogue listings, and no '
       + 'grant was found whose rules admit an AI-run project. It runs as an operator-funded public test '
       + 'fixture, and these books will keep '
-      + 'saying so until the earned column says otherwise. One cost is not on these books at all: the '
+      + 'saying so until the earned column says otherwise. In the same week the costs side moved the other way: a flood of 36 million requests for the largest /compress/bomb, through millions of addresses, put an estimated $7.93 of Workers request overage on the operator\'s October bill before an edge rule stopped it (costs table). One cost is not on these books at all: the '
       + 'model usage that builds and runs the project is borne by the operator and is not priced here.',
     registrar_credit_note:
       'What remained in the Porkbun account after registration. The registrar publishes no '
@@ -182,6 +182,36 @@ export const BOOKS = {
       item: 'Mainnet payer wallet funded (working capital, USDC on Base)',
       amount: 10.0,
       note: 'Most of it is still held by the project: $9.935 at the payer, $0.05 self-test settlements to the receive address (transfers between our own addresses — NOT revenue; tx hashes in GET /402), $0.015 spent on three x402-trust paid trust reports — the project\'s payments to an external x402 service.',
+    },
+    {
+      date: '2026-10-22',
+      item: 'Cloudflare Workers request overage, October 2026, caused by the /compress/bomb flood of 2026-10-15 to 2026-10-22 (ESTIMATE from Cloudflare\'s own invocation counts; the invoice arrives after month end)',
+      amount: 7.93,
+      // The first cost these books carry that nobody decided to spend. From 2026-10-15 ~02:00 UTC a
+      // flood of requests for /compress/bomb?size=32 (the largest declared decompression bomb,
+      // ~98 KB on the wire, 32 MiB inflated) arrived through millions of distinct IP addresses a day
+      // — one or two requests each, so the per-IP rate limit never engaged — carrying a fixed
+      // rotation of fake desktop-browser user agents. Every one reached the Worker and was a billed
+      // invocation: 36.3 million for this script between 2026-10-01 and 2026-10-22 19:00 UTC against
+      // 99,760 in all of September. On 2026-10-22 19:11 UTC an edge rule (zone WAF, before the
+      // Worker, unbilled) began answering 403 to /compress/bomb requests whose User-Agent claims a
+      // browser (the rule matches the claimed User-Agent, not the client: a browser, a browser driver or a
+      // tool whose default user agent says Mozilla/ must send another one); the 200s stopped within four
+      // minutes. The amount is derived from `basis` in the
+      // shell smoke check `booksoverage` (duplicated on purpose), and is attributed wholly to this
+      // project: the account\'s other scripts used 1.4% of the included allowance.
+      basis: {
+        measured_on: '2026-10-22T19:00:00Z',
+        source: 'Cloudflare GraphQL Analytics API, workersInvocationsAdaptive, 2026-10-01 to 2026-10-22',
+        badhttp_requests: 36285862,
+        account_requests: 36421767,
+        september_badhttp_requests: 99760,
+        included_requests_per_month: 10000000,
+        usd_per_million_over: 0.3,
+        method: '(account_requests - included_requests_per_month) x usd_per_million_over / 1,000,000, rounded to the cent. CPU time is NOT in this amount and is also over its allowance: the API gives this token per-day quantiles, never a sum, and from them October 12-22 alone used at least 38.7M CPU-ms (0.49 x n x p50 + 0.01 x n x p99 per day; the p99 rose from 8-10 ms to 115-177 ms on 2026-10-18, consistent with cold isolates rebuilding the 32 MiB bomb) against 30M included a month, so at least $0.17 at $0.02 per million CPU-ms is coming too; the quantiles cannot bound it from above. Both figures are floors until the invoice.',
+        edge_rule: 'zone WAF custom rule, phase http_request_firewall_custom, action block, expression (http.request.uri.path eq "/compress/bomb" and http.user_agent contains "Mozilla/"), created 2026-10-22T19:11:27Z',
+      },
+      note: 'Estimate, not an invoice: Cloudflare bills request overage at month end on the operator\'s account, and this row is replaced by the invoiced figure when it is known. Nothing above the included 10M would have been billed without the flood. The edge rule and its reasons are on the home page, in /llms.txt and in /openapi.json; LEDGER.md #33 has the full account.',
     },
   ],
   // A booked revenue row for an on-chain payment should carry its tx hash as `tx` so the
@@ -249,6 +279,13 @@ export const BOOKS = {
       amount: 0.01,
       tx: '0x8158cd72b81587bcbf29a1616d3b6aa6fbae50090e8130bf3f48149887e45eee',
       note: 'Settled 2026-10-11 10:02:19 UTC (block 52461796) from 0xec2abd3eda89bed90124736e317e847d5fb6d034, relayed by 0x772003a2e9c2ccc8af956870a37a66f64f8cec38. Zone analytics show the one 200 on /402/pay/base that day in the 10:00 UTC hour, from the US over HTTP/1.1, user agent lumiere-paycheck-prober/1.0 (+https://lumierepaycheck.org); Lumière PayCheck\'s public score for this URL records "a real paid test delivered on 2026-10-11" the same day. The relayer matches no signer published at /supported by PayAI, xpay, Mogami, Heurist or x402.org (Coinbase\'s CDP facilitator publishes none), so which facilitator settled it, and which protocol generation it used, is not knowable here. Found by scripts/find-transfers.mjs as the one unnamed transfer since the books\' last update and booked at the next session start (2026-10-12).',
+    },
+    {
+      date: '2026-10-15',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a fifth external payer — SettledScout, an x402 delivery checker that "pays once, records delivery" (user agent SettledScout/0.1, +https://settled.tools/bot)',
+      amount: 0.01,
+      tx: '0x651496fa3638475b1e21d066897dc52f76e55dc1723fd352126d9c09950d8519',
+      note: 'Settled 2026-10-15 15:18:27 UTC (block 52644080) from 0xa1d1c0cf717402ff3651aa4873ccf96410b01978, relayed by 0x2a89407a98a0732b7fd578c4e156b7166540eb5a (USDC transferWithAuthorization). Zone analytics show the one 200 on /402/pay/base that day, in the 15:00 UTC hour, a GET from a Cloudflare Workers egress address (2a06:98c0:3600::/40) in the US, user agent SettledScout/0.1 (+https://settled.tools/bot; pays once, records delivery). The relayer matches no signer any facilitator in this host\'s chain publishes, so the settling facilitator and the protocol generation are unknown. Found by scripts/find-transfers.mjs at the next session start (2026-10-22) and booked that session.',
     },
   ],
   // Every on-chain USDC movement of the receive address that is NOT booked revenue, labeled by
@@ -404,6 +441,10 @@ export function hostingUsage(b = BOOKS) {
     // as all-in totals.
     standalone_hosting_usd_per_year: Math.round((m.plan.paid_min_usd_per_month * 12) * 100) / 100,
     incremental_hosting_usd_per_year: 0,
+    window_note:
+      'Every figure here describes hosting_measured.window only (ordinary traffic, September 2026). A '
+      + 'metered overage outside that window is booked as its own dated costs row — October 2026 has '
+      + 'one — and is not netted into these ratios.',
   };
 }
 
@@ -545,8 +586,8 @@ export function fundingManifest(origin, b = BOOKS) {
           description:
             `The whole annual requirement. $${domain.toFixed(2)} is the domain renewal, which is the `
             + 'only cash that must change hands; hosting is a Cloudflare Workers Paid plan whose '
-            + "included allowance this service uses under 1% of, so it adds nothing to a bill that "
-            + `already exists — though standing alone it would pay that plan's $${standalone.toFixed(2)}/year `
+            + "included allowance this service's ordinary traffic uses under 1% of, so it adds nothing to a bill that "
+            + `already exists (a flood in October 2026 was the exception, booked as a cost on the books) — though standing alone it would pay that plan's $${standalone.toFixed(2)}/year `
             + `floor, because its heaviest requests exceed the free plan's per-invocation CPU limit. `
             + `Both figures, and the measurement behind them, are published at ${origin}/books.`,
           amount: Math.ceil(domain + standalone),
@@ -578,7 +619,9 @@ export function totals(b = BOOKS, now = new Date()) {
   const hosting = Math.round(months * b.hosting.rate_usd_per_month * 100) / 100;
   const itemized = b.costs.reduce((s, c) => s + c.amount, 0);
   const costs = Math.round((itemized + hosting) * 100) / 100;
-  const revenue = b.revenue.reduce((s, r) => s + r.amount, 0);
+  // Rounded to the cent like every other total: ten rows of 0.01 sum to 0.09999999999999999 in
+  // doubles, and /books.json published exactly that the day the tenth row was booked (session 33).
+  const revenue = Math.round(b.revenue.reduce((s, r) => s + r.amount, 0) * 100) / 100;
   return {
     costs,
     revenue,

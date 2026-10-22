@@ -19,7 +19,7 @@ import { templateExplainer, matchesTemplate } from './template.js';
 import { handleCorpus, handleLicense, LICENSE } from './corpus.js';
 import { handleClients } from './clients.js';
 
-const VERSION = '0.25.0';
+const VERSION = '0.26.0';
 // The last change to the /.well-known/x402 manifest (its `updated` field, per the draft). Move it when the manifest changes.
 const WELL_KNOWN_X402_UPDATED = '2026-10-09T00:00:00Z';
 
@@ -453,7 +453,9 @@ function chainView(bal, t) {
     if (m.direction === 'in') movementsIn += BigInt(m.amount_atomic);
     else movementsOut += BigInt(m.amount_atomic);
   }
-  const booked = BigInt(Math.round(t.revenue * 1e6));
+  // From the rows, never from totals().revenue: that figure is rounded to the cent for display
+  // (session 33), and a sub-cent row rounded away here would read as unbooked USDC on chain.
+  const booked = BOOKS.revenue.reduce((s, r) => s + BigInt(Math.round(Number(r.amount) * 1e6)), 0n);
   const unbooked = balance - (movementsIn - movementsOut) - booked;
   const status = unbooked === 0n ? 'reconciled' : unbooked > 0n ? 'unbooked_receipts' : 'bookkeeping_bug';
   return {

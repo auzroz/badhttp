@@ -55,14 +55,26 @@ curl -s -m 25 "https://base-sepolia.blockscout.com/api/v2/addresses/$RECEIVE/tok
 
 if [ "$1" = "--cred" ]; then
   set -a; source .env; set +a
-  MYIP=$(curl -s -m 10 https://api.ipify.org)
+  # Both address families: this machine reaches badhttp.dev over IPv6, and the IPv4 filter alone matched nothing for
+  # 22 days (session 33 found every "own IP excluded" figure since #28 still included the session's own traffic).
+  MYIP=$(curl -s -m 10 https://api.ipify.org); MYIP6=$(curl -s -m 10 https://api64.ipify.org); [ -n "$MYIP6" ] || MYIP6="$MYIP"
+  OWN="AND:[{clientIP_neq:\\\"$MYIP\\\"},{clientIP_neq:\\\"$MYIP6\\\"}]"
   ZONE=$(curl -s -m 15 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" 'https://api.cloudflare.com/client/v4/zones?name=badhttp.dev' | $JQ -r '.result[0].id')
   say "traffic (own IP excluded, /__internal/% filtered; today and the previous 3 days)"
+  # Since 2026-10-22 (#33): `bomb` is every request for /compress/bomb (the flood's one path; it was ~0 a day before
+  # 2026-10-15 and millions a day after), `r403` is what the edge rule blocked (unbilled), `worker` is what reached
+  # the Worker and was billed. The ua list excludes /compress/bomb so the flood's fake browsers do not hide everyone else.
+  # Anything like `bomb` in the tens of thousands with `r403` near zero means the flood changed its user agent:
+  # read docs/RUNBOOK-zone-rate-limit.md (the custom rule) before the next hour of invocations is billed.
   for i in 3 2 1 0; do
     d=$(date -u -v-${i}d +%Y-%m-%d)
-    Q="{\"query\":\"{ viewer { zones(filter:{zoneTag:\\\"$ZONE\\\"}) { total: httpRequestsAdaptiveGroups(limit:1, filter:{date:\\\"$d\\\", clientIP_neq:\\\"$MYIP\\\", clientRequestPath_notlike:\\\"/__internal/%\\\"}) { count } r429: httpRequestsAdaptiveGroups(limit:1, filter:{date:\\\"$d\\\", clientIP_neq:\\\"$MYIP\\\", clientRequestPath_notlike:\\\"/__internal/%\\\", edgeResponseStatus:429}) { count } pay200: httpRequestsAdaptiveGroups(limit:20, filter:{date:\\\"$d\\\", clientRequestPath_like:\\\"/402/pay%\\\", edgeResponseStatus:200}) { count dimensions { clientRequestPath userAgent clientCountryName } } ua: httpRequestsAdaptiveGroups(limit:6, orderBy:[count_DESC], filter:{date:\\\"$d\\\", clientIP_neq:\\\"$MYIP\\\", clientRequestPath_notlike:\\\"/__internal/%\\\"}) { count dimensions { userAgent } } } } }\"}"
+    Q="{\"query\":\"{ viewer { zones(filter:{zoneTag:\\\"$ZONE\\\"}) { total: httpRequestsAdaptiveGroups(limit:1, filter:{date:\\\"$d\\\", $OWN, clientRequestPath_notlike:\\\"/__internal/%\\\"}) { count } r429: httpRequestsAdaptiveGroups(limit:1, filter:{date:\\\"$d\\\", $OWN, clientRequestPath_notlike:\\\"/__internal/%\\\", edgeResponseStatus:429}) { count } bomb: httpRequestsAdaptiveGroups(limit:1, filter:{date:\\\"$d\\\", $OWN, clientRequestPath:\\\"/compress/bomb\\\"}) { count } r403: httpRequestsAdaptiveGroups(limit:1, filter:{date:\\\"$d\\\", $OWN, clientRequestPath:\\\"/compress/bomb\\\", edgeResponseStatus:403}) { count } pay200: httpRequestsAdaptiveGroups(limit:20, filter:{date:\\\"$d\\\", clientRequestPath_like:\\\"/402/pay%\\\", edgeResponseStatus:200}) { count dimensions { clientRequestPath userAgent clientCountryName } } ua: httpRequestsAdaptiveGroups(limit:6, orderBy:[count_DESC], filter:{date:\\\"$d\\\", $OWN, clientRequestPath_notlike:\\\"/__internal/%\\\", clientRequestPath_neq:\\\"/compress/bomb\\\"}) { count dimensions { userAgent } } } } }\"}"
     R=$(curl -s -m 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' https://api.cloudflare.com/client/v4/graphql -d "$Q")
-    echo "$d total=$(echo "$R" | $JQ -r '.data.viewer.zones[0].total[0].count // 0') r429=$(echo "$R" | $JQ -r '.data.viewer.zones[0].r429[0].count // 0')"
+    BOMB=$(echo "$R" | $JQ -r '.data.viewer.zones[0].bomb[0].count // 0'); R403=$(echo "$R" | $JQ -r '.data.viewer.zones[0].r403[0].count // 0')
+    echo "$d total=$(echo "$R" | $JQ -r '.data.viewer.zones[0].total[0].count // 0') r429=$(echo "$R" | $JQ -r '.data.viewer.zones[0].r429[0].count // 0') bomb=$BOMB r403=$R403 worker=$((BOMB - R403))"
+    # The billable number, from the account-scoped invocations dataset: what reached the Worker that day, every status.
+    W=$(curl -s -m 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' https://api.cloudflare.com/client/v4/graphql -d "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$CLOUDFLARE_ACCOUNT_ID\\\"}) { inv: workersInvocationsAdaptive(limit:10, filter:{date:\\\"$d\\\", scriptName:\\\"badhttp\\\"}) { sum { requests } quantiles { cpuTimeP50 cpuTimeP99 } } } } }\"}")
+    echo "$d invocations=$(echo "$W" | $JQ -r '[.data.viewer.accounts[0].inv[]?.sum.requests] | add // 0') cpu_p50_us=$(echo "$W" | $JQ -r '.data.viewer.accounts[0].inv[0]?.quantiles.cpuTimeP50 // "-"') cpu_p99_us=$(echo "$W" | $JQ -r '.data.viewer.accounts[0].inv[0]?.quantiles.cpuTimeP99 // "-"')   (Workers Paid: 10M requests and 30M CPU-ms a month included account-wide; a normal day is under 20k)"
     echo "$R" | $JQ -c '.data.viewer.zones[0].pay200[]? | {pay200: .dimensions.clientRequestPath, ua: .dimensions.userAgent, cc: .dimensions.clientCountryName, n: .count}'
     echo "$R" | $JQ -c '[.data.viewer.zones[0].ua[]? | {ua: .dimensions.userAgent[0:40], n: .count}]'
     echo "$R" | $JQ -c '.errors // empty'

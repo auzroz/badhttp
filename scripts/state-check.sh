@@ -64,8 +64,10 @@ if [ "$1" = "--cred" ]; then
   # Since 2026-10-22 (#33): `bomb` is every request for /compress/bomb (the flood's one path; it was ~0 a day before
   # 2026-10-15 and millions a day after), `r403` is what the edge rule blocked (unbilled), `worker` is what reached
   # the Worker and was billed. The ua list excludes /compress/bomb so the flood's fake browsers do not hide everyone else.
-  # Anything like `bomb` in the tens of thousands with `r403` near zero means the flood changed its user agent:
-  # read docs/RUNBOOK-zone-rate-limit.md (the custom rule) before the next hour of invocations is billed.
+  # Since 2026-10-23 (#34) a second rule blocks any ?size= outside 1-8 without the header x-badhttp-bomb: accept, so a
+  # changed user agent alone still shows as `r403`. `worker` in the tens of thousands means the flood found a shape both
+  # rules pass (no Mozilla/ AND either no ?size= or the header): read docs/RUNBOOK-zone-rate-limit.md (the custom
+  # rules; the ladder) before the next hour of invocations is billed.
   for i in 3 2 1 0; do
     d=$(date -u -v-${i}d +%Y-%m-%d)
     Q="{\"query\":\"{ viewer { zones(filter:{zoneTag:\\\"$ZONE\\\"}) { total: httpRequestsAdaptiveGroups(limit:1, filter:{date:\\\"$d\\\", $OWN, clientRequestPath_notlike:\\\"/__internal/%\\\"}) { count } r429: httpRequestsAdaptiveGroups(limit:1, filter:{date:\\\"$d\\\", $OWN, clientRequestPath_notlike:\\\"/__internal/%\\\", edgeResponseStatus:429}) { count } bomb: httpRequestsAdaptiveGroups(limit:1, filter:{date:\\\"$d\\\", $OWN, clientRequestPath:\\\"/compress/bomb\\\"}) { count } r403: httpRequestsAdaptiveGroups(limit:1, filter:{date:\\\"$d\\\", $OWN, clientRequestPath:\\\"/compress/bomb\\\", edgeResponseStatus:403}) { count } pay200: httpRequestsAdaptiveGroups(limit:20, filter:{date:\\\"$d\\\", clientRequestPath_like:\\\"/402/pay%\\\", edgeResponseStatus:200}) { count dimensions { clientRequestPath userAgent clientCountryName } } ua: httpRequestsAdaptiveGroups(limit:6, orderBy:[count_DESC], filter:{date:\\\"$d\\\", $OWN, clientRequestPath_notlike:\\\"/__internal/%\\\", clientRequestPath_neq:\\\"/compress/bomb\\\"}) { count dimensions { userAgent } } } } }\"}"

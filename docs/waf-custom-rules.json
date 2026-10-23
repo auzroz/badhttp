@@ -1,0 +1,8 @@
+{"rules": [
+ {"description": "badhttp: /compress/bomb flood (2026-10-15 onward): millions of fake-browser user agents through residential proxies, one request per IP, each billed as a Worker invocation. Matches the claimed User-Agent (case-insensitively since 2026-10-23); curl-like clients are unaffected.",
+  "expression": "(http.request.uri.path eq \"/compress/bomb\" and lower(http.user_agent) contains \"mozilla/\")",
+  "action": "block"},
+ {"description": "badhttp: /compress/bomb with any ?size= value other than the exact strings 1-8 needs the documented opt-in header x-badhttp-bomb: accept (2026-10-23; every repeated value must be in the set). Independent of the user agent: a flood that changes its browser string still gets 403 here for ?size=32 unless it also sends the header. The default and ?size= 1-8 are unaffected.",
+  "expression": "(http.request.uri.path eq \"/compress/bomb\" and any(http.request.uri.args.names[*] == \"size\") and not all(http.request.uri.args[\"size\"][*] in {\"1\" \"2\" \"3\" \"4\" \"5\" \"6\" \"7\" \"8\"}) and not any(http.request.headers[\"x-badhttp-bomb\"][*] == \"accept\"))",
+  "action": "block"}
+]}

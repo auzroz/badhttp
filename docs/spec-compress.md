@@ -158,3 +158,12 @@ the raw `Accept-Encoding` header (unreachable behind this edge). Deferred with a
 br/zstd variants (`truncated-br`, `not-compressed-br`, `truncated-zstd` — cheap from the fixed bytes, and
 brotli has no checksum, a genuinely different decoder question), a HEAD/GET size disagreement flavor, and
 `Content-Encoding: identity` on a plain body.
+
+## Addendum 2026-10-23: the opt-in header above the default bomb size
+
+`bomb` with `?size=` above 8 (the default) requires the request header `x-badhttp-bomb: accept` (exact value).
+Without it the Worker answers 403 (`error: opt-in required`, with a hint), and on the real host the zone's second
+WAF custom rule answers the same 403 at the edge, before the Worker, for any `?size=` other than `1`–`8` without the
+header — whatever the user agent — so a flood for `?size=32` that changes its browser string is still unbilled.
+`?size=` 1–8 and the default are unchanged. The first rule (2026-10-22: a `Mozilla/` user agent on this flavor) is
+case-insensitive since the same day. `docs/RUNBOOK-zone-rate-limit.md` and LEDGER.md #33–#34 carry the reasons.

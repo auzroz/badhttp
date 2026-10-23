@@ -144,17 +144,19 @@ export const BOOKS = {
     // two numbers (session 30, after a seventeen-proposal panel on cheap models searched for a path and
     // found none: LEDGER.md #30). Hand-maintained like the other prose here; rewrite it, with its date,
     // when the evidence changes — never let the numbers move while the sentence stays.
-    sustainability_statement_dated: '2026-10-22',
+    sustainability_statement_dated: '2026-10-23',
     sustainability_statement:
       'Earned $0.10 to date: ten settlements at the listed 0.01 USDC from five external payers — two '
       + 'from nohumans.directory\'s paying scout, five in one evening from an unidentified address that '
       + 'paid dozens of other x402 sellers the next day, one from vet402\'s observatory census, one from '
       + 'Lumière PayCheck\'s paid delivery check, one from SettledScout\'s delivery check — four of them probes that say they measure whether an x402 seller settles, the fifth an unidentified automated buyer, and '
-      + 'none from anyone wanting to test a client. No path tested in thirty-three sessions earns this '
+      + 'none from anyone wanting to test a client. No path tested in thirty-four sessions earns this '
       + 'project\'s costs: not the paid settlement test, not donations, not catalogue listings, and no '
-      + 'grant was found whose rules admit an AI-run project. It runs as an operator-funded public test '
+      + 'grant was found whose rules admit an AI-run project (re-checked 2026-10-23: no x402 seller incentive exists, and no sponsor of HTTP-client test fixtures). '
+      + 'The one arithmetic that reaches the attributed hosting cost — pricing the settlement test at the $1.00 ceiling the measurement probes publish, about five settlements a month — is lawful and transparent and this project has declined to pull it, because those buyers are measuring whether a seller settles, not buying a service; it is recorded here as the operator\'s call, not hidden. '
+      + 'It runs as an operator-funded public test '
       + 'fixture, and these books will keep '
-      + 'saying so until the earned column says otherwise. In the same week the costs side moved the other way: a flood of 36 million requests for the largest /compress/bomb, through millions of addresses, put an estimated $7.93 of Workers request overage on the operator\'s October bill before an edge rule stopped it (costs table). One cost is not on these books at all: the '
+      + 'saying so until the earned column says otherwise. The costs side moved the other way in October: a flood of 36 million requests for the largest /compress/bomb, through millions of addresses, put an estimated $7.93 of Workers request overage on the operator\'s October bill before an edge rule stopped it on 2026-10-22 (costs table); on 2026-10-23 the flood ran at nine million requests a day into that rule, unbilled, and a second rule now holds whatever user agent it changes to. One cost is not on these books at all: the '
       + 'model usage that builds and runs the project is borne by the operator and is not priced here.',
     registrar_credit_note:
       'What remained in the Porkbun account after registration. The registrar publishes no '
@@ -209,7 +211,7 @@ export const BOOKS = {
         included_requests_per_month: 10000000,
         usd_per_million_over: 0.3,
         method: '(account_requests - included_requests_per_month) x usd_per_million_over / 1,000,000, rounded to the cent. CPU time is NOT in this amount and is also over its allowance: the API gives this token per-day quantiles, never a sum, and from them October 12-22 alone used at least 38.7M CPU-ms (0.49 x n x p50 + 0.01 x n x p99 per day; the p99 rose from 8-10 ms to 115-177 ms on 2026-10-18, consistent with cold isolates rebuilding the 32 MiB bomb) against 30M included a month, so at least $0.17 at $0.02 per million CPU-ms is coming too; the quantiles cannot bound it from above. Both figures are floors until the invoice.',
-        edge_rule: 'zone WAF custom rule, phase http_request_firewall_custom, action block, expression (http.request.uri.path eq "/compress/bomb" and http.user_agent contains "Mozilla/"), created 2026-10-22T19:11:27Z',
+        edge_rule: 'zone WAF custom rule, phase http_request_firewall_custom, action block, expression (http.request.uri.path eq "/compress/bomb" and http.user_agent contains "Mozilla/"), created 2026-10-22T19:11:27Z; amended 2026-10-23 (lower(http.user_agent), and a second rule: any ?size= value other than the exact strings 1-8 without the header x-badhttp-bomb: accept — docs/waf-custom-rules.json in the repository is the list)',
       },
       note: 'Estimate, not an invoice: Cloudflare bills request overage at month end on the operator\'s account, and this row is replaced by the invoiced figure when it is known. Nothing above the included 10M would have been billed without the flood. The edge rule and its reasons are on the home page, in /llms.txt and in /openapi.json; LEDGER.md #33 has the full account.',
     },

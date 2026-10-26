@@ -329,7 +329,7 @@ the rows' date.
 ### Capture
 
 `scripts/cookies-witness/{all.sh,curl.sh,go-nethttp.go,node-fetch.mjs,py-clients.py}`, run in
-sequence against one IP, 0.2 s between requests; `docs/probe-cookies-clients-2026-09-30.jsonl` and
+sequence against one IP, 0.2 s between requests; `docs/probe-cookies-clients-2026-09-30.jsonl` (replaced whole on 2026-10-26 by `docs/probe-cookies-clients-2026-10-26.jsonl`, session 35; see the addendum in `docs/spec-cookies-witness.md`) and
 its `.log` committed beside the data; `scripts/witness-parse-cookies.mjs` regenerates the literal
 and refuses a partial grid, a version mismatch, a row carrying a path or hostname from the capturing
 machine, or a `setter_set` whose names disagree with the parser's planted table.

@@ -590,7 +590,7 @@ function cookieFamily({ rows }) {
   return {
     what:
       `What ${numWord(CLIENTS_COOKIES.length)} HTTP clients did with the ${numWord(WITNESS_COOKIES.flavors)} /cookies setter flavors, one row per observation. ` +
-      'Each row is four requests with one fresh jar where the client has one (requests_made and hops count the setter fetch and its redirects only): the setter (redirects followed), /cookies/echo, ' +
+      'Each row is four requests with one fresh jar where the client has one (a client with no jar runs them too but records only the setter and the first echo; requests_made and hops count the setter fetch and its redirects only): the setter (redirects followed), /cookies/echo, ' +
       '/cookies/delete, and /cookies/echo again. The oracle is /cookies/echo — the Cookie header exactly as ' +
       'it reached the Worker — and what the row adds from the harness\'s side is the jar\'s own record where ' +
       'the client exposes one.',

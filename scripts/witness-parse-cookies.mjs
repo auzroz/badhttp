@@ -5,7 +5,7 @@
 //         scripts/cookies-witness/all.sh. Line 1 is provenance; every other line is one observation.
 // Output: src/witness-cookies-data.js — a generated literal. The Worker never parses text at runtime.
 //
-//   node scripts/witness-parse-cookies.mjs docs/probe-cookies-clients-2026-09-30.jsonl
+//   node scripts/witness-parse-cookies.mjs docs/probe-cookies-clients-2026-10-26.jsonl   (the 2026-09-30 capture it replaced stays committed beside it)
 //
 // The same rule as the other three parsers: `outcome` describes what came back to /cookies/echo relative to
 // the cookies the flavor planted, and is never a verdict on the client. `none-returned` is the documented
@@ -198,6 +198,9 @@ for (const c of ORDER) {
   if (got.length !== FLAVOR_ORDER.length) throw new Error(`${c}: ${got.length} flavors, expected ${FLAVOR_ORDER.length}`);
   for (const f of FLAVOR_ORDER) if (!got.includes(f)) throw new Error(`${c}: missing flavor ${f}`);
 }
+// Non-vacuity floor (v0.26.0 review): every client must have at least one landed row, so the provenance version is compared
+// with a real response and a capture in which nothing landed is refused rather than emitted as a grid of request-failed rows.
+for (const c of ORDER) if (!observations.some((o) => o.client === c && o.echo !== null)) throw new Error(`${c}: no landed row; a capture that never reached the server is not an observation`);
 observations.sort((a, b) => ORDER.indexOf(a.client) - ORDER.indexOf(b.client) || FLAVOR_ORDER.indexOf(a.flavor) - FLAVOR_ORDER.indexOf(b.flavor));
 
 const logPath = SRC.replace(/\.jsonl$/, '.log');

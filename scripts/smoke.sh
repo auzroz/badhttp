@@ -443,9 +443,9 @@ chk bookstransfers "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.transfers.error
 chk bookstransfersselftest "$(printf '%s\n' "$cjson" | jq -r 'if ((.chain.transfers.error? // "") != "") or (.chain.transfers.truncated == true) then "ok" else ([.chain.transfers.items[] | select(.tx == "0x8a331a0a28a26d290984c34bd12ae03bdc31603856b4e46bace3d2045cddc089" or .tx == "0x629b1a478e88c8be043ee0e8ebac67169a386192fde388b9a616fc850b5010b8" or .tx == "0x9eed7b72bdd445317b1a59e5c7cc12f9a44b857132dcc743121b366261e6ca75" or .tx == "0x30e24c0a8d200180906adf54ba011fd26aa2c4fb070ad78c870debd2d286a748" or .tx == "0xba553c25d371527eef124de3151a002b20b276030c1e0368553133098961c6b0") | .label] | if (length == 5) and (map(test("self-test")) | all) then "ok" else "bad" end) end')" ok
 chk bookstransferscurl "$(printf '%s\n' "$cjson" | jq -r '.chain.transfers.reproduce|test("eth_getTransactionReceipt")')" true
 # Since v0.23.0 the list is built from the receipts of the transactions the books name, so every book
-# row must be confirmed by the chain. The named-row floor (17 since session 33; 16 since session 31; 15 when this was written) keeps
+# row must be confirmed by the chain. The named-row floor (19 since session 35; 17 since session 33; 16 since session 31; 15 when this was written) keeps
 # the check from passing vacuously on an empty set; raise it when rows are added, never lower it.
-chk bookstransfersconfirmed "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.transfers.error? // "") != "" then "ok" elif (.chain.transfers.books_rows_named >= 17) and (.chain.transfers.books_rows_named == (([.revenue[]|select(.tx)]|length) + ([.chain_movements[]|select(.tx)]|length))) and (.chain.transfers.books_rows_confirmed == .chain.transfers.books_rows_named) and ((.chain.transfers.books_rows_unconfirmed|length) == 0) and (.chain.transfers.amount_mismatch_count == 0) and ([.chain.transfers.items[] | select(.confirmed_on_chain != true)] | length == 0) then "ok" else "bad" end')" ok
+chk bookstransfersconfirmed "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.transfers.error? // "") != "" then "ok" elif (.chain.transfers.books_rows_named >= 19) and (.chain.transfers.books_rows_named == (([.revenue[]|select(.tx)]|length) + ([.chain_movements[]|select(.tx)]|length))) and (.chain.transfers.books_rows_confirmed == .chain.transfers.books_rows_named) and ((.chain.transfers.books_rows_unconfirmed|length) == 0) and (.chain.transfers.amount_mismatch_count == 0) and ([.chain.transfers.items[] | select(.confirmed_on_chain != true)] | length == 0) then "ok" else "bad" end')" ok
 # When the identity above is reconciled and every named row is confirmed, the rows sum to the balance exactly.
 # Recomputed in jq from the rows and the RPC balance — never from the Worker's own matches_balance, which is
 # derived from the same rows (a check that reads its expectation from the thing it checks proves nothing).
@@ -475,7 +475,7 @@ chk bookshostingderived "$(printf '%s\n' "$cjson" | jq -r '
      and (($u.percent_of_paid_included_requests - ($rpm / 10000000 * 100)) | fabs) < 0.01
      and (($u.percent_of_paid_included_cpu      - ($cpm / 30000000 * 100)) | fabs) < 0.01
      and ($u.usage_charge_on_existing_paid_plan_usd == 0)
-     and ($u.incremental_hosting_usd_per_year == 0)
+     and ($u.incremental_hosting_usd_per_year == (($u.usage_charge_on_existing_paid_plan_usd // 0) * 12))
      and ($u.standalone_hosting_usd_per_year == 60)
   then "ok" else "bad" end')" ok
 # The free plan is ruled out by a MEASURED maximum, not an argument: assert the direction of the
@@ -808,6 +808,9 @@ chk clientsetagversion "$(jq -r 'select(.family=="etag")|((.exchanges // []) + [
 chk clientsetaglanded "$(jq -r 'select(.family=="etag" and .client.role=="client") | .outcome' "$T/clients.jsonl" | grep -c 'request-failed')/$([ "$(jq -r 'select(.family=="etag" and .client.role=="client")|.id' "$T/clients.jsonl" | wc -l | tr -d ' ')" -ge 140 ] && echo floor)" "0/floor"
 # The verdict-word ban over the family's reading and findings, and the no-machine-path rule over every row
 chk clientsetagnoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.etag.reading_this, .families.etag.findings[]] | join(" ")' | verdicthits)" 0
+# The same ban over the two families the five-family form skipped (v0.26.0 review): crosshost has findings, compress has none (hence // []).
+chk clientscrosshostnoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.crosshost.reading_this, .families.crosshost.findings[]] | join(" ")' | verdicthits)" 0
+chk clientscompressnoverdict "$(printf '%s\n' "$cidxc" | jq -r '[.families.compress.reading_this, (.families.compress.findings // [])[]] | join(" ")' | verdicthits)" 0
 chk clientsetagnopaths "$(jq -c 'select(.family=="etag")' "$T/clients.jsonl" | grep -cE '/Users/|/home/|/private/|localhost|127\.0\.0\.1|\[::1\]')" 0
 # The /etag index's witness block and the home page's etag paragraph are rendered from the rows: date and count pinned to the rows
 etagw=$(curl -s "$B/etag" | jq -c '.witness')

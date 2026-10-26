@@ -189,8 +189,17 @@ class Urllib3Client(Client):
                 owner.hops[-1]['status'] = resp.status
                 owner.hops[-1]['set_cookie_count'] = len(resp.headers.getlist('Set-Cookie'))
                 return resp
+        class CountingHTTPPool(urllib3.HTTPConnectionPool):
+            """The http:// twin, so a local dev run or a redirect that downgrades is counted too (the published capture is https-only; v0.26.0 review)."""
+            def _make_request(self, conn, method, url, **kw):
+                owner.hops.append({'status': None, 'set_cookie_count': None})
+                resp = super()._make_request(conn, method, url, **kw)
+                owner.last_status = resp.status
+                owner.hops[-1]['status'] = resp.status
+                owner.hops[-1]['set_cookie_count'] = len(resp.headers.getlist('Set-Cookie'))
+                return resp
         self.pm = urllib3.PoolManager(timeout=30)
-        self.pm.pool_classes_by_scheme = {'http': urllib3.HTTPConnectionPool, 'https': CountingHTTPSPool}
+        self.pm.pool_classes_by_scheme = {'http': CountingHTTPPool, 'https': CountingHTTPSPool}
     def get(self, u):
         self.begin()
         # respect_retry_after_header=False: with the default, urllib3 silently re-sends a 429 that carries Retry-After
@@ -233,14 +242,19 @@ class AiohttpClient(Client):
         (which is the header as sent: it can say 1970 or 9999 while the jar acted on Max-Age or a clamp): the entry
         in CookieJar._expirations keyed (domain, path, name), an epoch float, rendered as an ISO-8601 instant;
         "session" when the jar recorded none; null when the jar has no such table (an aiohttp that dropped it).
-        host_only from the public CookieJar.host_only_cookies."""
+        host_only from the public CookieJar.host_only_cookies — a frozenset of (domain, path, name) triples in aiohttp 3.14.5
+        (the first run of the 2026-10-26 capture tested (domain, name) pairs, read every aiohttp cookie as not host-only, and was
+        discarded and re-run whole once the shape was checked against the library; the second run read a Path=/ cookie as not
+        host-only and without expiry because aiohttp keys both tables on path.rstrip('/'), and was re-run whole too; LEDGER.md #35)."""
         jar = self.s.cookie_jar
         host_only = jar.host_only_cookies
         table = getattr(jar, '_expirations', None)
         out = []
         for m in jar:
-            expires = iso(table.get((m['domain'], m['path'], m.key))) if isinstance(table, dict) else None
-            out.append({'name': m.key, 'domain': m['domain'], 'path': m['path'], 'host_only': (m['domain'], m.key) in host_only,
+            # aiohttp keys both tables on path.rstrip('/') (cookiejar.py, 3.14.5), so a Path=/ cookie is keyed with path '': try both.
+            keys = [(m['domain'], m['path'], m.key), (m['domain'], m['path'].rstrip('/'), m.key)]
+            expires = iso(next((table[k] for k in keys if k in table), None)) if isinstance(table, dict) else None
+            out.append({'name': m.key, 'domain': m['domain'], 'path': m['path'], 'host_only': any(t[0] == m['domain'] and t[-1] == m.key and (len(t) < 3 or t[1] in (m['path'], m['path'].rstrip('/'))) for t in host_only),
                         'secure': bool(m['secure']), 'expires': expires, 'value_bytes': blen(m.value, 'surrogateescape')})
         return out
     def close(self):

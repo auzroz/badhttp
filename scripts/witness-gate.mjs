@@ -33,7 +33,11 @@ export const VERDICT_WORDS = /\b(correctly|incorrectly|conformant|non-compliant|
 // Machine paths, Windows drive paths (as they appear inside JSON text, where a backslash is doubled), file://,
 // localhost, 127.0.0.1 and 0.0.0.0 with a digit boundary (a sentence-ending period still matches; 127.0.0.10 and
 // 127.0.0.1.5 do not), and [::1].
-export const MACHINE = /\/(Users|home|private|tmp|Volumes|var|opt|Library)\/|[A-Za-z]:\\\\|file:\/\/|localhost|(?<![\d.])127\.0\.0\.1(?!\.?\d)|\[::1\]|(?<![\d.])0\.0\.0\.0(?!\.?\d)/;
+// Also (v0.26.0 review) an mDNS hostname (name.local) and a private or link-local IPv4 literal (10/8, 172.16/12, 192.168/16,
+// 169.254/16) not preceded by a word character or dot, nor by a letter and a slash (so Edg/10.0.1.2 does not match while ws://192.168.1.5/ does;
+// a bare `node 10.24.1.5` still would, which is accepted: nothing committed carries one);
+// the mDNS name must be hyphenated (a Mac's default), so threading.local does not. /usr, /etc and /Applications identify nothing.
+export const MACHINE = /\/(Users|home|private|tmp|Volumes|var|opt|Library)\/|[A-Za-z]:\\\\|file:\/\/|localhost|(?<![\d.])127\.0\.0\.1(?!\.?\d)|\[::1\]|(?<![\d.])0\.0\.0\.0(?!\.?\d)|(?<![\w.])\w+(?:-\w+)+\.local\b|(?<![\w.])(?<![A-Za-z]\/)(10\.\d{1,3}|192\.168|172\.(1[6-9]|2\d|3[01])|169\.254)\.\d{1,3}\.\d{1,3}(?!\.?\d)/;
 
 // A Windows drive path in raw (unescaped) text, such as a committed run log: one backslash after the colon.
 // Preceded by a non-word character so that a word ending in a letter and a colon does not match.

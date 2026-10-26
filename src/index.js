@@ -19,7 +19,7 @@ import { templateExplainer, matchesTemplate } from './template.js';
 import { handleCorpus, handleLicense, LICENSE } from './corpus.js';
 import { handleClients } from './clients.js';
 
-const VERSION = '0.27.0';
+const VERSION = '0.28.0';
 // The last change to the /.well-known/x402 manifest (its `updated` field, per the draft). Move it when the manifest changes.
 const WELL_KNOWN_X402_UPDATED = '2026-10-09T00:00:00Z';
 
@@ -688,7 +688,7 @@ export default {
         case 'books.json':
           return await handleBooks(url, ctx);
         case 'openapi.json':
-          return json(openapi({ origin: url.origin, version: VERSION, badjsonFlavors: Object.keys(BADJSON), sseFlavors: Object.keys(SSE), rangeFlavors: Object.keys(RANGE), etagFlavors: Object.keys(ETAG), cookieFlavors: Object.keys(COOKIES), authFlavors: Object.keys(AUTH), compressFlavors: Object.keys(COMPRESS), crosshostFlavors: Object.keys(CROSSHOST), x402Scenarios: Object.keys(X402_SCENARIOS), x402Broken: Object.keys(X402_BROKEN), x402Limits: X402_LIMITS }));
+          return json(openapi({ origin: url.origin, version: VERSION, limits: LIMITS, badjsonFlavors: Object.keys(BADJSON), sseFlavors: Object.keys(SSE), rangeFlavors: Object.keys(RANGE), etagFlavors: Object.keys(ETAG), cookieFlavors: Object.keys(COOKIES), authFlavors: Object.keys(AUTH), compressFlavors: Object.keys(COMPRESS), crosshostFlavors: Object.keys(CROSSHOST), x402Scenarios: Object.keys(X402_SCENARIOS), x402Broken: Object.keys(X402_BROKEN), x402Limits: X402_LIMITS }));
         case 'corpus':
         case 'corpus.jsonl':
           return handleCorpus({

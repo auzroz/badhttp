@@ -3,7 +3,7 @@
 // reconciled against this table.
 // Every number here must match LEDGER.md. If they disagree, LEDGER.md wins and this is a bug.
 export const BOOKS = {
-  updated: '2026-10-22',  // session 33 (a fifth external payer booked: SettledScout's paid delivery check of 2026-10-15; the /compress/bomb flood's Workers overage booked as an estimate; see LEDGER.md #33)
+  updated: '2026-10-26',  // session 35 (a sixth and a seventh external payer booked: Lumi Trades' test-buy of 2026-10-24 and Annalist's service check of 2026-10-26, both settled through Coinbase's CDP facilitator; see LEDGER.md #35)
   currency: 'USD',
   budget_per_year: 150,
   project_started: '2026-08-23',
@@ -144,19 +144,19 @@ export const BOOKS = {
     // two numbers (session 30, after a seventeen-proposal panel on cheap models searched for a path and
     // found none: LEDGER.md #30). Hand-maintained like the other prose here; rewrite it, with its date,
     // when the evidence changes — never let the numbers move while the sentence stays.
-    sustainability_statement_dated: '2026-10-23',
+    sustainability_statement_dated: '2026-10-26',
     sustainability_statement:
-      'Earned $0.10 to date: ten settlements at the listed 0.01 USDC from five external payers — two '
+      'Earned $0.12 to date: twelve settlements at the listed 0.01 USDC from seven external payers — two '
       + 'from nohumans.directory\'s paying scout, five in one evening from an unidentified address that '
-      + 'paid dozens of other x402 sellers the next day, one from vet402\'s observatory census, one from '
-      + 'Lumière PayCheck\'s paid delivery check, one from SettledScout\'s delivery check — four of them probes that say they measure whether an x402 seller settles, the fifth an unidentified automated buyer, and '
-      + 'none from anyone wanting to test a client. No path tested in thirty-four sessions earns this '
+      + 'paid dozens of other x402 sellers the next day, and one each from vet402\'s observatory census, '
+      + 'Lumière PayCheck\'s paid delivery check, SettledScout\'s delivery check, Lumi Trades\' test-buy and Annalist\'s service check — six of them probes that say they measure whether an x402 seller settles, the other an unidentified automated buyer, and '
+      + 'none from anyone wanting to test a client. The two newest settled through Coinbase\'s CDP facilitator, whose public catalogue is where Lumi Trades says it found this host (Annalist publishes nothing this host could read). No path tested in thirty-five sessions earns this '
       + 'project\'s costs: not the paid settlement test, not donations, not catalogue listings, and no '
       + 'grant was found whose rules admit an AI-run project (re-checked 2026-10-23: no x402 seller incentive exists, and no sponsor of HTTP-client test fixtures). '
       + 'The one arithmetic that reaches the attributed hosting cost — pricing the settlement test at the $1.00 ceiling the measurement probes publish, about five settlements a month — is lawful and transparent and this project has declined to pull it, because those buyers are measuring whether a seller settles, not buying a service; it is recorded here as the operator\'s call, not hidden. '
       + 'It runs as an operator-funded public test '
       + 'fixture, and these books will keep '
-      + 'saying so until the earned column says otherwise. The costs side moved the other way in October: a flood of 36 million requests for the largest /compress/bomb, through millions of addresses, put an estimated $7.93 of Workers request overage on the operator\'s October bill before an edge rule stopped it on 2026-10-22 (costs table); on 2026-10-23 the flood ran at nine million requests a day into that rule, unbilled, and a second rule now holds whatever user agent it changes to. One cost is not on these books at all: the '
+      + 'saying so until the earned column says otherwise. The costs side moved the other way in October: a flood of 36 million requests for the largest /compress/bomb, through millions of addresses, put an estimated $7.93 of Workers request overage on the operator\'s October bill before an edge rule stopped it on 2026-10-22 (costs table); from 2026-10-23 the flood ran at five to nine million requests a day into that rule and a second one, unbilled, and on 2026-10-26 it fell to tens of thousands. One cost is not on these books at all: the '
       + 'model usage that builds and runs the project is borne by the operator and is not priced here.',
     registrar_credit_note:
       'What remained in the Porkbun account after registration. The registrar publishes no '
@@ -280,14 +280,28 @@ export const BOOKS = {
       item: 'x402 payment at /402/pay/base: 0.01 USDC from a fourth external payer — Lumière PayCheck\'s x402 endpoint scorer (its paid delivery check, user agent lumiere-paycheck-prober/1.0)',
       amount: 0.01,
       tx: '0x8158cd72b81587bcbf29a1616d3b6aa6fbae50090e8130bf3f48149887e45eee',
-      note: 'Settled 2026-10-11 10:02:19 UTC (block 52461796) from 0xec2abd3eda89bed90124736e317e847d5fb6d034, relayed by 0x772003a2e9c2ccc8af956870a37a66f64f8cec38. Zone analytics show the one 200 on /402/pay/base that day in the 10:00 UTC hour, from the US over HTTP/1.1, user agent lumiere-paycheck-prober/1.0 (+https://lumierepaycheck.org); Lumière PayCheck\'s public score for this URL records "a real paid test delivered on 2026-10-11" the same day. The relayer matches no signer published at /supported by PayAI, xpay, Mogami, Heurist or x402.org (Coinbase\'s CDP facilitator publishes none), so which facilitator settled it, and which protocol generation it used, is not knowable here. Found by scripts/find-transfers.mjs as the one unnamed transfer since the books\' last update and booked at the next session start (2026-10-12).',
+      note: 'Settled 2026-10-11 10:02:19 UTC (block 52461796) from 0xec2abd3eda89bed90124736e317e847d5fb6d034, relayed by 0x772003a2e9c2ccc8af956870a37a66f64f8cec38. Zone analytics show the one 200 on /402/pay/base that day in the 10:00 UTC hour, from the US over HTTP/1.1, user agent lumiere-paycheck-prober/1.0 (+https://lumierepaycheck.org); Lumière PayCheck\'s public score for this URL records "a real paid test delivered on 2026-10-11" the same day. The relayer matches no signer published at /supported by PayAI, xpay, Mogami, Heurist or x402.org (Coinbase\'s CDP facilitator publishes none), so which facilitator settled it, and which protocol generation it used, is not knowable here (the CDP Bazaar\'s 30-day counters read on 2026-10-26 imply Coinbase\'s CDP facilitator — consistent, not proven; LEDGER.md #35). Found by scripts/find-transfers.mjs as the one unnamed transfer since the books\' last update and booked at the next session start (2026-10-12).',
     },
     {
       date: '2026-10-15',
       item: 'x402 payment at /402/pay/base: 0.01 USDC from a fifth external payer — SettledScout, an x402 delivery checker that "pays once, records delivery" (user agent SettledScout/0.1, +https://settled.tools/bot)',
       amount: 0.01,
       tx: '0x651496fa3638475b1e21d066897dc52f76e55dc1723fd352126d9c09950d8519',
-      note: 'Settled 2026-10-15 15:18:27 UTC (block 52644080) from 0xa1d1c0cf717402ff3651aa4873ccf96410b01978, relayed by 0x2a89407a98a0732b7fd578c4e156b7166540eb5a (USDC transferWithAuthorization). Zone analytics show the one 200 on /402/pay/base that day, in the 15:00 UTC hour, a GET from a Cloudflare Workers egress address (2a06:98c0:3600::/40) in the US, user agent SettledScout/0.1 (+https://settled.tools/bot; pays once, records delivery). The relayer matches no signer any facilitator in this host\'s chain publishes, so the settling facilitator and the protocol generation are unknown. Found by scripts/find-transfers.mjs at the next session start (2026-10-22) and booked that session.',
+      note: 'Settled 2026-10-15 15:18:27 UTC (block 52644080) from 0xa1d1c0cf717402ff3651aa4873ccf96410b01978, relayed by 0x2a89407a98a0732b7fd578c4e156b7166540eb5a (USDC transferWithAuthorization). Zone analytics show the one 200 on /402/pay/base that day, in the 15:00 UTC hour, a GET from a Cloudflare Workers egress address (2a06:98c0:3600::/40) in the US, user agent SettledScout/0.1 (+https://settled.tools/bot; pays once, records delivery). The relayer matches no signer any facilitator in this host\'s chain publishes, so the settling facilitator and the protocol generation are unknown (the CDP Bazaar\'s 30-day counters read on 2026-10-26 imply Coinbase\'s CDP facilitator — consistent, not proven; LEDGER.md #35). Found by scripts/find-transfers.mjs at the next session start (2026-10-22) and booked that session.',
+    },
+    {
+      date: '2026-10-24',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a sixth external payer — Lumi Trades, an x402 seller trust service that test-buys catalogued sellers once with its own money and publishes signed receipts (user agent LumiTrustBuyer/1.0, +https://api.lumitrades.io/v1/trust/methodology)',
+      amount: 0.01,
+      tx: '0x6842a2eb9a9f2a6cb7aa7c00bc75329f5d6f2bc52da8df73a8b7ad2d874eb9fb',
+      note: 'Settled 2026-10-24 01:52:21 UTC (block 53008697) from 0x7722dfae6bbed2fd02dc07455c2f5bf14be25e4a, relayed by 0x625d8a65134079f8faaac39a7947c73d93c6ac39 (USDC transferWithAuthorization). Zone analytics show the one 200 on /402/pay/base that day, in the 01:00 UTC hour, a GET over HTTP/1.1 from the US with user agent LumiTrustBuyer/1.0, beside a 402 quote check from the same agent in the same hour. Settled through Coinbase\'s CDP facilitator: the CDP Bazaar\'s quality record for this address moved its last call to 2026-10-24T01:52:20Z, the second before this payment\'s block (read back through Lumi\'s own free lookup, which ingests that catalogue daily and is how it found this host). Lumi\'s public entry for badhttp.dev records one test-buy at that time, "delivered", data returned. Found by scripts/find-transfers.mjs at the next session start (2026-10-26) and booked that session.',
+    },
+    {
+      date: '2026-10-26',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a seventh external payer — Annalist, "independent x402 service checks" (user agent AnnalistChecks/0.1, +https://annalist.dev)',
+      amount: 0.01,
+      tx: '0xecf58a4b1883d8a98d7218668c2495593b033f44364617280bd4fd08151fc1c6',
+      note: 'Settled 2026-10-26 12:04:37 UTC (block 53113465) from 0xcb4cf336349504e167c26d5c8b9238e12d70bbb8, relayed by 0x42dd53906b49c202e8e934b059dc019e04634b00 (USDC transferWithAuthorization). Zone analytics show the one 200 on /402/pay/base that day, in the 12:00 UTC hour, a GET over HTTP/1.1 from the US with user agent AnnalistChecks/0.1, beside two 402s from the same agent in the same hour and one 402 quote check on 2026-10-24. Settled through Coinbase\'s CDP facilitator: the CDP Bazaar\'s merchant record for this address moved its lastUpdated and lastCalledAt to 2026-10-26T12:04:35Z, two seconds before the block. annalist.dev did not answer this host\'s requests on 2026-10-26, so what it publishes about the purchase is not known. Found by scripts/find-transfers.mjs four hours after it settled, at this session\'s start, and booked the same session.',
     },
   ],
   // Every on-chain USDC movement of the receive address that is NOT booked revenue, labeled by
@@ -408,6 +422,9 @@ export function hostingUsage(b = BOOKS) {
   const reqPerMonth = perDay * 30;
   const cpuMsPerMonth = (m.cpu_ms / days) * 30;
   const pct = (x, of) => Math.round((x / of) * 10000) / 100;
+  // Both inside the allowance means the metered charge is zero; overage only starts above it. Derived once and
+  // used twice below, so the yearly figure is never a typed constant (v0.26.0 review).
+  const usageCharge = reqPerMonth <= m.plan.paid_included_requests_per_month && cpuMsPerMonth <= m.plan.paid_included_cpu_ms_per_month ? 0 : null;
   return {
     requests_per_day: Math.round(perDay),
     projected_requests_per_month: Math.round(reqPerMonth),
@@ -417,10 +434,7 @@ export function hostingUsage(b = BOOKS) {
     // Share of what the paid plan already includes for its $5.00 minimum.
     percent_of_paid_included_requests: pct(reqPerMonth, m.plan.paid_included_requests_per_month),
     percent_of_paid_included_cpu: pct(cpuMsPerMonth, m.plan.paid_included_cpu_ms_per_month),
-    // Both inside the allowance means the metered charge is zero; overage only starts above it.
-    usage_charge_on_existing_paid_plan_usd:
-      reqPerMonth <= m.plan.paid_included_requests_per_month
-      && cpuMsPerMonth <= m.plan.paid_included_cpu_ms_per_month ? 0 : null,
+    usage_charge_on_existing_paid_plan_usd: usageCharge,
     percent_of_free_daily_requests: pct(perDay, m.plan.free_requests_per_day),
     // The free plan's ceiling is per INVOCATION, so daily request volume is not what rules it out:
     // the CPU maximum is. Measured rather than reasoned about — see cpu_ms_max above.
@@ -442,7 +456,7 @@ export function hostingUsage(b = BOOKS) {
     // separate line and is the same in both, so naming these "hosting" keeps them from reading
     // as all-in totals.
     standalone_hosting_usd_per_year: Math.round((m.plan.paid_min_usd_per_month * 12) * 100) / 100,
-    incremental_hosting_usd_per_year: 0,
+    incremental_hosting_usd_per_year: usageCharge === null ? null : usageCharge * 12,
     window_note:
       'Every figure here describes hosting_measured.window only (ordinary traffic, September 2026). A '
       + 'metered overage outside that window is booked as its own dated costs row — October 2026 has '

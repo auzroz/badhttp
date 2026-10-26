@@ -51,7 +51,9 @@ const HARNESS_ENCODED = new Set(['basic-header', 'bearer-header']);
 const ORACLE_KEYS = ['authenticated', 'checked', 'scheme', 'algorithm', 'encoding', 'generations', 'matched', 'error', 'defect', 'note', 'method', 'flavor', 'uri_param_length', 'request_target', 'location', 'authentication_info'];
 // Anything a client could have SENT: the base64 of both encodings of the documented Basic credentials, the raw
 // values, their URL-encoded forms, the token, a Proxy-Authorization line, and a Digest response= parameter.
-const NEEDLES = ['YWdlbnQ6', 'Y29ycmVjdA', 'c8Opc2FtZQ', 'c+lzYW1l', 'agent:correct', 'sésame', 'agent%3A', 's%C3%A9same', 'badhttp-token-ok', 'Proxy-Authorization:', 'proxy-authorization:', 'response=', 's%E9same', 's\\xe9same'];
+const NEEDLES = ['YWdlbnQ6', 'Y29ycmVjdA', 'c8Opc2FtZQ', 'c+lzYW1l', 'agent:correct', 'sésame', 'agent%3A', 's%C3%A9same', 'badhttp-token-ok', 'Proxy-Authorization:', 'proxy-authorization:', 'response=', 's%E9same', 's\\xe9same', 's\\xc3\\xa9same', 's\\u00e9same', 'se\u0301same'];
+// Set when any input row carried the provenance's badhttp version: a capture none of whose rows did is refused below (v0.26.0 review).
+let versionConfirmed = false;
 // The ASCII needles that are not base64 are matched case-insensitively (a harness could echo AGENT:CORRECT or agent%3a);
 // the base64 needles stay case-sensitive, because lower-casing them would make false hits.
 const isCaseFree = (n) => /^[\x00-\x7f]*$/.test(n) && !/^[A-Za-z0-9+/]+$/.test(n);
@@ -130,6 +132,7 @@ for (const [i, line] of lines.slice(1).entries()) {
   const landed = r.oracle !== null && r.oracle !== undefined;
   if (landed && !r.version_header) throw new Error(`line ${lineNo}: oracle row without x-badhttp-version`);
   if (r.version_header != null && r.version_header !== meta.badhttp_version_observed) throw new Error(`line ${lineNo}: badhttp version ${r.version_header} != provenance ${meta.badhttp_version_observed}`);
+  if (r.version_header != null && r.version_header === meta.badhttp_version_observed) versionConfirmed = true;
   if (typeof r.attempts !== 'number') throw new Error(`line ${lineNo}: no attempts count`);
   if (!Array.isArray(r.hops)) throw new Error(`line ${lineNo}: no hops`);
   // A hop that is a rate limit or a server error is the edge or an outage, not this flavor's answer.
@@ -188,6 +191,11 @@ for (const c of ORDER) {
   for (const f of FLAVOR_ORDER) if (!got.includes(f)) throw new Error(`${c}: missing flavor ${f}`);
 }
 observations.sort((a, b) => ORDER.indexOf(a.client) - ORDER.indexOf(b.client) || FLAVOR_ORDER.indexOf(a.flavor) - FLAVOR_ORDER.indexOf(b.flavor));
+
+// Non-vacuity floor (v0.26.0 review): a capture that never reached the server is not an observation. At least one row must
+// have authenticated, at least one must have been refused, and at least one must have carried the provenance's badhttp version.
+if (!observations.some((o) => o.outcome === 'authenticated') || !observations.some((o) => o.outcome === 'refused')) throw new Error('refusing to emit: no row authenticated or refused; a capture that never reached the server is not an observation');
+if (!versionConfirmed) throw new Error(`refusing to emit: no row carried x-badhttp-version ${meta.badhttp_version_observed}, so the provenance version is unconfirmed`);
 
 // The no-echo gate: nothing a client could have sent may appear in any string of any row, nor in the run
 // log committed beside the capture. The documented identity is public, but a row is what the client sent

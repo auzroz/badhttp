@@ -367,8 +367,9 @@ function assertClean(line) {
   if (bad.length) throw new Error(`row refused: contains ${bad.join(', ')}`);
 }
 
-process.on('uncaughtException', (e) => console.error(`uncaught: ${sanitize(errText(e))}`));
-process.on('unhandledRejection', (e) => console.error(`unhandled rejection: ${sanitize(errText(e))}`));
+// Log, then exit non-zero: a swallowed throw (e.g. assertClean refusing a row) used to end the run with exit 0 and all.sh did not notice (v0.26.0 review).
+process.on('uncaughtException', (e) => { console.error(`uncaught: ${sanitize(errText(e))}`); process.exit(1); });
+process.on('unhandledRejection', (e) => { console.error(`unhandled rejection: ${sanitize(errText(e))}`); process.exit(1); });
 
 for (let ci = 0; ci < CLIENTS.length; ci++) {
   const client = CLIENTS[ci];

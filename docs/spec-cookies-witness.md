@@ -97,3 +97,24 @@ planted names still echoed after the cleanup. `distinct_answers` per flavor coun
 
 Four requests per flavor, 17 flavors, eight clients in sequence, ≥ 150 ms between requests: well
 under the zone's 100 per 10 s. Never while `scripts/smoke.sh` runs.
+
+## Re-capture of 2026-10-26 (session 35)
+
+The 2026-09-30 capture was replaced whole by a run against v0.27.0 (Worker deployment d8cb5e1e) on 2026-10-26, with the same eight
+clients; what differs is aiohttp 3.14.3 → 3.14.5 and Go 1.27.0 → 1.27.3 with golang.org/x/net v0.61.0. Why: the committed rows predated
+two harness changes made in session 28 that had never been run — `jar_entries[].value_bytes` is the cookie value's length on the wire
+(the 2026-09-30 rows carried 6 for the three-byte ☃ on undici, urllib and requests, the UTF-8 length of the latin-1-decoded string; the
+v0.23.0 and v0.26.0 reviews both named it), and aiohttp's `jar_entries[].expires` is the jar's own recorded expiry rather than the
+`Set-Cookie` Expires text its Morsel exposes. The first run of this re-capture was discarded: aiohttp's `CookieJar.host_only_cookies`
+is a frozenset of `(domain, path, name)` triples and the harness tested `(domain, name)` pairs, so every aiohttp cookie read as not
+host-only; the check was corrected (`py-clients.py`) and the whole capture re-run. The urllib3 harness now counts hops on an `http://`
+pool as well as `https://` (the capture is https-only, so no row depends on it). What moved against 2026-09-30, all computed from the
+rows and visible in the `/cookies` witness block: aiohttp 3.14.4 changed `Set-Cookie` parsing to one cookie per header (its release
+notes: "unrecognized attributes are ignored, per RFC 6265 §5.2"), so on `folded` it no longer splits on the comma and no client now
+returns `badhttp_folded_b`; on `utf8` aiohttp now returns the value, wrapped in double quotes (bytes `22 e2 98 83 22`), where it
+returned nothing before; the gated aiohttp clauses about Morsel expiry text (`conflicting-expiry`, `bad-expires`, `far-future`) dropped out of the findings
+because their facts no longer hold. The urllib3 client's recorded invocation now carries `retries=Retry(total=10, redirect=6,
+respect_retry_after_header=False)` (a session-26 harness change the old rows predated). The third run of the capture is the
+published one: the second read aiohttp's Path=/ cookies as not host-only and without expiry, because aiohttp keys its
+`_expirations` and `host_only_cookies` tables on `path.rstrip('/')`; the harness now tries both keys. Everything else is the same picture: the public-suffix cookie (`Domain=dev`) is still stored by aiohttp, Max-Age still
+wins over a 1970 Expires everywhere, httpx still raises on `utf8`.

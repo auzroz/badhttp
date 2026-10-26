@@ -235,9 +235,11 @@ const serveEvent = (e) => {
 // Several libraries dispatch an EVENT for the stream's opening "retry: 30000" block, which the spec dispatches nothing
 // for (no data buffer). Counting that on every flavor would hide every other difference behind one cause, so the
 // comparison drops a delivered event that has empty data AND no id change from the event before it (null at the start)
-// AND is not the last event delivered (an opening block is followed by the stream's events, or opens a later
-// connection that delivers more; an empty event at the very end is the stream's tail, not its opening, and is kept
-// so the comparison reports it). It counts the dropped ones in preamble_events, and the findings report which
+// AND is not the last event delivered, unless it is also the first (an opening block is followed by the stream's events,
+// or opens a later connection that delivers more; an empty event at the very end is the stream's tail, not its opening,
+// and is kept so the comparison reports it — except a lone empty event at index 0, which is the opening block of a stream
+// that delivered nothing else, as on go-sse's and r3labs-sse's big rows where the 64 KiB line hit "bufio.Scanner: token
+// too long"). It counts the dropped ones in preamble_events, and the findings report which
 // libraries do it. no-space's two empty events keep their own ids (3, 4) and are never dropped by this rule.
 function stripPreamble(events) {
   const kept = []; const droppedIdx = []; let prevId = null;

@@ -11,7 +11,7 @@ OUT="$1"; B="${2:-https://badhttp.dev}"
 cd "$(dirname "$0")/../.."
 REPO="$(pwd)"
 export PATH="/opt/homebrew/bin:$PATH"
-unset SSE_FLAVORS  # a published capture is always the full grid; dry runs use the harnesses directly
+unset SSE_FLAVORS SSE_CLIENTS  # a published capture is always the full grid and roster (go-sse.go honours SSE_CLIENTS); dry runs use the harnesses directly
 PY="${PYTHON:-python3}"
 : "${SSE_NODEMODS:?set SSE_NODEMODS to a dir holding node_modules/eventsource}"
 : "${GOMOD_DIR:?set GOMOD_DIR to a Go module dir with the SSE library fetched}"

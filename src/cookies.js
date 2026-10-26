@@ -140,6 +140,10 @@ function plantedCookies(host, maxCount) {
 // per ";"-separated fragment; RFC 6265 itself defines no server-side parse): trim OWS, name = up to
 // the first "=", value = the rest; no "=" yields ["", fragment]. Order and duplicates preserved —
 // they are test subjects. Empty fragments are dropped. Check it against the raw header alongside.
+// How many expiring Set-Cookie headers /cookies/delete sends for a given LIMITS.cookiesMaxCount: the two surfaces that quote the
+// number (home page, /openapi.json x-guidance) compute it from here instead of typing it (v0.26.0 review).
+export const deleteCount = (maxCount) => plantedList('badhttp.dev', maxCount).length;
+
 export function parseCookieHeader(raw) {
   if (raw === null) return [];
   return raw
@@ -351,9 +355,10 @@ const groups = (flavor, key, only = () => true) => {
   return [...m.entries()].sort((a, b) => b[1].length - a[1].length).map(([k, v]) => `${k} (${cList(v)})`).join('; ');
 };
 const valueHex = (o, n) => { const c = echoed(o, n)[0]; return c ? (c.value == null ? `${c.value_bytes} bytes` : Array.from(new TextEncoder().encode(c.value)).map((b) => b.toString(16).padStart(2, '0')).join(' ')) : 'not returned'; };
-// jar_entries.expires is an ISO-8601 instant for most jars. For Python aiohttp in the committed capture it is the Set-Cookie
-// Expires text its Morsel exposes (an HTTP-date), not the jar's own expiry (docs/spec-cookies-witness.md says so); the
-// other values are "session" and null (the jar does not expose it). year() reads the first two forms; the others are null.
+// jar_entries.expires is an ISO-8601 instant for most jars. In the 2026-09-30 capture Python aiohttp's was the Set-Cookie
+// Expires text its Morsel exposes (an HTTP-date), not the jar's own expiry; since the 2026-10-26 re-capture the harness reads
+// the jar's own recorded expiry, so aiohttp's is ISO too and the EXP_TEXT branches below stay gated off (docs/spec-cookies-witness.md).
+// The other values are "session" and null (the jar does not expose it). year() reads the first two forms; the others are null.
 // isoExp() tells the jar's own computed instant (ISO) from that header text.
 const year = (s) => {
   if (!s || s === 'session') return null;
@@ -372,7 +377,13 @@ export function cookieFindings(maxCount = 20) {
   const nj = noJarClients();
   const okAll = allJar('ok', (o) => o.outcome === 'all-returned');
   const foldedSplit = allJar('folded', (o) => (o.unplanted_names || []).includes('badhttp_folded_b'));
-  const foldedOne = allJar('folded', (o) => returned(o, 'badhttp_folded_a') && !(o.unplanted_names || []).includes('badhttp_folded_b'));
+  // One cookie stored AND sent back with the value as this server sent it (the skeptic of #35 caught the gate reading names only:
+  // aiohttp 3.14.5 returns the value quoted with the comma as \054, Go quoted — one cookie, but not the wire value).
+  const FOLDED_VALUE = '1, badhttp_folded_b=2';
+  const foldedAsSent = (o) => echoed(o, 'badhttp_folded_a').some((c) => c.value === FOLDED_VALUE);
+  const foldedOne = allJar('folded', (o) => foldedAsSent(o) && !(o.unplanted_names || []).includes('badhttp_folded_b'));
+  const foldedForms = OBSERVATIONS_COOKIES.filter((o) => o.jar_kind !== 'no-jar' && returned(o, 'badhttp_folded_a') && !foldedAsSent(o) && !(o.unplanted_names || []).includes('badhttp_folded_b'))
+    .map((o) => { const c = echoed(o, 'badhttp_folded_a')[0]; return `${cName(o.client)} as the ${c.value_bytes}-byte value ${c.value == null ? '(bytes not shown)' : c.value}`; });
   const foldedNone = allJar('folded', (o) => o.outcome === 'none-returned');
   const manyAll = allJar('many', (o) => o.outcome === 'all-returned');
   const manyOrder = allJar('many', (o) => o.outcome === 'all-returned' && JSON.stringify(o.echo.cookies.map((c) => c.name)) === JSON.stringify(o.planted_names));
@@ -423,10 +434,16 @@ export function cookieFindings(maxCount = 20) {
   const delMaxAge = delList.length - delExpires.length;
   const tombstoneOnlyOk = tombstones.length > 0 && jarClients().every((c) => FLAVOR_LIST_FOR_DELETE.every((f) => { const o = cObs(c.id, f); return ((o && o.after_delete_unplanted) || []).every((n) => n === 'badhttp_ok'); }));
   const failed = OBSERVATIONS_COOKIES.filter((o) => o.outcome === 'client-raised' || o.outcome === 'request-failed');
+  // Computed, never typed (v0.26.0 review): how many responses each non-failed row records — the setter hops, the echo, and
+  // the two cleanup legs where after_delete is recorded (a no-jar client runs them but records nothing to clean up).
+  const recorded = (o) => (o.hops || []).length + (o.echo ? 1 : 0) + (o.after_delete ? 2 : 0);
+  const nonFailed = OBSERVATIONS_COOKIES.filter((o) => !failed.includes(o));
+  const respHist = [...nonFailed.reduce((m, o) => m.set(recorded(o), (m.get(recorded(o)) || 0) + 1), new Map()).entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => `${v} of ${k}`).join(', ');
+  const noDelClients = [...new Set(nonFailed.filter((o) => !o.after_delete).map((o) => cName(o.client)))];
   const pyJar = ['Python urllib.request', 'Python requests', 'Python httpx'];
   return [
     `ok (the control): ${ofAll(okAll)} stored badhttp_ok and sent it back to /cookies/echo. ${cList(nj)} ${nj.length === 1 ? 'has' : 'have'} no cookie jar at all, so ${nj.length === 1 ? 'its' : 'their'} echo carried nothing on every flavor: a capability of the library, not a bug, and ${nj.length === 1 ? 'its' : 'their'} rows say jar_kind: no-jar.`,
-    `folded (two cookies comma-joined into one Set-Cookie): ${foldedOne.length ? `${cList(foldedOne)} stored one cookie, badhttp_folded_a, with the comma and the fake second cookie inside its value, as the bis parse says` : 'no client stored exactly one cookie'}${foldedSplit.length ? `; ${cList(foldedSplit)} split on the comma and returned a second cookie named badhttp_folded_b that this server never set` : '; no client split on the comma'}${foldedNone.length ? `; ${cList(foldedNone)} returned neither` : ''}.`,
+    `folded (two cookies comma-joined into one Set-Cookie): ${foldedOne.length ? `${cList(foldedOne)} stored one cookie, badhttp_folded_a, with the comma and the fake second cookie inside its value, as the bis parse says` : 'no client sent back exactly one cookie with the value as sent'}${foldedForms.length ? `; one cookie too, sent back in another form: ${foldedForms.join(', ')}` : ''}${foldedSplit.length ? `; ${cList(foldedSplit)} split on the comma and returned a second cookie named badhttp_folded_b that this server never set` : '; no client split on the comma'}${foldedNone.length ? `; ${cList(foldedNone)} returned neither` : ''}.`,
     `many (ten separate Set-Cookie headers): ${ofAll(manyAll)} returned all ten${manyOrder.length ? `, ${cSame(manyOrder, manyAll) ? 'all of them' : cList(manyOrder)} in creation order` : ''}. duplicate (the same name on two paths): ${ofAll(dupBoth)} sent both badhttp_dup cookies to /cookies/echo${dupDeepFirst.length ? `, ${cSame(dupDeepFirst, dupBoth) ? 'every one' : cList(dupDeepFirst)} with the longer path (deep) first as §5.4 asks` : ''}${dupBoth.length < JN() ? `; the rest: ${dupOne}` : ''}.`,
     `on-redirect (Set-Cookie on the 302 itself): ${ofAll(redirOk)} kept the cookie set on the redirect and presented it on the follow-up${redirNot.length ? `; ${cList(redirNot)} did not` : ''}.`,
     `conflicting-expiry (Expires in 1970 and Max-Age=3600 on one cookie): ${ofAll(conflictOk)} kept the cookie, so Max-Age won${conflictNot.length ? `; ${cList(conflictNot)} dropped it` : ''}${conflict1970.length ? `. ${cList(conflict1970)} nevertheless recorded the 1970 date in the jar entry it exposed while still sending the cookie` : ''}${conflict1970Text.length ? `. For ${cList(conflict1970Text)}, ${EXP_TEXT} reads 1970 while the cookie was still sent` : ''}. bad-expires (an ISO 8601 date): ${ofAll(badExpOk)} sent it back; in the jar it is ${badExpJar}.`,
@@ -440,7 +457,7 @@ export function cookieFindings(maxCount = 20) {
     `huge (name+value exactly 4096 bytes, the bis §5.6 limit): ${ofAll(hugeOk)} stored and returned it${hugeNot.length ? `; ${cList(hugeNot)} did not` : ''}.`,
     `delete (one expiring Set-Cookie per plantable cookie, exact attributes): after the cleanup, ${delClean.length === JN() ? `every client with a jar` : cList(delClean)} had none of the planted cookies left on any flavor where the cleanup ran${delUnseen.length ? `; the cleanup was not observed for ${cList(delUnseen)}` : ''}${delLeft.length ? `; still present afterwards: ${delLeft.join('; ')}` : ''}.`,
     `Also after the cleanup, on the flavors where it ran: ${tombstones.length ? `${tombstones.join('; ')} carried a cookie that no flavor in that session had planted — a deletion tombstone from /cookies/delete stored as a live cookie instead of removing one` : 'no client carried a deletion tombstone as a live cookie'}.${tombstoneOnlyOk && delExpires.length === 1 && delExpires[0][0] === 'badhttp_ok' ? ` badhttp_ok is the one deletion in that list that uses the Expires=1970 idiom; the other ${delMaxAge} use Max-Age=0 and took effect wherever the cleanup ran, so the jar that kept it acted on Max-Age and not on an Expires in the past.` : ''}`,
-    `${failed.length} of ${OBSERVATIONS_COOKIES.length} observations ended in the client raising or the transport failing${failed.length ? `: ${cList(failed.map((o) => `${cName(o.client)} on ${o.flavor}`))}` : ''}. Every other row is four responses this server sent, each read back from the wire with its x-badhttp-version.`,
+    `${failed.length} of ${OBSERVATIONS_COOKIES.length} observations ended in the client raising or the transport failing${failed.length ? `: ${cList(failed.map((o) => `${cName(o.client)} on ${o.flavor}`))}` : ''}. Every other row ran the four steps and read each response back from the wire with its x-badhttp-version; responses recorded per row: ${respHist}${noDelClients.length ? ` (${cList(noDelClients)} ${noDelClients.length === 1 ? 'has' : 'have'} no jar, so the two cleanup legs are not recorded on ${noDelClients.length === 1 ? 'its' : 'their'} rows)` : ''}.`,
   ];
 }
 const FLAVOR_LIST_FOR_DELETE = ['ok', 'folded', 'many', 'duplicate', 'on-redirect', 'conflicting-expiry', 'bad-expires', 'far-future', 'wrong-domain', 'public-suffix', 'domain', 'path-prefix', 'name-prefixes', 'quoted', 'utf8', 'nameless', 'huge'];
@@ -471,7 +488,7 @@ export function cookieWitness() {
       'and withheld looks the same as one never stored), which is why rows carry jar_entries ' +
       'where the client exposes its jar and jar_enumerable: false where it does not; it cannot say what ' +
       'the client refused loudly, which is why jar_rejections exists; and it cannot see a cookie the ' +
-      'client dropped at parse time. Each row is a description of these four responses on one date.',
+      'client dropped at parse time. Each row is a description of these responses on one date.',
     reproduce:
       'Start the row\'s client with a fresh jar, GET the row\'s url following redirects, GET /cookies/echo ' +
       'and compare its cookies with the row\'s echo.cookies; then GET /cookies/delete and /cookies/echo ' +

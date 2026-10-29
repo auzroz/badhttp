@@ -1,4 +1,4 @@
-// /clients — what real HTTP clients did, as data. Seven families so far.
+// /clients — what real HTTP clients did, as data. Eight families so far.
 //
 // Why this exists (session 19, 2026-09-07). Since v0.12.0 the home page has carried a paragraph
 // asserting how six real HTTP clients behave against twenty-one content-coding flavors, and cited
@@ -40,6 +40,8 @@ import { WITNESS_RANGE, CLIENTS_RANGE, REFERENCE_RANGE, OBSERVATIONS_RANGE } fro
 import { rangeFindings } from './range.js';
 import { WITNESS_ETAG, CLIENTS_ETAG, REFERENCE_ETAG, OBSERVATIONS_ETAG } from './witness-etag-data.js';
 import { etagFindings } from './etag.js';
+import { WITNESS_X402, CLIENTS_X402, REFERENCE_X402, OBSERVATIONS_X402 } from './witness-x402-data.js';
+import { x402Findings } from './x402-witness.js';
 
 // The keys every row carries whatever its family. Family-specific fields are listed per family below.
 export const COMMON_FIELDS = ['id', 'corpus_id', 'family', 'flavor', 'url', 'client', 'observed', 'badhttp_version_observed', 'status', 'reported_error', 'outcome', 'license'];
@@ -1127,9 +1129,196 @@ function etagFamily({ rows }) {
 }
 
 // ---------------------------------------------------------------------------------------------------
+// x402: real x402 client libraries and wrappers plus a raw-wire control x 18 /402 cells (the eight scenarios and the ten malformed
+// flavors, each one paid fetch with a throwaway Base Sepolia payer); the reference is derived from the control's offer, never typed
+// (session 36, 2026-10-29; docs/spec-x402-witness.md).
+
+const X402_CLASSES = {
+  'sdk-fetch': 'An x402 payment wrapper around a fetch-style HTTP call (the foundation SDK and the packages built like it). The harness never sends a payment header itself: the wrapper decides, from the 402 it received, whether to sign, for how much, on which network, whether to retry, and what to hand its caller.',
+  'sdk-http': 'An x402 payment layer in an HTTP client library of another shape (an axios interceptor, a Python httpx or requests transport, a Go or Rust client): the same obligations as sdk-fetch, a different calling convention. The row names the library and runtime.',
+  'agent-wrapper': 'A wrapper that adds behaviour of its own (a spending limit, a retry policy, a receipt check) on top of one of the above. It is a roster entry only if it adds behaviour rather than re-exporting; the row names what it wraps.',
+  cli: 'A command-line x402 client driven as a process. The caller is the process: status and body are what it printed, and exit is on the row.',
+  raw: 'The control: curl sending a bare GET with no payment header, through the same recording proxy. Its exchange is the offer every client in that cell was shown, and control.offer carries a decoded summary of it, from which the reference is derived.',
+};
+
+const X402_OUTCOMES = {
+  'delivered/decodable': 'The caller received a 200 and its body, and the response carried a PAYMENT-RESPONSE or X-PAYMENT-RESPONSE header that decoded (wire.receipt is decodable; success is on the exchange).',
+  'delivered/undecodable': 'The caller received a 200 and its body, and a receipt header was present but did not decode.',
+  'delivered/absent': 'The caller received a 200 and its body, and no receipt header was present.',
+  'handed-back/402': 'The caller received a response object with status 402 and the library did not raise: the client stopped (or was stopped) with the 402 in hand.',
+  'handed-back/500': 'The caller received a response object with status 500 and the library did not raise.',
+  'handed-back/504': 'The caller received a response object with status 504 and the library did not raise.',
+  'handed-back/503': `The caller received the recording proxy's own 503 (x-badhttp-recorder: budget-exhausted): the client had used its request budget (${WITNESS_X402.request_budget} upstream requests) and kept going, and the harness cut it off. budget_exhausted is true on the row.`,
+  'raised/before-signing': 'The library raised and no payment header ever went out (wire.signed is false); error.name is on the fetch.',
+  'raised/after-signing': 'The library raised after at least one payment header went out (wire.signed is true); error.name is on the fetch.',
+  'harness-timeout': 'A harness cap fired (45 s for the fetch, 60 s for the cell); the row keeps what the recorder saw and marks the fetch timed_out.',
+  'request-failed': 'No observation: the rate limit never cleared in three attempts, or the recorder saw an exchange without x-badhttp-version. Such a row has no exchanges.',
+  control: 'A curl control row: one exchange, no payment header. It is the source of the reference (control.offer) and of nothing else.',
+};
+
+const X402_DESCRIPTIONS = {
+  delivered: 'The caller received a 200 and its body with no error. Qualified by the receipt: decodable, undecodable or absent.',
+  'handed-back': 'The caller received a response with a status other than 200 and the library did not raise; the status is on the description.',
+  raised: 'The library raised. Qualified by whether a payment header went out: before-signing or after-signing.',
+  'harness-timeout': 'A cap fired; what the recorder saw is kept.',
+  'request-failed': 'No exchange reached the server in three attempts.',
+};
+
+const X402_WIRE = {
+  requests: 'How many requests went upstream (the recorder\'s own budget 503s are not upstream requests; they are counted in budget_refusals).',
+  payment_requests: 'How many carried PAYMENT-SIGNATURE or X-PAYMENT.',
+  resigned: 'payment_requests - 1 when at least one payment went out, else null: how many times the client signed AGAIN after its first payment was not accepted.',
+  payment_header: 'PAYMENT-SIGNATURE (x402 v2), X-PAYMENT (x402 v1), both (the same request carried both) or none.',
+  generation: '2 or 1, from the first payment header (the v2 header wins when both, as the server reads it); null when nothing was signed.',
+  signed: 'True when at least one payment header went out.',
+  signed_value_atomic: 'The value in the first authorization, in atomic units of USDC (6 decimals).',
+  signed_network: 'The network named by the first payment header.',
+  signed_to: 'The payTo address in the first authorization.',
+  offer_amount_atomic: 'The amount the control\'s offer asked for.',
+  offer_network: 'The network the control\'s offer named.',
+  value_matches_offer: 'Whether signed_value_atomic equals offer_amount_atomic (null when either is null).',
+  to_matches_offer: 'Whether signed_to equals the offer\'s payTo (null when either is null).',
+  first_status: 'The status of the first upstream exchange.',
+  last_status: 'The status of the last upstream exchange.',
+  statuses: 'The statuses in order, for example "402,200".',
+  server_warning: 'The last x-badhttp-warning the server sent, verbatim, else null.',
+  receipt: 'decodable (a PAYMENT-RESPONSE or X-PAYMENT-RESPONSE decoded), undecodable (present, did not decode) or absent.',
+};
+
+const X402_REFERENCE_LEGEND = {
+  'as-reference': 'The row matches the reference: signing was no-payment-possible and the client signed nothing, or signing was payment-expected and it signed (and on pay the outcome is delivered/decodable).',
+  differs: 'The row does not match the reference: the client signed for an offer nothing could satisfy, or did not sign for the one offer that admits a payment, or pay did not deliver a decodable receipt. This is a description of a difference from what the offer admits, not a defect: the x402 specification says nothing about retries, spending limits or what to do after a payment.',
+  unspecified: 'The specification constrains nothing about whether to sign (an amount larger than any limit, a missing EIP-712 domain, a missing resource, a decimal amount); the rows describe what each client did.',
+};
+
+const X402_READING =
+  'Read outcome as a description of what the caller received and whether the client signed, never as a verdict on the client. The x402 v2 ' +
+  'specification says the client reads PAYMENT-REQUIRED, selects a requirement it can satisfy, retries with PAYMENT-SIGNATURE and reads ' +
+  'PAYMENT-RESPONSE; it says nothing about spending limits, about signing again after a second 402, or about a 500 after a payment. A client ' +
+  'that signs for 1,000,000 USDC with its defaults and one that stops are both doing something the specification allows, and the finding ' +
+  'is the difference. Each row is described against a reference derived from the control\'s own exchange: what the offer the server made ' +
+  'admits (an offer with nothing a Base Sepolia payer can satisfy admits no payment; /402/pay admits one and delivers a receipt). ' +
+  '"differs" is a description of a difference from that reference. The harness never sends a payment header for a client, so every ' +
+  'authorization in a row is one the client chose to send, with a throwaway key holding test USDC on Base Sepolia only; the library\'s ' +
+  'defaults are the configuration. The recorder sits between the client and this service and speaks plain HTTP/1.1 to the client, so TLS ' +
+  'and HTTP/2 behaviour is out of scope, and it cuts a client off after ' + numWord(WITNESS_X402.request_budget) + ' upstream requests so that a client that signs again ' +
+  'forever is bounded by the harness. No client here is scored or ranked.';
+
+const X402_FIELDS = ['class', 'scenario', 'kind', 'fetches', 'exchanges', 'exchanges_after_result', 'budget_exhausted', 'end', 'wall_ms', 'attempts', 'wire', 'description', 'pattern', 'outcome_vs_reference', 'reference', 'control', 'oracle', 'configuration'];
+
+/** One row per observation: clients x 18 cells (one paid fetch each), plus the control rows. */
+function x402Rows() {
+  return OBSERVATIONS_X402.map((o) => {
+    const c = o.client;
+    const first = o.exchanges && o.exchanges[0] ? o.exchanges[0] : o.fetches && o.fetches[0] && o.fetches[0].exchanges ? o.fetches[0].exchanges[0] : null;
+    const caller = o.fetches && o.fetches[0] ? o.fetches[0].caller : null;
+    return {
+      id: o.id,
+      corpus_id: o.corpus_id,
+      family: 'x402',
+      flavor: o.flavor,
+      scenario: o.scenario,
+      kind: o.kind ?? 'one-paid-fetch',
+      url: o.url,
+      client: { id: c.id, name: c.name, version: c.version, platform: c.platform, invocation: c.invocation, role: c.role, class: c.class, library: c.library, runtime: c.runtime, generation: c.generation ?? null, configuration: c.configuration, requests_recorded_by: c.requests_recorded_by },
+      observed: WITNESS_X402.probed,
+      badhttp_version_observed: WITNESS_X402.badhttp_version_observed,
+      status: first ? first.status : null,
+      class: c.class,
+      fetches: o.fetches ?? null,
+      exchanges: o.exchanges ?? null,
+      exchanges_after_result: o.exchanges_after_result ?? null,
+      budget_exhausted: o.budget_exhausted ?? null,
+      reported_error: caller && caller.error ? (caller.error.name ?? null) : (o.reported_error ?? null),
+      end: o.end,
+      wall_ms: o.wall_ms,
+      attempts: o.attempts,
+      outcome: o.outcome,
+      wire: o.wire ?? null,
+      description: o.description ?? null,
+      pattern: o.pattern ?? null,
+      outcome_vs_reference: o.outcome_vs_reference ?? null,
+      reference: o.reference ?? null,
+      control: o.control ?? null,
+      configuration: c.configuration ?? null,
+      oracle: 'the reference: what the x402 v2 flow admits given the offer the curl control received for this scenario on the same date (REFERENCE in the /clients x402 family block carries signing, result and the clause that produced them per scenario); the offer is control.offer on the control row, decoded from its PAYMENT-REQUIRED header and 402 body',
+      license: LICENSE.responses.id,
+    };
+  });
+}
+
+// The fixed legend plus one generic entry for any other handed-back status the rows contain (the parser emits handed-back/<status> for any non-200 status).
+function x402OutcomeLegend() {
+  const legend = { ...X402_OUTCOMES };
+  for (const o of OBSERVATIONS_X402) {
+    if (/^handed-back\/\d{3}$/.test(o.outcome) && !(o.outcome in legend)) legend[o.outcome] = `The caller received a response object with status ${o.outcome.slice(-3)} and the library did not raise.`;
+  }
+  return legend;
+}
+
+function x402Family({ rows }) {
+  const clientRowsOnly = OBSERVATIONS_X402.filter((o) => o.client.role === 'client');
+  const outcomeCounts = {};
+  for (const o of OBSERVATIONS_X402) outcomeCounts[o.outcome] = (outcomeCounts[o.outcome] || 0) + 1;
+  const classCounts = {};
+  for (const c of CLIENTS_X402) classCounts[c.class] = (classCounts[c.class] || 0) + 1;
+  const signedCounts = { signed: 0, not_signed: 0, resigned_at_least_once: 0 };
+  const receiptCounts = {};
+  const headerCounts = {};
+  for (const o of clientRowsOnly) {
+    const w = o.wire || (o.fetches && o.fetches[0] && o.fetches[0].wire) || {};
+    if (w.signed) signedCounts.signed++; else signedCounts.not_signed++;
+    if ((w.resigned || 0) >= 1) signedCounts.resigned_at_least_once++;
+    if (w.receipt) receiptCounts[w.receipt] = (receiptCounts[w.receipt] || 0) + 1;
+    if (w.payment_header) headerCounts[w.payment_header] = (headerCounts[w.payment_header] || 0) + 1;
+  }
+  const scenarios = [...new Set(OBSERVATIONS_X402.map((o) => o.scenario))];
+  return {
+    what:
+      `What ${CLIENTS_X402.filter((c) => c.role === 'client').length} real x402 client libraries and wrappers did with the ${numWord(scenarios.length)} /402 cells (the eight scenarios and the ten malformed flavors), one row per observation, ` +
+      'plus one raw-wire control row per cell (curl, no payment header). Each cell asks the client to GET the cell\'s url once with a throwaway Base Sepolia payer and the library\'s defaults; ' +
+      'the harness never sends a payment header for a client. Each row lists every request the client sent, with the x402 headers decoded into a summary (never a raw signature), and what the caller received. ' +
+      'The oracle is the reference: what the x402 v2 flow admits, given the offer the control was shown.',
+    rows: rows.length,
+    scenarios: scenarios.length,
+    cells_per_client: WITNESS_X402.cells_per_client,
+    observed: WITNESS_X402.probed,
+    badhttp_version_observed: WITNESS_X402.badhttp_version_observed,
+    worker_version: WITNESS_X402.worker_version,
+    clients: CLIENTS_X402,
+    fields: [...COMMON_FIELDS, ...X402_FIELDS],
+    class_legend: X402_CLASSES,
+    outcome_legend: x402OutcomeLegend(),
+    description_legend: X402_DESCRIPTIONS,
+    wire_legend: X402_WIRE,
+    reference_legend: X402_REFERENCE_LEGEND,
+    reading_this: X402_READING,
+    outcome_counts: outcomeCounts,
+    class_counts: classCounts,
+    signed_counts: signedCounts,
+    receipt_counts: receiptCounts,
+    payment_header_counts: headerCounts,
+    reference: REFERENCE_X402,
+    disagreement_by_scenario: WITNESS_X402.disagreement_by_scenario,
+    answers_by_scenario: WITNESS_X402.answers_by_scenario,
+    disagreement_note: 'disagreement_by_scenario is, per scenario, the number of distinct answers — (outcome, signed, resigned bucket 0 | 1 | 2-5 | 6+) — among client rows; answers_by_scenario lists them with the clients that gave each. signed_counts, receipt_counts and payment_header_counts are over client rows. Control rows are excluded.',
+    findings: x402Findings(),
+    freshness:
+      `A dated capture, not a live measurement: taken ${WITNESS_X402.probed} against badhttp version ` +
+      `${WITNESS_X402.badhttp_version_observed}, with the client versions on each row. Client behaviour changes between ` +
+      `releases and this table does not update itself. Re-run it from ${WITNESS_X402.capture_scripts || 'scripts/x402-witness/'} in the source and ` +
+      'the numbers move; the date on every row is how you know whether to trust it.',
+    reproduce:
+      'Point the row\'s client at the row\'s url with a throwaway Base Sepolia payer registered and nothing else changed, ask it for the url once, and compare the requests it sent and what the caller received with the row. ' +
+      'For the reference, fetch the same url with curl -sS --http1.1 and read the offer (scripts/witness-parse-x402.mjs carries the reference rules). ' +
+      'Pace the calls against the zone limit of 100 per 10 s, and treat a response without x-badhttp-version as no observation.',
+  };
+}
+
+// ---------------------------------------------------------------------------------------------------
 
 export function clientRows({ origin }) {
-  return [...compressRows({ origin }), ...crosshostRows(), ...authRows(), ...cookieRows(), ...sseRows(), ...rangeRows(), ...etagRows()];
+  return [...compressRows({ origin }), ...crosshostRows(), ...authRows(), ...cookieRows(), ...sseRows(), ...rangeRows(), ...etagRows(), ...x402Rows()];
 }
 
 export function clientsIndex({ origin }) {
@@ -1140,10 +1329,11 @@ export function clientsIndex({ origin }) {
   const sse = sseRows();
   const range = rangeRows();
   const etag = etagRows();
+  const x402 = x402Rows();
   return {
     what:
       'What real HTTP clients actually did with this server\'s misbehaviour, as data: one row per ' +
-      'observation, across seven families so far — the ' + WITNESS.flavors + ' /compress flavors (six decoding clients and ' +
+      'observation, across eight families so far — the ' + WITNESS.flavors + ' /compress flavors (six decoding clients and ' +
       'two non-decoding controls), the ' + WITNESS_CROSSHOST.flavors + ' /crosshost flavors (eight clients; eight boundaries and a ' +
       'same-origin control), the ' + WITNESS_AUTH.flavors + ' /auth flavors (the same eight clients, each handed the documented ' +
       'fake credentials through its own mechanism), the ' + WITNESS_COOKIES.flavors + ' /cookies setter flavors (the same eight, ' +
@@ -1152,7 +1342,7 @@ export function clientsIndex({ origin }) {
       'bytes the control received) and the ' + WITNESS_RANGE.flavors + ' /range flavors (real resuming download clients, each handed a ' +
       WITNESS_RANGE.partial_bytes + '-byte partial of the document and told to resume it, plus a fresh download, with every request ' +
       'recorded and the file on disk described against where RFC 9110 places the bytes a control received) and the ' + WITNESS_ETAG.flavors + ' /etag flavors (real HTTP caches and ' +
-      'conditional-request clients, each fetching the flavor three times through a fresh cache with every request recorded, the caller\'s answer described against what RFC 9111 implies from the control\'s exchanges). Every row names ' +
+      'conditional-request clients, each fetching the flavor three times through a fresh cache with every request recorded, the caller\'s answer described against what RFC 9111 implies from the control\'s exchanges) and the ' + numWord(new Set(OBSERVATIONS_X402.map((o) => o.scenario)).size) + ' /402 cells (real x402 client libraries, each asked to pay for one URL once with a throwaway Base Sepolia payer and the library\'s defaults, every request recorded and the caller\'s answer described against what the control\'s offer admits). Every row names ' +
       'the client and its version, the date, what it received, and what it reported.',
     why:
       'For /compress the home page has claimed these results since v0.12.0 and cited a private ' +
@@ -1161,11 +1351,11 @@ export function clientsIndex({ origin }) {
       '(2026-08-27); for /cookies the home page carried a three-jar note from v0.6.0 (2026-08-24); for /sse ' +
       'the home page carried a one-client note from v0.4.0 (2026-08-23); for /range the home page carried a ' +
       'hand-typed curl note from v0.5.0 (2026-08-23); for /etag the home page carried a one-cache note ' +
-      'from v0.5.0 (2026-08-23). Here ' +
-      'are all seven as rows. It is also the only data on this service that ' +
+      'from v0.5.0 (2026-08-23); for /402 the home page carried a few sentences about one client (@x402/fetch 2.23.0, probed 2026-08-23 and 2026-08-26). Here ' +
+      'are all eight as rows. It is also the only data on this service that ' +
       'badhttp did not write about itself.',
     jsonl: `${origin}/clients.jsonl`,
-    rows: compress.length + crosshost.length + auth.length + cookies.length + sse.length + range.length + etag.length,
+    rows: compress.length + crosshost.length + auth.length + cookies.length + sse.length + range.length + etag.length + x402.length,
     families: {
       compress: compressFamily({ rows: compress }),
       crosshost: crosshostFamily({ rows: crosshost }),
@@ -1174,6 +1364,7 @@ export function clientsIndex({ origin }) {
       sse: sseFamily({ rows: sse }),
       range: rangeFamily({ rows: range }),
       etag: etagFamily({ rows: etag }),
+      x402: x402Family({ rows: x402 }),
     },
     common_fields: COMMON_FIELDS,
     join: 'corpus_id joins each row to a row of ' + `${origin}/corpus.jsonl` + '; family names the block above whose legend and fields apply',

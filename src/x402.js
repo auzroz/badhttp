@@ -26,6 +26,7 @@ const USDC = {
   'base-sepolia': { caip2: 'eip155:84532', chainId: 84532, asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', name: 'USDC', version: '2', label: 'Base Sepolia (testnet)', real: false, explorer: 'https://sepolia.basescan.org/tx/' },
 };
 import { CDP_FACILITATOR_URL, cdpConfigured, cdpHeaders } from './cdp-auth.js';
+import { x402Witness } from './x402-witness.js';
 
 const DEFAULT_NETWORK = 'base-sepolia';
 
@@ -380,10 +381,10 @@ export const BROKEN = {
   'no-accepts': { about: 'A PaymentRequired object with no "accepts" field at all.' },
   'empty-accepts': { about: '"accepts" is an empty list: nothing to pay with.' },
   'no-extra': { about: 'The requirement has no "extra" (no EIP-712 domain name/version), so the authorization cannot be signed correctly.' },
-  'no-resource': { about: 'No "resource" object. The official client (@x402/fetch 2.23.0, probed 2026-08-23) treated it as optional and signed anyway; no other client has its behavior on this flavor recorded here.' },
+  'no-resource': { about: 'No "resource" object. The v2 schema requires it and the signature does not cover it, so a client can sign without it; what real clients did is in the witness block of GET /402 (family x402 in /clients.jsonl).' },
   'version-99': { about: 'x402Version is 99.' },
   'decimal-amount': { about: '"amount" is "0.01" instead of atomic units ("10000"). A client that does not validate will sign for 0.01 atomic units, i.e. nothing.' },
-  'missing-header': { about: 'A 402 with v2-shaped requirements only in the JSON body (x402Version 2) and no PAYMENT-REQUIRED header. Genuinely broken: v2 keeps requirements in the header, and the reference client (@x402/fetch 2.23.0) reads a body only when it says x402Version 1, so it finds nothing here.' },
+  'missing-header': { about: 'A 402 with v2-shaped requirements only in the JSON body (x402Version 2) and no PAYMENT-REQUIRED header. Genuinely broken: v2 keeps requirements in the header; a v2 client that reads the body only when it says x402Version 1 finds nothing here, and what real clients did is in the witness block of GET /402 (family x402 in /clients.jsonl).' },
   'v1-body': { about: 'A spec-valid x402 v1 response: requirements only in the JSON body (maxAmountRequired, plain-string network name), no PAYMENT-REQUIRED header. Not malformed — /402/pay serves this same v1 body underneath its v2 header — but a strictly header-only v2 client sees no requirements, which is the trap.' },
 };
 
@@ -404,6 +405,7 @@ export async function handle402({ seg, url, request, env, payTo, json, text }) {
       only_this_one_settles: '/402/pay',
       pay_urls: Object.fromEntries(Object.keys(USDC).map((n) => [n, `/402/pay/${n}`])),
       verified: VERIFIED,
+      witness: x402Witness(),
     });
   }
   if (!Object.hasOwn(SCENARIOS, scenario)) return json({ error: 'unknown scenario', scenarios: Object.keys(SCENARIOS).map((k) => `/402/${k}`) }, 404);

@@ -1,0 +1,200 @@
+provenance: badhttp 0.28.0, 18 scenarios, 10 clients + control
+curl-raw pay [→402] raw=1408B attempts=1
+curl-raw never [→402] raw=1176B attempts=1
+curl-raw reject [→402] raw=1187B attempts=1
+curl-raw slow [→402] raw=1182B attempts=1
+curl-raw crash [→402] raw=1190B attempts=1
+curl-raw bad-receipt [→402] raw=1208B attempts=1
+curl-raw overpriced [→402] raw=1224B attempts=1
+curl-raw wrong-network [→402] raw=1039B attempts=1
+curl-raw broken/not-base64 [→402] raw=161B attempts=1
+curl-raw broken/not-json [→402] raw=185B attempts=1
+curl-raw broken/no-accepts [→402] raw=188B attempts=1
+curl-raw broken/empty-accepts [→402] raw=183B attempts=1
+curl-raw broken/no-extra [→402] raw=243B attempts=1
+curl-raw broken/no-resource [→402] raw=319B attempts=1
+curl-raw broken/version-99 [→402] raw=148B attempts=1
+curl-raw broken/decimal-amount [→402] raw=272B attempts=1
+curl-raw broken/missing-header [→402] raw=972B attempts=1
+curl-raw broken/v1-body [→402] raw=593B attempts=1
+x402-fetch-v2 pay [→402 PS→402 =402/1925B] attempts=1 after=0 2.0s
+x402-fetch-v2 never [→402 PS→402 =402/1294B] attempts=1 after=0 1.0s
+x402-fetch-v2 reject [→402 PS→402 =402/1265B] attempts=1 after=0 1.0s
+x402-fetch-v2 slow [→402 PS→504 =504/166B] attempts=1 after=0 9.0s
+x402-fetch-v2 crash [→402 PS→500 =500/205B] attempts=1 after=0 1.0s
+x402-fetch-v2 bad-receipt [→402 PS→200 =200/216B] attempts=1 after=0 0.9s
+x402-fetch-v2 overpriced [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-fetch-v2 wrong-network [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-fetch-v2 broken/not-base64 [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-fetch-v2 broken/not-json [→402 =Error/0B] attempts=1 after=0 1.0s
+x402-fetch-v2 broken/no-accepts [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-fetch-v2 broken/empty-accepts [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-fetch-v2 broken/no-extra [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-fetch-v2 broken/no-resource [→402 PS→402 =402/319B] attempts=1 after=0 1.0s
+x402-fetch-v2 broken/version-99 [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-fetch-v2 broken/decimal-amount [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-fetch-v2 broken/missing-header [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-fetch-v2 broken/v1-body [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-axios-v2 pay [→402 PS→200 =200/678B] attempts=1 after=0 1.9s
+x402-axios-v2 never [→402 PS→402 =402/1132B] attempts=1 after=0 1.0s
+x402-axios-v2 reject [→402 PS→402 =402/1103B] attempts=1 after=0 1.0s
+x402-axios-v2 slow [→402 PS→504 =AxiosError/0B] attempts=1 after=0 9.0s
+x402-axios-v2 crash [→402 PS→500 =AxiosError/0B] attempts=1 after=0 1.0s
+x402-axios-v2 bad-receipt [→402 PS→200 =200/202B] attempts=1 after=0 1.0s
+x402-axios-v2 overpriced [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-axios-v2 wrong-network [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-axios-v2 broken/not-base64 [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-axios-v2 broken/not-json [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-axios-v2 broken/no-accepts [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-axios-v2 broken/empty-accepts [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-axios-v2 broken/no-extra [→402 =Error/0B] attempts=1 after=0 1.2s
+x402-axios-v2 broken/no-resource [→402 PS→402 =402/301B] attempts=1 after=0 1.0s
+x402-axios-v2 broken/version-99 [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-axios-v2 broken/decimal-amount [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-axios-v2 broken/missing-header [→402 =Error/0B] attempts=1 after=0 0.9s
+x402-axios-v2 broken/v1-body [→402 =Error/0B] attempts=1 after=0 0.9s
+thirdweb-x402 pay [→402 PS→200 =200/740B] attempts=1 after=0 3.5s
+thirdweb-x402 never [→402 PS→402 =402/1294B] attempts=1 after=0 1.5s
+thirdweb-x402 reject [→402 PS→402 =402/1265B] attempts=1 after=0 1.5s
+thirdweb-x402 slow [→402 PS→504 =504/166B] attempts=1 after=0 9.5s
+thirdweb-x402 crash [→402 PS→500 =500/205B] attempts=1 after=0 2.4s
+thirdweb-x402 bad-receipt [→402 PS→200 =200/216B] attempts=1 after=0 1.5s
+thirdweb-x402 overpriced [→402 PS→402 =402/1561B] attempts=1 after=0 1.5s
+thirdweb-x402 wrong-network [→402 =Error/0B] attempts=1 after=0 1.9s
+thirdweb-x402 broken/not-base64 [→402 =InvalidCharacterError/0B] attempts=1 after=0 1.3s
+thirdweb-x402 broken/not-json [→402 =SyntaxError/0B] attempts=1 after=0 1.3s
+thirdweb-x402 broken/no-accepts [→402 =Error/0B] attempts=1 after=0 1.3s
+thirdweb-x402 broken/empty-accepts [→402 =Error/0B] attempts=1 after=0 1.3s
+thirdweb-x402 broken/no-extra [→402 PS→402 =402/243B] attempts=1 after=0 1.5s
+thirdweb-x402 broken/no-resource [→402 PS→402 =402/319B] attempts=1 after=0 1.5s
+thirdweb-x402 broken/version-99 [→402 PS→402 =402/148B] attempts=1 after=0 1.5s
+thirdweb-x402 broken/decimal-amount [→402 =Error/0B] attempts=1 after=0 1.3s
+thirdweb-x402 broken/missing-header [→402 PS→402 =402/972B] attempts=1 after=0 1.5s
+thirdweb-x402 broken/v1-body [→402 XP→402 =402/593B] attempts=1 after=0 1.5s
+x402-fetch-v1 pay [→402 XP→200 =200/742B] attempts=1 after=0 2.4s
+x402-fetch-v1 never [→402 XP→402 =402/1286B] attempts=1 after=0 1.1s
+x402-fetch-v1 reject [→402 XP→402 =402/1265B] attempts=1 after=0 1.1s
+x402-fetch-v1 slow [→402 XP→504 =504/166B] attempts=1 after=0 9.3s
+x402-fetch-v1 crash [→402 XP→500 =500/205B] attempts=1 after=0 1.4s
+x402-fetch-v1 bad-receipt [→402 XP→200 =200/216B] attempts=1 after=0 1.1s
+x402-fetch-v1 overpriced [→402 =Error/0B] attempts=1 after=0 1.0s
+x402-fetch-v1 wrong-network [→402 =ZodError/0B] attempts=1 after=0 1.0s
+x402-fetch-v1 broken/not-base64 [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-fetch-v1 broken/not-json [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-fetch-v1 broken/no-accepts [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-fetch-v1 broken/empty-accepts [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-fetch-v1 broken/no-extra [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-fetch-v1 broken/no-resource [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-fetch-v1 broken/version-99 [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-fetch-v1 broken/decimal-amount [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-fetch-v1 broken/missing-header [→402 =ZodError/0B] attempts=1 after=0 1.0s
+x402-fetch-v1 broken/v1-body [→402 XP→402 =402/593B] attempts=1 after=0 1.2s
+x402-axios-v1 pay [→402 XP→200 =200/680B] attempts=1 after=0 2.0s
+x402-axios-v1 never [→402 XP→402 =AxiosError/0B] attempts=1 after=0 1.1s
+x402-axios-v1 reject [→402 XP→402 =AxiosError/0B] attempts=1 after=0 1.1s
+x402-axios-v1 slow [→402 XP→504 =AxiosError/0B] attempts=1 after=0 9.1s
+x402-axios-v1 crash [→402 XP→500 =AxiosError/0B] attempts=1 after=0 1.1s
+x402-axios-v1 bad-receipt [→402 XP→200 =200/202B] attempts=1 after=0 1.1s
+x402-axios-v1 overpriced [→402 XP→402 =AxiosError/0B] attempts=1 after=0 1.1s
+x402-axios-v1 wrong-network [→402 =ZodError/0B] attempts=1 after=0 1.0s
+x402-axios-v1 broken/not-base64 [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-axios-v1 broken/not-json [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-axios-v1 broken/no-accepts [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-axios-v1 broken/empty-accepts [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-axios-v1 broken/no-extra [→402 =TypeError/0B] attempts=1 after=0 1.1s
+x402-axios-v1 broken/no-resource [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-axios-v1 broken/version-99 [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-axios-v1 broken/decimal-amount [→402 =TypeError/0B] attempts=1 after=0 1.0s
+x402-axios-v1 broken/missing-header [→402 =ZodError/0B] attempts=1 after=0 1.0s
+x402-axios-v1 broken/v1-body [→402 XP→402 =AxiosError/0B] attempts=1 after=0 1.1s
+faremeter-fetch pay [→402 PS→200 =200/740B] attempts=1 after=0 2.1s
+faremeter-fetch never [→402 PS→402 →402 PS→402 →402 PS→402 =WrappedFetchError/0B] attempts=1 after=0 2.3s
+faremeter-fetch reject [→402 PS→402 →402 PS→402 →402 PS→402 =WrappedFetchError/0B] attempts=1 after=0 2.2s
+faremeter-fetch slow [→402 PS→504 =504/166B] attempts=1 after=0 9.1s
+faremeter-fetch crash [→402 PS→500 =500/205B] attempts=1 after=0 1.2s
+faremeter-fetch bad-receipt [→402 PS→200 =200/216B] attempts=1 after=0 1.1s
+faremeter-fetch overpriced [→402 PS→402 →402 PS→402 →402 PS→402 =WrappedFetchError/0B] attempts=1 after=0 2.1s
+faremeter-fetch wrong-network [→402 =Error/0B] attempts=1 after=0 1.0s
+faremeter-fetch broken/not-base64 [→402 =Error/0B] attempts=1 after=0 1.0s
+faremeter-fetch broken/not-json [→402 =Error/0B] attempts=1 after=0 1.0s
+faremeter-fetch broken/no-accepts [→402 =Error/0B] attempts=1 after=0 1.0s
+faremeter-fetch broken/empty-accepts [→402 =Error/0B] attempts=1 after=0 1.0s
+faremeter-fetch broken/no-extra [→402 PS→402 →402 PS→402 →402 PS→402 =WrappedFetchError/0B] attempts=1 after=0 2.2s
+faremeter-fetch broken/no-resource [→402 =Error/0B] attempts=1 after=0 1.0s
+faremeter-fetch broken/version-99 [→402 =Error/0B] attempts=1 after=0 1.0s
+faremeter-fetch broken/decimal-amount [→402 =SyntaxError/0B] attempts=1 after=0 1.0s
+faremeter-fetch broken/missing-header [→402 =Error/0B] attempts=1 after=0 1.0s
+faremeter-fetch broken/v1-body [→402 XP→402 →402 XP→402 →402 XP→402 =WrappedFetchError/0B] attempts=1 after=0 2.1s
+agentkit-x402 pay [→402 PS→200 =200/1198B] attempts=1 after=0 5.1s
+agentkit-x402 never [→402 PS→402 =402/1533B] attempts=1 after=0 1.7s
+agentkit-x402 reject [→402 PS→402 =402/1505B] attempts=1 after=0 1.7s
+agentkit-x402 slow [→402 PS→504 =504/362B] attempts=1 after=0 9.7s
+agentkit-x402 crash [→402 PS→500 =500/402B] attempts=1 after=0 3.3s
+agentkit-x402 bad-receipt [→402 PS→200 =200/492B] attempts=1 after=0 1.9s
+agentkit-x402 overpriced [→402 =AgentKitActionError/497B] attempts=1 after=0 2.1s
+agentkit-x402 wrong-network [→402 =AgentKitActionError/457B] attempts=1 after=0 1.8s
+agentkit-x402 broken/not-base64 [→402 =AgentKitActionError/260B] attempts=1 after=0 1.7s
+agentkit-x402 broken/not-json [→402 =AgentKitActionError/284B] attempts=1 after=0 1.7s
+agentkit-x402 broken/no-accepts [→402 =AgentKitActionError/279B] attempts=1 after=0 1.7s
+agentkit-x402 broken/empty-accepts [→402 =AgentKitActionError/442B] attempts=1 after=0 1.8s
+agentkit-x402 broken/no-extra [→402 =AgentKitActionError/354B] attempts=1 after=0 1.8s
+agentkit-x402 broken/no-resource [→402 PS→402 =402/529B] attempts=1 after=0 1.9s
+agentkit-x402 broken/version-99 [→402 =AgentKitActionError/266B] attempts=1 after=0 1.8s
+agentkit-x402 broken/decimal-amount [→402 =AgentKitActionError/260B] attempts=1 after=0 1.7s
+agentkit-x402 broken/missing-header [→402 =AgentKitActionError/266B] attempts=1 after=0 2.0s
+agentkit-x402 broken/v1-body [→402 XP→402 =402/831B] attempts=1 after=0 2.2s
+x402-httpx pay [→402 PS→200 =200/740B] attempts=1 after=0 2.6s
+x402-httpx never [→402 PS→402 =402/1294B] attempts=1 after=0 1.3s
+x402-httpx reject [→402 PS→402 =402/1265B] attempts=1 after=0 1.3s
+x402-httpx slow [→402 PS→0 =PaymentError/0B] attempts=1 after=0 6.2s
+x402-httpx crash [→402 PS→500 =500/205B] attempts=1 after=0 1.4s
+x402-httpx bad-receipt [→402 PS→200 =200/216B] attempts=1 after=0 1.3s
+x402-httpx overpriced [→402 =PaymentError/0B] attempts=1 after=0 1.2s
+x402-httpx wrong-network [→402 =PaymentError/0B] attempts=1 after=0 1.2s
+x402-httpx broken/not-base64 [→402 =PaymentError/0B] attempts=1 after=0 1.1s
+x402-httpx broken/not-json [→402 =PaymentError/0B] attempts=1 after=0 1.2s
+x402-httpx broken/no-accepts [→402 =PaymentError/0B] attempts=1 after=0 1.2s
+x402-httpx broken/empty-accepts [→402 =PaymentError/0B] attempts=1 after=0 1.2s
+x402-httpx broken/no-extra [→402 PS→402 =402/243B] attempts=1 after=0 1.3s
+x402-httpx broken/no-resource [→402 PS→402 =402/319B] attempts=1 after=0 1.3s
+x402-httpx broken/version-99 [→402 PS→402 =402/148B] attempts=1 after=0 1.2s
+x402-httpx broken/decimal-amount [→402 =PaymentError/0B] attempts=1 after=0 1.1s
+x402-httpx broken/missing-header [→402 =PaymentError/0B] attempts=1 after=0 1.4s
+x402-httpx broken/v1-body [→402 XP→402 =402/593B] attempts=1 after=0 1.3s
+x402-requests pay [→402 PS→200 =200/740B] attempts=1 after=0 2.3s
+x402-requests never [→402 PS→402 =402/1294B] attempts=1 after=0 1.2s
+x402-requests reject [→402 PS→402 =402/1265B] attempts=1 after=0 1.3s
+x402-requests slow [→402 PS→504 =504/166B] attempts=1 after=0 9.3s
+x402-requests crash [→402 PS→500 =500/205B] attempts=1 after=0 1.3s
+x402-requests bad-receipt [→402 PS→200 =200/216B] attempts=1 after=0 1.2s
+x402-requests overpriced [→402 =PaymentError/0B] attempts=1 after=0 1.1s
+x402-requests wrong-network [→402 =PaymentError/0B] attempts=1 after=0 1.2s
+x402-requests broken/not-base64 [→402 =PaymentError/0B] attempts=1 after=0 1.3s
+x402-requests broken/not-json [→402 =PaymentError/0B] attempts=1 after=0 1.2s
+x402-requests broken/no-accepts [→402 =PaymentError/0B] attempts=1 after=0 1.2s
+x402-requests broken/empty-accepts [→402 =PaymentError/0B] attempts=1 after=0 1.2s
+x402-requests broken/no-extra [→402 PS→402 =402/243B] attempts=1 after=0 1.2s
+x402-requests broken/no-resource [→402 PS→402 =402/319B] attempts=1 after=0 1.3s
+x402-requests broken/version-99 [→402 PS→402 =402/148B] attempts=1 after=0 1.2s
+x402-requests broken/decimal-amount [→402 =PaymentError/0B] attempts=1 after=0 1.2s
+x402-requests broken/missing-header [→402 =PaymentError/0B] attempts=1 after=0 1.2s
+x402-requests broken/v1-body [→402 XP→402 =402/593B] attempts=1 after=0 1.2s
+x402-go pay [→402 PS→200 =200/740B] attempts=1 after=0 1.7s
+x402-go never [→402 PS→402 =402/1294B] attempts=1 after=0 0.8s
+x402-go reject [→402 PS→402 =402/1265B] attempts=1 after=0 0.8s
+x402-go slow [→402 PS→504 =504/166B] attempts=1 after=0 8.8s
+x402-go crash [→402 PS→500 =500/205B] attempts=1 after=0 0.8s
+x402-go bad-receipt [→402 PS→200 =200/216B] attempts=1 after=0 0.7s
+x402-go overpriced [→402 PS→402 =402/1561B] attempts=1 after=0 0.8s
+x402-go wrong-network [→402 =*url.Error/0B] attempts=1 after=0 0.7s
+x402-go broken/not-base64 [→402 =*url.Error/0B] attempts=1 after=0 0.7s
+x402-go broken/not-json [→402 =*url.Error/0B] attempts=1 after=0 0.7s
+x402-go broken/no-accepts [→402 =*url.Error/0B] attempts=1 after=0 0.6s
+x402-go broken/empty-accepts [→402 =*url.Error/0B] attempts=1 after=0 0.7s
+x402-go broken/no-extra [→402 PS→402 =402/243B] attempts=1 after=0 0.8s
+x402-go broken/no-resource [→402 PS→402 =402/319B] attempts=1 after=0 0.7s
+x402-go broken/version-99 [→402 PS→402 =402/148B] attempts=1 after=0 0.8s
+x402-go broken/decimal-amount [→402 =*url.Error/0B] attempts=1 after=0 0.7s
+x402-go broken/missing-header [→402 PS→402 =402/972B] attempts=1 after=0 0.8s
+x402-go broken/v1-body [→402 =*url.Error/0B] attempts=1 after=0 0.7s
+done: 198 rows written to the capture (18 controls), 0 request_failed

@@ -22,10 +22,10 @@ the finding.** It is the only data in this repository that this project did not 
 
 | Route | Shape |
 |---|---|
-| `GET /clients.jsonl` | NDJSON rows, one per observation — 168 for `/compress` at v0.14.0, 240 in two families at v0.18.0, 632 in five families at v0.22.0, 798 in six at v0.24.0 and 959 in seven since v0.25.0 (`/compress` 168, `/crosshost` 72, `/auth` 144, `/cookies` 136, `/sse` 112, `/range` 166, `/etag` 161; one section per family below). Headers mirror `/corpus.jsonl`: `application/x-ndjson`, `no-transform`, `x-badhttp-license: CC0-1.0`, `x-badhttp-rows`, `link: rel=license`. |
+| `GET /clients.jsonl` | NDJSON rows, one per observation — 168 for `/compress` at v0.14.0, 240 in two families at v0.18.0, 632 in five families at v0.22.0, 798 in six at v0.24.0 and 959 in seven since v0.25.0 and 1,157 in eight since v0.29.0 (`/compress` 168, `/crosshost` 72, `/auth` 144, `/cookies` 136, `/sse` 112, `/range` 166, `/etag` 161, `/402` 198; one section per family below). Headers mirror `/corpus.jsonl`: `application/x-ndjson`, `no-transform`, `x-badhttp-license: CC0-1.0`, `x-badhttp-rows`, `link: rel=license`. |
 | `GET /clients` | JSON index: roster, outcome legend, `reading_this`, per-role counts, per-flavor disagreement, freshness, reproduce. |
 
-8 profiles × 21 flavors = 168. `corpus_id` on every row joins to a `/corpus.jsonl` row. As of v0.18.0 the file had 240 rows in two families (it now has 959 in seven, see above); the 72 `/crosshost` rows are documented in the 2026-09-17 section below.
+8 profiles × 21 flavors = 168. `corpus_id` on every row joins to a `/corpus.jsonl` row. As of v0.18.0 the file had 240 rows in two families (it now has 1,157 in eight, see above); the 72 `/crosshost` rows are documented in the 2026-09-17 section below.
 
 **No HTML page.** The data is the asset; an eight-column matrix that stays readable in both themes
 is a design problem, and design problems are how sessions end at 80%. Deferred deliberately.
@@ -421,3 +421,53 @@ refetch. `src/etag.js` computes the findings from `src/witness-etag-data.js`, wh
 <capture>` regenerates from `docs/probe-etag-clients-<date>.jsonl` (its `.log` beside it). The capture is run with
 `scripts/etag-witness/all.sh`, never while smoke runs. The per-client explanations of why a named cache behaved as it did
 (gated findings) ship in `src/etag.js` (fifteen, each gated on the computed facts it names), citing `docs/survey-etag-clients-2026-10-12.md`.
+
+## Eighth family: `/402` (session 36, 2026-10-29; v0.29.0)
+
+The design, the row shape, the roster and the refusals are in `docs/spec-x402-witness.md`; this section records only that it
+ships as the eighth family of `GET /clients.jsonl` and `GET /clients`, and what a row means.
+
+Real x402 client libraries and wrappers (the foundation SDK's fetch wrapper and the packages built like it, HTTP-library
+transports in other languages, wrappers that add a limit or a retry policy) plus a raw-wire control (curl) over 18 cells: the
+eight `/402` scenarios (`pay`, `never`, `reject`, `slow`, `crash`, `bad-receipt`, `overpriced`, `wrong-network`) and the ten
+`/402/broken` flavors. A row is one (client, cell): the client, configured with the project's throwaway Base Sepolia payer
+(test USDC, no dollar value) and nothing else changed from the library's defaults, is asked to GET the cell's url once. The
+harness never sends a payment header; the client decides, from the 402 it received, whether to sign, for how much, on which
+network, whether to sign again, and what to hand its caller. Every request it sent went through the shared recording reverse
+proxy, which decodes the x402 headers into a summary on each exchange (never a raw signature or nonce) and cuts a client off
+after twelve upstream requests, so a client that signs again forever is bounded by the harness and never by the zone rate
+limit. Row ids are `x402.<scenario>.one-paid-fetch.<client>`; `corpus_id` is `402/<last path segment>`; the control rows are
+`x402.<scenario>.offer-raw.curl-raw`.
+
+Vocabularies. `class`: `sdk-fetch`, `sdk-http`, `agent-wrapper`, `cli`, `raw` (the control). `wire` is computed from the
+attributed exchanges: `requests`, `payment_requests`, `resigned` (how many times the client signed again after its first
+payment was not accepted), `payment_header` (`PAYMENT-SIGNATURE`, `X-PAYMENT`, `both`, `none`), `generation`, `signed`, the
+first authorization's value, network and payee against the offer's, `statuses`, `server_warning` and `receipt` (`decodable`,
+`undecodable`, `absent`). `description` is what the caller got and `outcome` is that description with its qualifier:
+`delivered/decodable`, `delivered/undecodable`, `delivered/absent`, `handed-back/{402,500,504,503}`, `raised/before-signing`,
+`raised/after-signing`, `harness-timeout`, `request-failed`.
+
+The reference. The x402 v2 specification constrains the client less than RFC 9111 constrains a cache: it says nothing about
+spending limits, about signing again after a second 402, or about a 500 after a payment. So the reference is derived from the
+control's own exchange, never typed: `signing` is `no-payment-possible` when the offer has nothing a Base Sepolia payer can
+satisfy, `payment-expected` when it carries exactly the requirement `/402/pay` carries, and `unspecified` when the
+specification constrains nothing (an amount no limit applies to, a missing EIP-712 domain or resource, a decimal amount);
+`result` is stated for `pay` only. `outcome_vs_reference` is `as-reference`, `differs` or `unspecified`, a description and
+never a verdict: a client that signs for 1,000,000 USDC with its defaults and one that refuses are both inside what the
+specification allows, and the finding is the difference. `disagreement_by_scenario` counts distinct (outcome, signed,
+re-sign bucket) answers per scenario among client rows.
+
+What the rows cannot say, stated on the `GET /402` witness block and the family block: anything over HTTPS or HTTP/2; what a
+client does with mainnet funds (no cell offers `eip155:8453`); whether a client that signed for 1,000,000 USDC would have been
+charged by a server that kept the authorization (this one discards it, and the expiry is 300 s); hosted-wallet or smart-wallet
+signers; a client configured with a spending limit it does not set by default; anything after the caps or the budget.
+
+Refusals (the parser exits non-zero rather than emit): a client missing a cell, a duplicate cell, a scenario without its
+control, a row carrying a raw signature, a nonce, the payer key, a machine path, a loopback literal or a port, a verdict word,
+rows spanning two versions, fewer than five clients, a failed non-vacuity floor. `src/x402-witness.js` computes the findings and
+the witness block from `src/witness-x402-data.js`, which `node scripts/witness-parse-x402.mjs <capture>` regenerates from
+`docs/probe-x402-clients-<date>.jsonl` (its `.log` beside it). The capture is run with `scripts/x402-witness/all.sh`, never
+while smoke runs. Explanations of why a named client behaved as it did (gated findings) cite
+`docs/survey-x402-clients-2026-10-29.md` and render only while the computed list they were written for matches; none
+ship before the survey does. The row total (959 before this family) is the sum of the family blocks in `GET /clients`;
+smoke derives every expected count from the index.

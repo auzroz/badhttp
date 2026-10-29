@@ -122,6 +122,7 @@ for (const [i, line] of lines.slice(1).entries()) {
   const lineNo = i + 2;
   if (!ROSTER[r.client]) throw new Error(`line ${lineNo}: unknown client id ${r.client}`);
   if (!FLAVOR_ORDER.includes(r.flavor)) throw new Error(`line ${lineNo}: unknown flavor ${r.flavor}`);
+  if (typeof r.url !== 'string' || !r.url.endsWith(`/cookies/${r.flavor}`)) throw new Error(`line ${lineNo}: url ${r.url} does not end with /cookies/${r.flavor}`);
   if (!JAR_KINDS.includes(r.jar_kind)) throw new Error(`line ${lineNo}: unknown jar_kind ${r.jar_kind}`);
   const key = `${r.client}/${r.flavor}`;
   if (seen.has(key)) throw new Error(`line ${lineNo}: duplicate observation ${key}`);
@@ -146,6 +147,7 @@ for (const [i, line] of lines.slice(1).entries()) {
   // that a harness let through. The setter answers 200, except that on-redirect answers 302 (carrying the cookie) and then 200;
   // the delete leg answers 200.
   if (landed) {
+    if (r.jar_kind !== 'no-jar' && !r.after_delete) throw new Error(`line ${lineNo}: a landed jar row must carry after_delete`);
     const want = r.flavor === 'on-redirect' ? [302, 200] : [200];
     const got = r.hops.map((h) => h.status);
     if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`line ${lineNo}: setter-leg statuses ${JSON.stringify(got)} are not the ${JSON.stringify(want)} this server emits for ${r.flavor}`);
@@ -211,7 +213,8 @@ const clients = ORDER.map((id) => ({ id, name: ROSTER[id].name, role: 'client', 
 // The machine gate covers everything that is emitted: the rows, the client metadata (version, platform,
 // invocation, jar), the provenance line and the run log committed beside the capture. A path or a host
 // other than badhttp.dev / alt.badhttp.dev anywhere in them refuses the run.
-const scanned = [['a row', JSON.stringify(observations)], ['the client metadata', JSON.stringify(clients)], ['the provenance line', JSON.stringify(meta)], ['the run log', logText]];
+// The raw Cookie headers travel base64-encoded (cookie_header_base64), which the gate cannot read through; decode them for the scan (v0.29.0 review).
+const scanned = [['a row', JSON.stringify(observations)], ['the client metadata', JSON.stringify(clients)], ['the provenance line', JSON.stringify(meta)], ['the run log', logText], ['the raw Cookie headers', observations.filter((o) => o.echo && o.echo.cookie_header_base64).map((o) => Buffer.from(o.echo.cookie_header_base64, 'base64').toString('latin1')).join('\n')]];
 for (const [what, text] of scanned) {
   const why = checkString(text, what);
   if (why) throw new Error(`refusing to emit: ${why}`);

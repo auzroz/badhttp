@@ -172,6 +172,7 @@ if (new Set(control.map((r) => r.flavor)).size !== FLAVOR_ORDER.length) bad('the
 const versions = new Set(rows.flatMap((r) => r.connections.map((c) => c.x_badhttp_version)));
 if (versions.size !== 1) bad(`rows span badhttp versions ${[...versions].join(', ')}: a deploy happened mid-capture`);
 const BADHTTP_VERSION = [...versions][0];
+if (prov.badhttp_version_observed != null && prov.badhttp_version_observed !== BADHTTP_VERSION) bad(`provenance says badhttp ${prov.badhttp_version_observed}, the exchanges say ${BADHTTP_VERSION}`);
 
 // ---------- the reference, from the control's bytes ----------
 const REFERENCE = {};

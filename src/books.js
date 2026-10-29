@@ -83,6 +83,29 @@ export const BOOKS = {
       free_requests_per_day: 100000,
       free_cpu_ms_per_invocation: 10,
     },
+    // Session 37 (2026-10-29). `wrangler tail` on v0.29.0 showed where the per-invocation CPU went: not the
+    // deliberately expensive bodies (/compress/bomb?size=8 cost 0 ms; the 5 MB /range documents 0 ms) but
+    // the pages, each rendered from constant witness data on every request in a fresh isolate — home 38–81 ms,
+    // /clients 43, /clients.jsonl 36, /402 up to 21, 8–14 ms for the home page even warm. v0.30.0 moved all of
+    // that to module startup (a separate 1 s budget on both plans) and v0.31.0 pre-encoded the two NDJSON bodies;
+    // the same sample on v0.30.0 read home, /402 and /clients at 1 ms. The verdict above (free_plan_viable:
+    // false) STANDS until a full window of per-day quantiles has been read on the new code: a tail sample from
+    // one vantage is evidence about the cause, not the measurement the window above is. The next session that
+    // can read the window decides free_plan_viable and standalone_hosting_usd_per_year from it.
+    remeasure: {
+      deployed: '2026-10-29',
+      from_version: '0.30.0',
+      cause_found: 'pages rendered from constant data per request in a fresh isolate; the memoized bomb sizes and the large bodies cost no measurable CPU',
+      // Two further costs the same tail found, left for the window to weigh (neither is a page): a /compress/bomb
+      // size an isolate has not built yet costs about 7 ms per MiB on its first request (12 MiB 71 ms, 16 MiB 120,
+      // 24 MiB 173; the flood's 32 MiB answers 403 at the edge without the opt-in header), and a cold /books.json
+      // (the chain reconciliation, edge-cached for 300 s) cost 11 ms. If the window turns on these, the fixes are
+      // known (build the documented sizes at startup or emit the member arithmetically; trim the receipt parse).
+      known_remaining_cpu_ms: { bomb_first_build_per_mib: 7, books_json_cold: 11 },
+      tail_sample_cpu_ms: { 'v0.29.0': { home: '38-81', clients: 43, clients_jsonl: 36, index_402: '5-21' }, 'v0.30.0': { home: 1, clients: 1, index_402: 1, clients_jsonl: 10 } },
+      window: { from: '2026-10-30', to: '2026-11-06', days: 7, source: 'same query as above: workersInvocationsAdaptive quantiles per day' },
+      decides: 'free_plan_viable and standalone_hosting_usd_per_year; until then both keep the September values',
+    },
   },
   // Money already owed but not yet spent. Stated so the books show what is coming rather than
   // burying it in a note; not included in the costs total, which is spend to date.
@@ -144,19 +167,32 @@ export const BOOKS = {
     // two numbers (session 30, after a seventeen-proposal panel on cheap models searched for a path and
     // found none: LEDGER.md #30). Hand-maintained like the other prose here; rewrite it, with its date,
     // when the evidence changes — never let the numbers move while the sentence stays.
-    sustainability_statement_dated: '2026-10-26',
+    sustainability_statement_dated: '2026-10-29',
     sustainability_statement:
-      'Earned $0.12 to date: twelve settlements at the listed 0.01 USDC from seven external payers — two '
-      + 'from nohumans.directory\'s paying scout, five in one evening from an unidentified address that '
-      + 'paid dozens of other x402 sellers the next day, and one each from vet402\'s observatory census, '
-      + 'Lumière PayCheck\'s paid delivery check, SettledScout\'s delivery check, Lumi Trades\' test-buy and Annalist\'s service check — six of them probes that say they measure whether an x402 seller settles, the other an unidentified automated buyer, and '
-      + 'none from anyone wanting to test a client. The two newest settled through Coinbase\'s CDP facilitator, whose public catalogue is where Lumi Trades says it found this host (Annalist publishes nothing this host could read). No path tested in thirty-five sessions earns this '
-      + 'project\'s costs: not the paid settlement test, not donations, not catalogue listings, and no '
-      + 'grant was found whose rules admit an AI-run project (re-checked 2026-10-23: no x402 seller incentive exists, and no sponsor of HTTP-client test fixtures). '
-      + 'The one arithmetic that reaches the attributed hosting cost — pricing the settlement test at the $1.00 ceiling the measurement probes publish, about five settlements a month — is lawful and transparent and this project has declined to pull it, because those buyers are measuring whether a seller settles, not buying a service; it is recorded here as the operator\'s call, not hidden. '
-      + 'It runs as an operator-funded public test '
-      + 'fixture, and these books will keep '
-      + 'saying so until the earned column says otherwise. The costs side moved the other way in October: a flood of 36 million requests for the largest /compress/bomb, through millions of addresses, put an estimated $7.93 of Workers request overage on the operator\'s October bill before an edge rule stopped it on 2026-10-22 (costs table); from 2026-10-23 the flood ran at five to nine million requests a day into that rule and a second one, unbilled, and on 2026-10-26 it fell to tens of thousands. One cost is not on these books at all: the '
+      'Earned $0.12 to date: twelve settlements at the listed 0.01 USDC from seven external payers, six of them '
+      + 'probes that say they measure whether an x402 seller settles, the other an unidentified automated buyer, '
+      + 'none from anyone wanting to test a client (payers and hashes in the revenue rows). No path tested in '
+      + 'thirty-six sessions earned this project\'s costs: not the paid settlement test, not donations, not catalogue '
+      + 'listings, and no grant was found whose rules admit an AI-run project. On 2026-10-29 the operator answered '
+      + 'the standing question with a mandate: find a path to breakeven, the original concept negotiable. Two things '
+      + 'changed that day, both on these books. The cost side: the September measurement that ruled out the free '
+      + 'Workers plan (a 10 ms CPU ceiling per request) turned out to be this service rendering its own pages from '
+      + 'constant data on every request; v0.30.0 moved that work to startup, and a seven-day re-measurement from '
+      + '2026-10-30 decides whether the standing-alone hosting figure is $60 a year or $0 (hosting_measured.remeasure; '
+      + 'the September verdict stands until then). The revenue side: /v1/chat/completions, an OpenAI-compatible chat '
+      + 'completion from Cloudflare Workers AI at a flat 0.002 USDC per request on Base mainnet, settled through x402 '
+      + 'only after the model has answered, is the first thing on this host that is for sale to anyone but a '
+      + 'measurer. It was chosen on the demand evidence read that day (docs/research-x402-demand-2026-10-29.md in '
+      + 'the source: in the public x402 catalogue, inference is the one category with hundreds of distinct repeat '
+      + 'payers a month, one seller taking 86,313 calls from 305 payers at a $0.002 minimum) and priced as a product '
+      + 'with its cost basis published beside it (GET /v1), not at any observatory\'s ceiling. The arithmetic it must '
+      + 'meet is plain: the books\' breakeven of about $73 a year is about 3,040 such requests a month before the '
+      + 'per-token cost (at most about three quarters of the price at the caps in the worst case GET /v1 states, about a third for English text); the domain alone, $12.87, '
+      + 'about 540. It has earned nothing yet, and these books will say what it earns, by transaction hash, the '
+      + 'session each payment is noticed. The settlement-test price lever named here on 2026-10-23 stays unpulled. '
+      + 'The costs side moved the other way in October: a flood of 36 million requests for the largest /compress/bomb '
+      + 'put an estimated $7.93 of Workers request overage on the operator\'s October bill before an edge rule stopped '
+      + 'it on 2026-10-22 (costs table); the flood ended by 2026-10-27. One cost is not on these books at all: the '
       + 'model usage that builds and runs the project is borne by the operator and is not priced here.',
     registrar_credit_note:
       'What remained in the Porkbun account after registration. The registrar publishes no '
@@ -183,7 +219,7 @@ export const BOOKS = {
       date: '2026-08-28',
       item: 'Mainnet payer wallet funded (working capital, USDC on Base)',
       amount: 10.0,
-      note: 'Most of it is still held by the project: $9.935 at the payer, $0.05 self-test settlements to the receive address (transfers between our own addresses — NOT revenue; tx hashes in GET /402), $0.015 spent on three x402-trust paid trust reports — the project\'s payments to an external x402 service.',
+      note: 'Most of it is still held by the project: $9.931 at the payer, $0.054 of self-test settlements to the receive address (transfers between our own addresses — NOT revenue; tx hashes in GET /402 and in chain_movements, the newest the two 0.002 USDC self-tests of POST /v1/chat/completions on 2026-10-29), $0.015 spent on three x402-trust paid trust reports — the project\'s payments to an external x402 service.',
     },
     {
       date: '2026-10-22',
@@ -368,6 +404,22 @@ export const BOOKS = {
       label: 'self-test settlement (x402 v2, settled by Coinbase CDP; Bazaar keep-alive and a diagnosis)',
       note: 'Project money returning from the payer wallet on 2026-10-09 05:46:01 UTC (block 52367707; LEDGER.md #30). Two reasons. The CDP Bazaar drops a listing with no settlement through that facilitator for 30 days, and this moved the listing\'s lastUpdated to 2026-10-09T05:45:59Z. And a diagnosis: the external payment of 2026-10-06 (vet402, revenue row 8) had NOT moved it, and the relayer that broadcast that payment matches no signer published by PayAI, xpay, Mogami, Heurist or x402.org (CDP publishes none and uses several — the two CDP self-tests came from two different relayers), so which facilitator settled that payment is unknown and an external payment cannot be assumed to keep the listing alive. Booked as a labeled transfer, never revenue. Tx hash also in GET /402 (verified.exercised).',
     },
+    {
+      date: '2026-10-29',
+      direction: 'in',
+      amount_atomic: '2000',
+      tx: '0xc470ccf5b606317fe64fe5c4db56de92989a2eeed5931ad9da4d2dfdae29857c',
+      label: 'self-test of POST /v1/chat/completions (x402 v2, settled by Coinbase CDP)',
+      note: 'Project money returning from the payer wallet on 2026-10-29 21:58:21 UTC (block 53260877; LEDGER.md #37): the first paid request to the one resource on this host that sells something real (an OpenAI-compatible chat completion from Workers AI at a flat 0.002 USDC), made from the project payer so the whole path — facilitator verify, model, facilitator settle, receipt — was exercised with real money before anyone else could pay. A first attempt minutes earlier had asked the reasoning model for 120 tokens, got no text, and was refused unsettled (nothing moved), which is the behaviour the endpoint promises. Booked as a labeled transfer, never revenue; a settlement through CDP is also the documented route into the CDP Bazaar.',
+    },
+    {
+      date: '2026-10-29',
+      direction: 'in',
+      amount_atomic: '2000',
+      tx: '0xe3f3a1931d28eb4b8bc3024273b8d0a395ce6e5d13c073754e0fc1d1230b8de5',
+      label: 'second self-test of POST /v1/chat/completions (x402 v2, settled by Coinbase CDP; bazaar schema)',
+      note: 'Project money returning from the payer wallet on 2026-10-29 22:22:13 UTC (block 53261593; LEDGER.md #37). The first self-test had not made the CDP Bazaar list the new resource (the merchant record was unchanged twenty minutes later, unlike /402/pay/base, which it listed within the minute in session 28), and the one difference in what the client echoes was that this 402\'s bazaar extension carried no schema block; the schema was added and the path exercised once more with real money. Booked as a labeled transfer, never revenue. Whether the listing followed is recorded in the ledger, not assumed here.',
+    },
   ],
 };
 
@@ -455,6 +507,10 @@ export function hostingUsage(b = BOOKS) {
     // The two answers, both true, to two different questions. Hosting only — the domain is a
     // separate line and is the same in both, so naming these "hosting" keeps them from reading
     // as all-in totals.
+    free_plan_remeasure: m.remeasure
+      ? `Re-measurement in progress: on ${m.remeasure.deployed} version ${m.remeasure.from_version} removed the cause of those heavy requests (${m.remeasure.cause_found}); `
+        + `a seven-day window from ${m.remeasure.window.from} on the new code decides free_plan_viable, and until it is read the September verdict stands.`
+      : undefined,
     standalone_hosting_usd_per_year: Math.round((m.plan.paid_min_usd_per_month * 12) * 100) / 100,
     incremental_hosting_usd_per_year: usageCharge === null ? null : usageCharge * 12,
     window_note:
@@ -604,7 +660,7 @@ export function fundingManifest(origin, b = BOOKS) {
             + 'only cash that must change hands; hosting is a Cloudflare Workers Paid plan whose '
             + "included allowance this service's ordinary traffic uses under 1% of, so it adds nothing to a bill that "
             + `already exists (a flood in October 2026 was the exception, booked as a cost on the books) — though standing alone it would pay that plan's $${standalone.toFixed(2)}/year `
-            + `floor, because its heaviest requests exceed the free plan's per-invocation CPU limit. `
+            + `floor, because its heaviest requests exceeded the free plan's per-invocation CPU limit when measured in September 2026 (the cause was removed on 2026-10-29 and a re-measurement is in progress; see /books). `
             + `Both figures, and the measurement behind them, are published at ${origin}/books.`,
           amount: Math.ceil(domain + standalone),
           currency: 'USD',

@@ -21,7 +21,7 @@ decisions in force and one verified digest per session; the full, append-only se
 - `src/crosshost.js` — the `/crosshost` range: what a client does with `Authorization`, `Proxy-Authorization`, `Cookie` and `X-Api-Key` when a redirect crosses a host boundary. This is the one family that needs two hostnames, so the Worker serves two: `badhttp.dev` and `alt.badhttp.dev` (same Worker, same zone, covered by the zone's existing wildcard certificate, $0). Nine flavors cross apex-to-subdomain and back, out-and-return, a port change, a protocol-relative authority, both scheme directions, and a cookie-jar scoping hop; `/crosshost/land` is the oracle and reports what arrived **without ever echoing it**. There is no open redirect: every target is a complete absolute URL in a frozen table of those two hosts, selected by flavor name and checked against a fixed pattern before it is sent — no endpoint takes a redirect target, or any part of one, from the caller. The alt host serves this family and nothing else, `noindex` on every response. Witnessed live against eight real clients (2026-09-10, re-captured 2026-09-17 with the `jar` flavor added); the 72 observations are rows of `/clients.jsonl` (family `crosshost`, harnesses in `scripts/crosshost-witness/`) and the `/crosshost` index summarizes them under `witness`, with every number computed from the rows.
 - `src/template.js` — path templates requested literally (`/sse/{flavor}`, braces intact) answer 200 with the valid substitutions; registry probers request them constantly.
 - `src/page.js` — the HTML catalogue (`/`) and books page (`/books`). Zero JavaScript.
-- `src/openapi.js` — `/openapi.json`, in the profile agent registries parse (`security: []` on every operation, `x-payment-info` on `/402/pay`).
+- `src/openapi.js` — `/openapi.json`, in the profile agent registries parse (`security: []` on every operation, `x-payment-info` on the three `/402/pay` URLs and on `POST /v1/chat/completions`).
 - `src/corpus.js` — `/corpus.jsonl` (the catalogue of defects as NDJSON, one row per documented defect behaviour, generated from the same flavor tables the site renders; the template explainers and the discovery surfaces are deliberately not rows — see `what_is_not_a_row` on `/corpus`) and `/license`. Also carries the dated RFC 9112 finding: this service emits no message-syntax violations and cannot, because the edge re-serializes every response.
 - `src/books.js` — the public accounts. Costs and booked revenue are hand-maintained and must match
   `LEDGER.md` line for line; hosting accrues from the clock; `hosting_measured`/`hostingUsage()`
@@ -51,6 +51,10 @@ decisions in force and one verified digest per session; the full, append-only se
 - `docs/` — runbooks for the next session. `docs/RUNBOOK-agent-teams.md` — how the AI divides a session's work among subagents, and the saved workflows in `.claude/workflows/` (`review-frozen` — adversarial review of a frozen tree; `ledger-digest` — one verified digest per ledger entry, rendered by `scripts/ledger-digest-render.mjs`).
 - `ledger/` — the full session entries of `LEDGER.md`, one file per session, moved out verbatim on 2026-10-06 (session 29) so the file every session reads stays small.
 
+## The one paid product
+
+`POST /v1/chat/completions` is the one thing here that is for sale: an OpenAI-compatible chat completion from Workers AI, flat 0.002 USDC per request on Base mainnet, settled through x402 only after the model has answered. `docs/spec-v1-chat.md` is the contract and the source of truth (caps, order of operations, the 402 shapes, logging, the cost basis, discovery surfaces); `GET /v1` serves it as JSON and `GET /v1/models` is the price list. The constants (`V1` in `src/ai.js`) are imported by `src/openapi.js` and `src/page.js`, so no surface types a price or a cap twice. The endpoint behaves, so it is excluded from the corpus and every witness family. The smoke checks `ai*` cover the free surfaces, the free 400s and the shape of both 402s; none of them pays.
+
 ## Run locally
 
 ```
@@ -63,7 +67,7 @@ curl -i "http://localhost:8787/status/429?retry-after=3"
 `/status/{code}` · `/delay/{s}` · `/drip` · `/flaky/{pct}` · `/badjson/{flavor}` · `/truncate` ·
 `/sse/{flavor}` · `/range/{flavor}` · `/etag/{flavor}` · `/cookies/{flavor}` · `/auth/{flavor}` · `/compress/{flavor}` · `/crosshost/{flavor}` ·
 `/redirect/{n}` · `/redirect/loop` · `/headers` · `/echo` · `/402/pay` · `/402/{never,reject,slow,crash,bad-receipt,overpriced,wrong-network}` ·
-`/402/broken/{flavor}` · `/corpus` · `/corpus.jsonl` · `/clients` · `/clients.jsonl` · `/license` · `/openapi.json` · `/llms.txt` · `/sitemap.xml` · `/books` · `/funding.json` · `/health`
+`/402/broken/{flavor}` · `/v1/chat/completions` (paid) · `/v1/models` · `/v1` · `/corpus` · `/corpus.jsonl` · `/clients` · `/clients.jsonl` · `/license` · `/openapi.json` · `/llms.txt` · `/sitemap.xml` · `/books` · `/funding.json` · `/health`
 
 Full documentation with curl examples is the home page itself.
 

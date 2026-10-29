@@ -85,7 +85,7 @@ export const VERIFIED = {
   seventh_external_payer: 'On 2026-10-26 at 12:04:37 UTC a seventh payer that is not this project settled /402/pay/base: 0.01 USDC, tx 0xecf58a4b1883d8a98d7218668c2495593b033f44364617280bd4fd08151fc1c6 (block 53113465), from 0xcb4cf336349504e167c26d5c8b9238e12d70bbb8, relayed by 0x42dd53906b49c202e8e934b059dc019e04634b00. Zone analytics show the one matching 200 that day, in the 12:00 UTC hour from the US over HTTP/1.1, with user agent AnnalistChecks/0.1 (+https://annalist.dev; independent x402 service checks); annalist.dev did not answer this host\'s requests that day, so what it publishes about the purchase is not known. It settled through Coinbase\'s CDP facilitator: the CDP Bazaar\'s merchant record for this address moved its lastUpdated to 2026-10-26T12:04:35Z, two seconds before the block. Found by the chain walk four hours later and booked as revenue on /books with its tx hash',
   first_external_testnet_payment: 'On 2026-09-16 at 08:51:40 UTC a payer that is not this project settled /402/pay (Base Sepolia, test USDC, no dollar value) for the first time: 0.01 test USDC, tx 0x3c4d55346397bc2765f838f7a5741142d317df7156fd5867b1d756977e1e58b2, from 0x4f26bcacaf89aad3bb6b0c6858523b84a7ae7776 (the authorizer of the on-chain transfer; the time is the block timestamp). Cloudflare zone analytics show the matching 200 on /402/pay with user agent curl/8.21.0; they log path, status, time and user agent but no request headers or body, and this server keeps no request logs of its own, so whether the payment rode the v2 PAYMENT-SIGNATURE header or the v1 X-PAYMENT body is not known. Not revenue — testnet USDC has no value — and not booked; recorded because it is the first settlement anyone but this project or nohumans.directory has ever completed against this host',
   second_external_testnet_payer: 'On 2026-10-05 a second payer that is not this project settled /402/pay/base-sepolia fourteen times between 13:54:08 and 18:23:50 UTC (block timestamps), 0.01 test USDC each, from 0xb24854b51f81649a624e59e17ac2b950e911a5bc (the first three: tx 0x9459d40f…, 0xae8ae5a5…, 0x1e6c13c8…; the rest 17:07–18:23 UTC, all on Base Sepolia). Zone analytics show fourteen matching 200s on /402/pay/base-sepolia from Iraq with the user agent "node". Not revenue, not booked; recorded as the second stranger to complete a testnet settlement here',
-  exercised: 'SETTLEMENT, end to end on BOTH networks, both client generations against production (2026-08-28). Base Sepolia (test USDC): v2 official @x402/fetch 2.23.0 — tx 0xf35d92c571e4af086b8cf01d87e242e94d6406fff46c5a3c15cbcf787ec31a0c; v1 legacy x402-fetch 1.2.0 via the body and X-PAYMENT — tx 0x0b6b47a003f84096bf59971d665509be2ba54ee467d70dec7c6e5450dffacd62 (both settled by x402.org). Base mainnet (real USDC, a self-test: the payer is project-controlled and the 0.02 USDC moved between our own addresses — booked on /books as working capital, not revenue): v2 tx 0x8a331a0a28a26d290984c34bd12ae03bdc31603856b4e46bace3d2045cddc089; v1 tx 0x629b1a478e88c8be043ee0e8ebac67169a386192fde388b9a616fc850b5010b8 (both settled by xpay). Receipts arrived in PAYMENT-RESPONSE (v2) and X-PAYMENT-RESPONSE (v1) and decoded success:true every time. 2026-10-05: PayAI moved to the front of the mainnet facilitator lists and settled a v2 self-test the same minute — tx 0x9eed7b72bdd445317b1a59e5c7cc12f9a44b857132dcc743121b366261e6ca75 (0.01 USDC between project addresses, booked as a labeled transfer, not revenue). 2026-10-05 16:36:01 UTC: the operator stored the CDP facilitator key, Coinbase\'s CDP facilitator took the front of the mainnet v2 chain, and settled a v2 self-test — tx 0x30e24c0a8d200180906adf54ba011fd26aa2c4fb070ad78c870debd2d286a748 (block 52214407; 0.01 USDC between project addresses, booked as a labeled transfer, not revenue). 2026-10-09 05:46:01 UTC (block 52367707): a fifth mainnet self-test, the second through CDP — tx 0xba553c25d371527eef124de3151a002b20b276030c1e0368553133098961c6b0 (0.01 USDC between project addresses, booked as a labeled transfer, not revenue) — to keep the CDP Bazaar listing within its 30-day window and to settle a question: the external payment of 2026-10-06 had not moved the listing, and the relayer that broadcast it matches no signer published by PayAI, xpay, Mogami, Heurist or x402.org (CDP publishes none and uses several), so which facilitator settled it is unknown and an external payment cannot be assumed to keep the listing alive',
+  exercised: 'SETTLEMENT, end to end on BOTH networks, both client generations against production (2026-08-28). Base Sepolia (test USDC): v2 official @x402/fetch 2.23.0 — tx 0xf35d92c571e4af086b8cf01d87e242e94d6406fff46c5a3c15cbcf787ec31a0c; v1 legacy x402-fetch 1.2.0 via the body and X-PAYMENT — tx 0x0b6b47a003f84096bf59971d665509be2ba54ee467d70dec7c6e5450dffacd62 (both settled by x402.org). Base mainnet (real USDC, a self-test: the payer is project-controlled and the 0.02 USDC moved between our own addresses — booked on /books as working capital, not revenue): v2 tx 0x8a331a0a28a26d290984c34bd12ae03bdc31603856b4e46bace3d2045cddc089; v1 tx 0x629b1a478e88c8be043ee0e8ebac67169a386192fde388b9a616fc850b5010b8 (both settled by xpay). Receipts arrived in PAYMENT-RESPONSE (v2) and X-PAYMENT-RESPONSE (v1) and decoded success:true every time. 2026-10-05: PayAI moved to the front of the mainnet facilitator lists and settled a v2 self-test the same minute — tx 0x9eed7b72bdd445317b1a59e5c7cc12f9a44b857132dcc743121b366261e6ca75 (0.01 USDC between project addresses, booked as a labeled transfer, not revenue). 2026-10-05 16:36:01 UTC: the operator stored the CDP facilitator key, Coinbase\'s CDP facilitator took the front of the mainnet v2 chain, and settled a v2 self-test — tx 0x30e24c0a8d200180906adf54ba011fd26aa2c4fb070ad78c870debd2d286a748 (block 52214407; 0.01 USDC between project addresses, booked as a labeled transfer, not revenue). 2026-10-09 05:46:01 UTC (block 52367707): a fifth mainnet self-test, the second through CDP — tx 0xba553c25d371527eef124de3151a002b20b276030c1e0368553133098961c6b0 (0.01 USDC between project addresses, booked as a labeled transfer, not revenue) — to keep the CDP Bazaar listing within its 30-day window and to settle a question: the external payment of 2026-10-06 had not moved the listing, and the relayer that broadcast it matches no signer published by PayAI, xpay, Mogami, Heurist or x402.org (CDP publishes none and uses several), so which facilitator settled it is unknown and an external payment cannot be assumed to keep the listing alive. 2026-10-29 21:58:21 UTC (block 53260877): the first paid request to POST /v1/chat/completions, the one resource on this host that sells something real, settled through CDP from the project payer — tx 0xc470ccf5b606317fe64fe5c4db56de92989a2eeed5931ad9da4d2dfdae29857c (0.002 USDC between project addresses, booked as a labeled transfer, not revenue); a first attempt minutes earlier was refused unsettled because the reasoning model returned no text within 120 tokens, as that endpoint promises; a second self-test at 22:22:13 UTC (block 53261593, tx 0xe3f3a1931d28eb4b8bc3024273b8d0a395ce6e5d13c073754e0fc1d1230b8de5, also 0.002 USDC between project addresses, labeled transfer) after the 402 gained its bazaar schema block',
   catalogues: 'Listed in PayAI\'s public Bazaar (GET https://facilitator.payai.network/discovery/resources?payTo=<receive address>) since 2026-10-05T02:48:53Z, written by that facilitator when it settled the self-test above — its documented and only route in ("there is no registration form, account, or manual submission"). Listed in Coinbase\'s CDP Bazaar since 2026-10-05T16:36Z (GET https://api.cdp.coinbase.com/platform/v2/x402/discovery/merchant?payTo=<receive address>, public, no key), written by that facilitator when it settled the self-test above — the only route in; it stays listed while a settlement through that facilitator happens within its 30-day window — and an external payment through that facilitator counts: on 2026-10-24 and 2026-10-26 the record moved to the second of two external payments (Lumi Trades, Annalist), the first external payments observed to do so (vet402\'s of 2026-10-06 had not; its facilitator is unknown), and the record\'s 30-day counters (6 calls, 5 payers on 2026-10-26, against 2 calls, 1 payer after the 2026-10-09 self-test) imply that Lumière PayCheck\'s and SettledScout\'s payments went through CDP as well — consistent, not proven — so the window runs from 2026-10-26 and the keep-alive self-test is due only if nothing settles through CDP before it closes. Also listed, by registration, on x402scan, nohumans.directory (paid-verified), x402-list.com and 402index.io. Why it matters: the anonymous buyer of 2026-09-24 paid 92 sellers in two days, 81 of them on x402scan, 66 in the CDP Bazaar, 23 in PayAI\'s',
   not_yet_exercised: 'a v1 (X-PAYMENT) payment known to be from anyone other than this project; a direct USDC transfer (a donation) rather than an x402 settlement; a payment for any amount other than the default 0.01 (every external settlement so far has been the default); a second purchase by the same observatory (vet402 says it re-buys a listing at most once every 6 days)',
 };
@@ -390,7 +390,7 @@ export const BROKEN = {
 
 // ---------- handler ----------
 
-export async function handle402({ seg, url, request, env, payTo, json, text }) {
+export async function handle402({ seg, url, request, env, payTo, json, text, forSale }) {
   const scenario = seg[1] || '';
   if (!scenario) {
     return json({
@@ -405,6 +405,7 @@ export async function handle402({ seg, url, request, env, payTo, json, text }) {
       only_this_one_settles: '/402/pay',
       pay_urls: Object.fromEntries(Object.keys(USDC).map((n) => [n, `/402/pay/${n}`])),
       verified: VERIFIED,
+      ...(forSale ? { for_sale: forSale } : {}),
       witness: x402Witness(),
     });
   }
@@ -532,7 +533,11 @@ export async function handle402({ seg, url, request, env, payTo, json, text }) {
   }
 }
 
-async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env, json, respond402, humanBody }) {
+// `deliver` and `respondSuccess` (session 37): a paid resource whose content is produced between /verify and
+// /settle — src/ai.js — passes `deliver`, run exactly once after the first facilitator that found the payment
+// valid and before anything is broadcast (it returns {body} or {failed: Response}), and `respondSuccess`, which
+// builds the 200/202 from that body. `label` names the resource in the bodies settle() writes itself.
+async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env, json, respond402, humanBody, deliver, respondSuccess, label = '/402/pay' }) {
   // v2 clients echo the requirement they accepted; v1 payloads carry only scheme+network, so the match is against
   // what this 402 offered on that network. Either way the facilitator is then given OUR requirement, never the client's.
   const offer = version === 1
@@ -563,6 +568,7 @@ async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env,
   let facilitator;
   let verify;
   let settled;
+  let delivered;
   const verifyErrors = [];
   for (const f of facilitators) {
     let v;
@@ -583,6 +589,10 @@ async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env,
     verify = v;
     facilitator = f;
     if (!verify.isValid) break; // the payer's problem (balance, signature, nonce): answered below, never failed over
+    if (deliver && delivered === undefined) {
+      delivered = await deliver({ payer: verify.payer, facilitator: f });
+      if (delivered && delivered.failed) return delivered.failed; // nothing broadcast; the body says charged: false
+    }
     try {
       settled = await callFacilitator(f, '/settle', body, X402_LIMITS.settleTimeoutMs, env);
       break;
@@ -596,11 +606,11 @@ async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env,
         facilitator = undefined;
         continue;
       }
-      return json({ error: 'settlement outcome unknown', scenario: '/402/pay', facilitator, message: String(e.message).slice(0, 200), charged: 'unknown', hint: `check ${addressUrl}; do not re-sign until you have` }, 502);
+      return json({ error: 'settlement outcome unknown', scenario: label, facilitator, message: String(e.message).slice(0, 200), charged: 'unknown', hint: `check ${addressUrl}; do not re-sign until you have`, ...(delivered ? { delivered: delivered.body } : {}) }, 502);
     }
   }
   if (!facilitator) {
-    return json({ error: 'no facilitator reachable', scenario: '/402/pay', bug: true, charged: false, details: verifyErrors }, 502);
+    return json({ error: 'no facilitator reachable', scenario: label, bug: true, charged: false, details: verifyErrors }, 502);
   }
   // A nonce that is already used means an earlier attempt with this same authorization was settled.
   const alreadyUsed = (reason) => /nonce|already_used|used_or_canceled|usedorcanceled/i.test(reason);
@@ -619,21 +629,25 @@ async function settle({ payload, version = 2, v1req, offers, pr, amountUsd, env,
   if (!settled.success) {
     const error = String(settled.errorReason || 'settlement_failed').slice(0, 100);
     if (error === 'settlement_pending' && tx) {
+      if (respondSuccess) return await respondSuccess({ delivered, tx, net, network, req, amountUsd, facilitator, settled, verify, receiptHeader, receiptName, failedOverFrom: failedOverFrom(verifyErrors), pending: true });
       // Broadcast, not yet confirmed when the facilitator gave up waiting (spec: non-terminal, carries the hash).
       // Not a 402: re-paying would pay twice. 202 with the receipt header as the facilitator sent it.
-      return json({ paid: 'pending', scenario: '/402/pay', network: net.caip2, transaction: tx, explorer: `${net.explorer}${tx}`, facilitator, failed_over_from: failedOverFrom(verifyErrors), charged: 'almost certainly; the transfer was broadcast and is awaiting confirmation', hint: 'do not pay again; watch the transaction' }, 202, { [receiptHeader]: b64.encode(settled), 'cache-control': 'private, no-store' });
+      return json({ paid: 'pending', scenario: label, network: net.caip2, transaction: tx, explorer: `${net.explorer}${tx}`, facilitator, failed_over_from: failedOverFrom(verifyErrors), charged: 'almost certainly; the transfer was broadcast and is awaiting confirmation', hint: 'do not pay again; watch the transaction' }, 202, { [receiptHeader]: b64.encode(settled), 'cache-control': 'private, no-store' });
     }
     return respond402({ ...pr, error }, humanBody({ ...pr, error }, {
       settled_by: facilitator,
       error_message: typeof settled.errorMessage === 'string' ? settled.errorMessage.slice(0, 400) : undefined,
       transaction: tx,
       charged: alreadyUsed(error) ? `probably yes, by an earlier attempt; check ${addressUrl}` : tx ? `unknown; a transaction was reported: ${net.explorer}${tx}` : false,
+      // A paid resource that already produced its content hands it over whenever the caller may have been charged.
+      ...(delivered && (tx || alreadyUsed(error)) ? { delivered: delivered.body } : {}),
     }));
   }
+  if (respondSuccess) return await respondSuccess({ delivered, tx, net, network, req, amountUsd, facilitator, settled, verify, receiptHeader, receiptName, failedOverFrom: failedOverFrom(verifyErrors), pending: false });
   return json(
     {
       paid: tx ? true : 'unverified (facilitator reported success without a transaction hash)',
-      scenario: '/402/pay',
+      scenario: label,
       network: net.caip2,
       network_name: network,
       real_money: net.real,
@@ -687,3 +701,6 @@ function handleBroken({ seg, url, json, text, payTo, network, amountUsd, resourc
     default: return json({ error: 'unreachable' }, 500);
   }
 }
+
+// Shared with src/ai.js, the one paid resource outside this family (session 37).
+export { b64, USDC, requirements, toV1, paymentRequired, decodePaymentHeader, settle, usdToAtomic, SERVICE_META };

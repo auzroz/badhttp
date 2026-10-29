@@ -458,7 +458,7 @@ chk bookspageitemized "$(curl -s "$B/books" | grep -c 'Every movement the books 
 # other /402 route — the misbehaving ones never settle and must not be advertised as payable), CORS and JSON.
 _wk=$(curl -s -D - "$B/.well-known/x402")
 chk wellknownx402kind "$(printf '%s\n' "$_wk" | sed '1,/^\r\{0,1\}$/d' | jq -r '.kind + ":" + (.x402Version|tostring)')" "resource-server:2"
-chk wellknownx402urls "$(printf '%s\n' "$_wk" | sed '1,/^\r\{0,1\}$/d' | jq -r '[.resources[].url | sub("^https?://[^/]+"; "")] | sort | join(",")')" "/402/pay,/402/pay/base,/402/pay/base-sepolia"
+chk wellknownx402urls "$(printf '%s\n' "$_wk" | sed '1,/^\r\{0,1\}$/d' | jq -r '[.resources[].url | sub("^https?://[^/]+"; "")] | sort | join(",")')" "/402/pay,/402/pay/base,/402/pay/base-sepolia,/v1/chat/completions" # the POST resource joined in session 37
 chk wellknownx402headers "$(printf '%s\n' "$_wk" | tr -d '\r' | grep -i -c '^content-type: application/json\|^access-control-allow-origin: \*')" 2
 # ---- the measured hosting basis and the solvency line (v0.16.0, session 21) -------------------
 # hosting_usage is DERIVED from hosting_measured, so this recomputes the derivation from the raw
@@ -546,10 +546,10 @@ chk bookspagesolvency "$(printf '%s\n' "$bpage" | grep -c 'Can it pay its own ne
 # The page must state BOTH cost answers. A future edit that keeps only the $0 one would be the
 # flattering half of a true story, and this is the check that catches it.
 chk bookspagebothcosts "$(printf '%s\n' "$bpage" | grep -c 'Standing on its own')$(printf '%s\n' "$bpage" | grep -c 'the books charge themselves the larger figure' -i)" "11"
-chk openapi "$(curl -s "$B/openapi.json" | jq -r '.paths|keys|length')" 40
-chk openapiprofile "$(curl -s "$B/openapi.json" | jq -r '[(.paths["/402/pay"].get["x-payment-info"].price.mode), (.paths["/402/pay"].get["x-payment-info"].protocols[0]|keys[0]), ([.paths[] | .[] | .security] | all(. == [])), ([.paths[] | .[] | has("x-payment-info")] | map(select(.)) | length), (.info.contact.url|test("/books$")), (.info.contact.email // "none"), (.["x-agentcash-guidance"].llmsTxtUrl|test("/llms.txt$")), (.info["x-guidance"]|length > 50), (.paths["/402/{scenario}"].get.parameters[0].schema.enum|index("pay") // "nopay")] | join(",")')" "dynamic,x402,true,3,true,ops@badhttp.dev,true,true,nopay"
+chk openapi "$(curl -s "$B/openapi.json" | jq -r '.paths|keys|length')" 43 # 40 + /v1/chat/completions, /v1/models, /v1 (session 37)
+chk openapiprofile "$(curl -s "$B/openapi.json" | jq -r '[(.paths["/402/pay"].get["x-payment-info"].price.mode), (.paths["/402/pay"].get["x-payment-info"].protocols[0]|keys[0]), ([.paths[] | .[] | .security] | all(. == [])), ([.paths[] | .[] | has("x-payment-info")] | map(select(.)) | length), (.info.contact.url|test("/books$")), (.info.contact.email // "none"), (.["x-agentcash-guidance"].llmsTxtUrl|test("/llms.txt$")), (.info["x-guidance"]|length > 50), (.paths["/402/{scenario}"].get.parameters[0].schema.enum|index("pay") // "nopay")] | join(",")')" "dynamic,x402,true,4,true,ops@badhttp.dev,true,true,nopay" # 4 paid operations: the three /402/pay URLs and POST /v1/chat/completions
 chk llms "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$B/llms.txt"; curl -s "$B/llms.txt" | head -1)" "200 text/markdown; charset=utf-8# badhttp"
-chk sitemap "$(curl -s "$B/sitemap.xml" | grep -c '<loc>')$(curl -s -o /dev/null -w ' %{content_type}' "$B/sitemap.xml")" "21 application/xml; charset=utf-8"
+chk sitemap "$(curl -s "$B/sitemap.xml" | grep -c '<loc>')$(curl -s -o /dev/null -w ' %{content_type}' "$B/sitemap.xml")" "22 application/xml; charset=utf-8" # +/v1 (session 37)
 chk robotsmap "$(curl -s "$B/robots.txt" | grep -c "^Sitemap: $B/sitemap.xml")" 1
 chk favicon "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$B/favicon.svg")$(curl -s -o /dev/null -w ' %{http_code} %{redirect_url}' "$B/favicon.ico")$(curl -sI "$B/" | tr -d '\r' | grep -ic "^content-security-policy: .*img-src 'self' data:")" "200 image/svg+xml 301 $B/favicon.svg1"
 # ---- funding discovery (v0.16.0): the manifest and its provenance file ------------------------
@@ -995,5 +995,29 @@ chk chwitnessbroken "$(curl -s "$B/" | grep -c 'GET /402</a>), a dated capture o
 # The oracle reports the port, because one flavor's entire subject is a port change and hostname omits it.
 chk chport "$(curl -s "$B/crosshost/land" | jq -r .port)$(curl -s "https://badhttp.dev:8443/crosshost/land" | jq -r .port)" "4438443"
 chk openapicrosshost "$(curl -s "$B/openapi.json" | jq -r '[(.paths|has("/crosshost")), (.paths|has("/crosshost/land")), (.paths["/crosshost/{flavor}"].get.parameters[0].schema.enum|length==9)] | join(",")')" "true,true,true"
+
+# ---- /v1/chat/completions (session 37): the one paid product. Smoke never pays: it checks the free surfaces,
+# the validation 400s (free, before any 402) and the shape of the two 402s. ------------------------------------
+_aiurl="$B/v1/chat/completions"
+_aibody='{"model":"gpt-oss-20b","messages":[{"role":"user","content":"hi"}]}'
+_aipost(){ curl -si -X POST -H 'content-type: application/json' -d "$2" "$1" | tr -d '\r'; }
+_aihdr(){ printf '%s\n' "$1" | awk 'tolower($1)=="payment-required:"{print $2}' | base64 -d; }
+_aibod(){ printf '%s\n' "$1" | sed '1,/^$/d'; }
+chk aimodels "$(curl -s -o "$T/v1models.json" -w '%{http_code}' "$B/v1/models") $(jq -r '[.object, (.data|map(.id)|sort|join("+"))] | join(",")' "$T/v1models.json")" "200 list,gpt-oss-20b+llama-3.1-8b-instruct-fp8-fast"
+chk aiv1 "$(curl -s -o "$T/v1.json" -w '%{http_code}' "$B/v1") $(jq -r 'tostring|contains("0.002")' "$T/v1.json")" "200 true"
+_air=$(_aipost "$_aiurl" "$_aibody")
+chk ai402 "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(_aihdr "$_air" | jq -r --arg u "$_aiurl" '[.accepts[0].network, .accepts[0].amount, (.resource.url == $u)] | join(",")') $(_aibod "$_air" | jq -r '[.x402Version, .accepts[0].maxAmountRequired, .accepts[0].network] | join(",")')" "402 eip155:8453,2000,true 1,2000,base"
+_air=$(_aipost "$_aiurl?network=base-sepolia" "$_aibody")
+chk aisandbox402 "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(_aihdr "$_air" | jq -r --arg u "$_aiurl?network=base-sepolia" '[.accepts[0].network, .accepts[0].amount, (.resource.url == $u)] | join(",")') $(_aibod "$_air" | jq -r '[.x402Version, .accepts[0].maxAmountRequired, .accepts[0].network] | join(",")')" "402 eip155:84532,2000,true 1,2000,base-sepolia"
+_air=$(_aipost "$_aiurl" '{"model":"nope","messages":[]}')
+chk aibadbody "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(printf '%s\n' "$_air" | grep -ic '^payment-required:')" "400 0"
+_air=$(_aipost "$_aiurl" '{"model":"gpt-oss-20b","stream":true,"messages":[{"role":"user","content":"hi"}]}')
+chk aistream400 "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(printf '%s\n' "$_air" | grep -ic '^payment-required:')" "400 0"
+_air=$(curl -si "$_aiurl" | tr -d '\r')
+chk aiget405 "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(printf '%s\n' "$_air" | grep -ic '^allow:')" "405 1"
+chk aiopenapi "$(curl -s "$B/openapi.json" | jq -r '[(.paths|has("/v1/chat/completions")), (.paths|has("/v1/models")), (.paths|has("/v1")), .paths["/v1/chat/completions"].post["x-payment-info"].price.amount, (.paths["/v1/chat/completions"].post.security == [])] | join(",")')" "true,true,true,0.002,true"
+chk aiwellknown "$(curl -s "$B/.well-known/x402" | jq -r '[.resources[] | select(.method == "POST") | .url | endswith("/v1/chat/completions")] | any')" true
+chk aisitemap "$(curl -s "$B/sitemap.xml" | grep -c '/v1<')" 1
+chk airobots "$(curl -s "$B/robots.txt" | grep -q 'Allow: /v1' && echo 1 || echo 0)" 1
 
 echo "PASS=$pass FAIL=$fail"; rm -rf "$T"; [ $fail -eq 0 ]

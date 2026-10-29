@@ -19,5 +19,8 @@
     { "pattern": "badhttp.dev", "custom_domain": true },
     { "pattern": "alt.badhttp.dev", "custom_domain": true }
   ],
-  "observability": { "enabled": true, "head_sampling_rate": 0.05, "logs": { "invocation_logs": false } }
+  "observability": { "enabled": true, "head_sampling_rate": 0.05, "logs": { "invocation_logs": false } },
+  // Workers AI, for the one paid resource that sells something real: POST /v1/chat/completions (docs/spec-v1-chat.md).
+  // Billed per token to the account; the endpoint charges 0.002 USDC per request through x402 before the answer leaves.
+  "ai": { "binding": "AI" }
 }

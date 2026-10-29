@@ -1,3 +1,4 @@
+import { once } from './memo.js';
 // /etag — conditional requests that misbehave on purpose (RFC 9110 §13, RFC 9111).
 // A small fixed document whose validators (ETag and Last-Modified) lie in a chosen way.
 // Cache-Control is no-cache, not no-store: a spec-following cache stores the body and revalidates on
@@ -261,7 +262,7 @@ const eRefSays = (flavor) => {
   return `${base}${upd}${r.note ? ` (${r.note})` : ''}`;
 };
 
-export function etagFindings() {
+function etagFindingsUncached() {
   const rows = eRows();
   if (!rows.length) return [];
   const N = eClients().length;
@@ -406,7 +407,7 @@ export function etagFindings() {
   return out;
 }
 
-export function etagWitness() {
+function etagWitnessUncached() {
   return {
     measured: WITNESS_ETAG.probed,
     observations: eRows().length,
@@ -446,3 +447,5 @@ export function etagWitness() {
       'a response without x-badhttp-version as no observation. The harnesses that produced the rows are in scripts/etag-witness/ in the source.',
   };
 }
+export const etagFindings = once(etagFindingsUncached); // constant data; computed once per isolate (src/memo.js)
+export const etagWitness = once(etagWitnessUncached); // constant data; computed once per isolate (src/memo.js)

@@ -1,3 +1,4 @@
+import { once } from './memo.js';
 // /sse — Server-Sent Events streams that misbehave on purpose (WHATWG HTML §9.2).
 // Every LLM / MCP / streaming-API client hand-rolls an SSE parser; these are the cases they get wrong.
 // Stateless, no outbound requests. Helpers (json, bad, intParam, …) come in from index.js so there is one style.
@@ -330,7 +331,7 @@ export function sseFindings() {
   ];
 }
 
-export function sseWitness() {
+function sseWitnessUncached() {
   return {
     measured: WITNESS_SSE.probed,
     observations: OBSERVATIONS_SSE.filter((o) => o.client.role === 'client').length,
@@ -366,3 +367,4 @@ export function sseWitness() {
       'The harnesses that produced the rows are in scripts/sse-witness/ in the source.',
   };
 }
+export const sseWitness = once(sseWitnessUncached); // constant data; computed once per isolate (src/memo.js)

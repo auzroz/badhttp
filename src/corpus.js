@@ -1,3 +1,4 @@
+import { perKey } from './memo.js';
 import { CROSSHOST, crosshostStartUrl } from './crosshost.js';
 // /corpus — the catalogue as data, and the licence for what this server emits.
 //
@@ -498,12 +499,20 @@ export function corpusIndex({ origin, version, tables }) {
   };
 }
 
+// Built once per origin per isolate: the rows are a function of constant tables and the origin.
+const corpusJsonl = perKey((origin, version, tables) => {
+  const rows = corpusRows({ origin, version, tables });
+  // Encoded once: handing the Response a string re-encodes it on every request (~10 ms of CPU for 3.4 MB).
+  return { body: new TextEncoder().encode(rows.map((r) => JSON.stringify(r)).join('\n') + '\n'), rows: rows.length };
+});
+const corpusIndexJson = perKey((origin, version, tables) => JSON.stringify(corpusIndex({ origin, version, tables }), null, 2) + '\n');
+export function warmCorpus(origin, version, tables) { corpusJsonl(origin, version, tables); corpusIndexJson(origin, version, tables); }
+
 export function handleCorpus({ seg, url, json, withBase, version, tables }) {
   const origin = url.origin;
   if (seg[0] === 'corpus.jsonl') {
-    const rows = corpusRows({ origin, version, tables });
-    const body = rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
-    return new Response(body, {
+    const built = corpusJsonl(origin, version, tables);
+    return new Response(built.body, {
       status: 200,
       headers: withBase({
         'content-type': 'application/x-ndjson; charset=utf-8',
@@ -511,15 +520,20 @@ export function handleCorpus({ seg, url, json, withBase, version, tables }) {
         // clients we have just told to send Accept-Encoding: gzip.
         'cache-control': 'public, max-age=300, no-transform',
         'x-badhttp-license': LICENSE.responses.id,
-        'x-badhttp-rows': String(rows.length),
+        'x-badhttp-rows': String(built.rows),
         link: `<${origin}/license>; rel="license"`,
       }),
     });
   }
-  return json(corpusIndex({ origin, version, tables }), 200, {
-    'cache-control': 'public, max-age=300, no-transform',
-    'x-badhttp-license': LICENSE.responses.id,
-    link: `<${origin}/license>; rel="license"`,
+  return new Response(corpusIndexJson(origin, version, tables), {
+    status: 200,
+    statusText: 'OK',
+    headers: withBase({
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'public, max-age=300, no-transform',
+      'x-badhttp-license': LICENSE.responses.id,
+      link: `<${origin}/license>; rel="license"`,
+    }),
   });
 }
 

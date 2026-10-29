@@ -16,12 +16,14 @@ import { handleCrosshost, crosshostIndex, CROSSHOST, CROSSHOST_HOSTS, crosshostS
 import { handleAuth, AUTH, authWitness } from './auth.js';
 import { handleCompress, COMPRESS } from './compress.js';
 import { templateExplainer, matchesTemplate } from './template.js';
-import { handleCorpus, handleLicense, LICENSE } from './corpus.js';
-import { handleClients } from './clients.js';
+import { handleCorpus, handleLicense, LICENSE, warmCorpus } from './corpus.js';
+import { handleClients, warmClients } from './clients.js';
+import { perKey } from './memo.js';
+import { handleV1, V1 } from './ai.js';
 
-const VERSION = '0.29.0';
+const VERSION = '0.31.0';
 // The last change to the /.well-known/x402 manifest (its `updated` field, per the draft). Move it when the manifest changes.
-const WELL_KNOWN_X402_UPDATED = '2026-10-09T00:00:00Z';
+const WELL_KNOWN_X402_UPDATED = '2026-10-29T00:00:00Z';
 
 const STATUS_TEXT = {
   200: 'OK', 201: 'Created', 202: 'Accepted', 203: 'Non-Authoritative Information', 204: 'No Content',
@@ -595,7 +597,7 @@ async function handleBooks(url, ctx) {
 
 // ---------- router ----------
 
-export default {
+const worker = {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const seg = url.pathname.split('/').filter(Boolean).map((p) => { try { return decodeURIComponent(p); } catch { return p; } });
@@ -638,7 +640,7 @@ export default {
     if (request.method === 'OPTIONS') {
       // A literal template URL answers every non-OPTIONS method with its explainer, so Allow says so.
       // /auth is method-agnostic too (auth is method-orthogonal; the body is never read).
-      const allow = matchesTemplate(seg) || head === 'auth' ? 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS' : head === 'echo' ? 'POST, PUT, PATCH, DELETE, OPTIONS' : head === '402' ? 'GET, HEAD, POST, OPTIONS' : 'GET, HEAD, OPTIONS';
+      const allow = matchesTemplate(seg) || head === 'auth' ? 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS' : head === 'echo' ? 'POST, PUT, PATCH, DELETE, OPTIONS' : head === '402' ? 'GET, HEAD, POST, OPTIONS' : head === 'v1' ? (seg[1] === 'chat' ? 'POST, OPTIONS' : 'GET, HEAD, OPTIONS') : 'GET, HEAD, OPTIONS';
       return new Response(null, { status: 204, headers: withBase({ allow, 'access-control-max-age': '86400' }) });
     }
 
@@ -683,17 +685,19 @@ export default {
         case 'echo':
           return await handleEcho(request, url);
         case '402':
-          return await handle402({ seg, url, request, env, payTo: BOOKS.receive_address, json, text });
+          return await handle402({ seg, url, request, env, payTo: BOOKS.receive_address, json, text, forSale: FOR_SALE(url.origin) });
+        case 'v1':
+          return await handleV1({ seg, url, request, env, payTo: BOOKS.receive_address, json });
         case 'books':
         case 'books.json':
           return await handleBooks(url, ctx);
         case 'openapi.json':
-          return json(openapi({ origin: url.origin, version: VERSION, limits: LIMITS, badjsonFlavors: Object.keys(BADJSON), sseFlavors: Object.keys(SSE), rangeFlavors: Object.keys(RANGE), etagFlavors: Object.keys(ETAG), cookieFlavors: Object.keys(COOKIES), authFlavors: Object.keys(AUTH), compressFlavors: Object.keys(COMPRESS), crosshostFlavors: Object.keys(CROSSHOST), x402Scenarios: Object.keys(X402_SCENARIOS), x402Broken: Object.keys(X402_BROKEN), x402Limits: X402_LIMITS }));
+          return new Response(openapiJson(url.origin), { status: 200, statusText: STATUS_TEXT[200], headers: withBase({ 'content-type': 'application/json; charset=utf-8' }) });
         case 'corpus':
         case 'corpus.jsonl':
           return handleCorpus({
             seg, url, json, withBase, version: VERSION,
-            tables: { statusCodes: Object.keys(STATUS_TEXT).map(Number), badjson: BADJSON, sse: SSE, range: RANGE, etag: ETAG, cookies: COOKIES, auth: AUTH, compress: COMPRESS, scenarios: X402_SCENARIOS, broken: X402_BROKEN },
+            tables: CORPUS_TABLES,
           });
         case 'clients':
         case 'clients.jsonl':
@@ -703,9 +707,9 @@ export default {
         case 'health':
           return json({ ok: true, version: VERSION, stateless: true, stored_state: 'none about callers; the only cross-request state is edge-cached copies of our own public on-chain balances (receive address and project payer wallet) and the receive address\'s transfer list, for /books (fresh ~300 s)' });
         case 'robots.txt':
-          return text(`User-agent: *\nAllow: /\nDisallow: /delay/\nDisallow: /drip\nDisallow: /truncate\nDisallow: /flaky/\nDisallow: /redirect/\nDisallow: /sse/\nDisallow: /range/\nDisallow: /etag/\nDisallow: /cookies/\nDisallow: /auth/\nDisallow: /compress/\nAllow: /crosshost\nDisallow: /crosshost/\nAllow: /402/pay\nAllow: /402/pay/base\nAllow: /402/pay/base-sepolia\nDisallow: /402/\nSitemap: ${url.origin}/sitemap.xml\n`, 200, { 'cache-control': 'public, max-age=86400' });
+          return text(`User-agent: *\nAllow: /\nDisallow: /delay/\nDisallow: /drip\nDisallow: /truncate\nDisallow: /flaky/\nDisallow: /redirect/\nDisallow: /sse/\nDisallow: /range/\nDisallow: /etag/\nDisallow: /cookies/\nDisallow: /auth/\nDisallow: /compress/\nAllow: /crosshost\nDisallow: /crosshost/\nAllow: /402/pay\nAllow: /402/pay/base\nAllow: /402/pay/base-sepolia\nDisallow: /402/\nAllow: /v1\nSitemap: ${url.origin}/sitemap.xml\n`, 200, { 'cache-control': 'public, max-age=86400' });
         case 'sitemap.xml': {
-          const pages = ['/', '/books', '/badjson', '/sse', '/range', '/etag', '/cookies', '/auth', '/compress', '/crosshost', '/402', '/corpus', '/clients', '/license', '/openapi.json', '/llms.txt', '/books.json', '/corpus.jsonl', '/clients.jsonl', '/funding.json', '/.well-known/x402'];
+          const pages = ['/', '/books', '/badjson', '/sse', '/range', '/etag', '/cookies', '/auth', '/compress', '/crosshost', '/402', '/corpus', '/clients', '/license', '/openapi.json', '/llms.txt', '/books.json', '/corpus.jsonl', '/clients.jsonl', '/funding.json', '/.well-known/x402', '/v1'];
           const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((pth) => `  <url><loc>${url.origin}${pth}</loc><lastmod>${BOOKS.updated}</lastmod></url>`).join('\n')}\n</urlset>\n`;
           return new Response(xml, { status: 200, headers: withBase({ 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=86400' }) });
         }
@@ -726,11 +730,12 @@ export default {
               x402Version: 2,
               kind: 'resource-server',
               name: 'badhttp',
-              description: 'HTTP edge cases for testing clients, SDKs and agents, including x402 paywalls that misbehave on purpose. Free; only the three resources below settle a payment.',
+              description: 'HTTP edge cases for testing clients, SDKs and agents, including x402 paywalls that misbehave on purpose. Free; only the four resources below settle a payment, and only the last sells anything.',
               resources: [
                 pay('/402/pay/base', `A real x402 paywall, real USDC on Base mainnet (eip155:8453): pay ${X402_LIMITS.defaultUsd} USDC (or ?amount=, ${X402_LIMITS.minUsd}-${X402_LIMITS.maxUsd}) and get a 200 with a receipt and the transaction hash. v2 in PAYMENT-REQUIRED and v1 in the body of the same 402.`),
                 pay('/402/pay', 'The same paywall for test USDC on Base Sepolia (eip155:84532), the default network; no dollar value.'),
                 pay('/402/pay/base-sepolia', 'Identical to /402/pay: test USDC on Base Sepolia.'),
+                { url: `${origin}/v1/chat/completions`, method: 'POST', description: `An OpenAI-compatible chat completion from Cloudflare Workers AI, ${V1.priceUsd} USDC per request on Base mainnet (${V1.network}), flat; the model runs after a facilitator verifies and the payment settles after the model answers. ?network=base-sepolia is a capped test-USDC sandbox. Contract: ${origin}/v1` },
               ],
               not_listed: 'Every other route under /402 is a paywall that misbehaves on purpose (never settles, rejects, times out, crashes, returns garbage receipts, asks for 1,000,000 USDC, names a chain that does not exist, or is malformed). They are documented at /402 and deliberately absent here, because an indexer that read them as payable would mislead its buyers.',
               attestation: { type: 'none' },
@@ -817,3 +822,38 @@ export default {
     }
   },
 };
+export default worker;
+
+// ---------------------------------------------------------------------------
+// Startup warm-up (session 37, 2026-10-29). Every witness summary, finding list and bulk body served
+// above is a pure function of constant data, but computing one in a fresh isolate cost tens of
+// milliseconds of CPU on v0.29.0 (`wrangler tail`: the home page 38–81 ms, /clients 43 ms,
+// /clients.jsonl 36 ms, /402 up to 21 ms; 8–14 ms for the home page even warm), and at this traffic
+// most invocations land in a fresh isolate. Workers charge module evaluation against a separate
+// startup budget (1 s), not against the per-request CPU limit, so the work is done here, once per
+// isolate, for the canonical origin; any other origin (the alt host, a local stand-in) computes
+// lazily on first use. A failure here must never take the Worker down: every request path still
+// computes on demand, so the try swallows and the next request pays what this block would have.
+const openapiJson = perKey((origin) => JSON.stringify(openapi({ origin, version: VERSION, limits: LIMITS, badjsonFlavors: Object.keys(BADJSON), sseFlavors: Object.keys(SSE), rangeFlavors: Object.keys(RANGE), etagFlavors: Object.keys(ETAG), cookieFlavors: Object.keys(COOKIES), authFlavors: Object.keys(AUTH), compressFlavors: Object.keys(COMPRESS), crosshostFlavors: Object.keys(CROSSHOST), x402Scenarios: Object.keys(X402_SCENARIOS), x402Broken: Object.keys(X402_BROKEN), x402Limits: X402_LIMITS }), null, 2) + '\n');
+const CORPUS_TABLES = { statusCodes: Object.keys(STATUS_TEXT).map(Number), badjson: BADJSON, sse: SSE, range: RANGE, etag: ETAG, cookies: COOKIES, auth: AUTH, compress: COMPRESS, scenarios: X402_SCENARIOS, broken: X402_BROKEN };
+const CANONICAL_ORIGIN = `https://${CANONICAL_HOST}`;
+// GET /402's pointer at the one resource that sells something (session 37): built from src/ai.js's constants.
+const FOR_SALE = (origin) => ({ url: `${origin}/v1/chat/completions`, method: 'POST', price: `${V1.priceUsd} USDC per request on Base mainnet, flat`, what: 'an OpenAI-compatible chat completion from Cloudflare Workers AI; the model runs after a facilitator verifies the payment, and the payment settles after the model answers', contract: `${origin}/v1`, note: 'The only paid resource on this host that is not a test fixture. Every /402 route except /402/pay is a paywall that misbehaves on purpose; /402/pay sells nothing but its own receipt.' });
+try {
+  warmClients(CANONICAL_ORIGIN);
+  warmCorpus(CANONICAL_ORIGIN, VERSION, CORPUS_TABLES);
+  openapiJson(CANONICAL_ORIGIN);
+  llmsTxt({ origin: CANONICAL_ORIGIN, version: VERSION, limits: LIMITS, x402Limits: X402_LIMITS });
+  // The home page depends on the clock (hosting accrues by date), so it is rendered per request; one
+  // render here compiles its code path and fills every witness summary it reads.
+  homePage({ origin: CANONICAL_ORIGIN, version: VERSION, books: BOOKS, totals: totals(BOOKS), limits: LIMITS, badjson: BADJSON, sse: SSE, range: RANGE, etag: ETAG, cookies: COOKIES, auth: AUTH, compress: COMPRESS, crosshost: CROSSHOST, x402: { scenarios: X402_SCENARIOS, broken: X402_BROKEN, limits: X402_LIMITS, verified: X402_VERIFIED }, authWitness: authWitness(), cookieWitness: cookieWitness(), sseWitness: sseWitness() });
+  // V8 compiles a function on its first call and this handler is large (~15 ms in Node for the first
+  // request of a process, whatever the path), so the most-requested GET routes are called once here,
+  // synchronously up to their first await, against a synthetic request. None of them does I/O.
+  const warmCtx = { waitUntil() {}, passThroughOnException() {} };
+  for (const path of ['/', '/402', '/402/pay/base', '/openapi.json', '/.well-known/x402', '/clients', '/clients.jsonl', '/etag', '/llms.txt', '/robots.txt', '/health', '/v1', '/v1/models']) {
+    Promise.resolve(worker.fetch(new Request(`${CANONICAL_ORIGIN}${path}`), {}, warmCtx)).catch(() => {});
+  }
+} catch (e) {
+  // deliberately empty: see above
+}

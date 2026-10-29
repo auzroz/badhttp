@@ -1,3 +1,4 @@
+import { once } from './memo.js';
 // /auth — HTTP authentication that misbehaves on purpose (RFC 9110 §11, RFC 7617 Basic,
 // RFC 7616 Digest, RFC 6750 Bearer). Stateless: the client's credential and retry state is the
 // state under test. The test credentials are public and fake; every JSON body repeats the warning.
@@ -324,7 +325,7 @@ export function authFindings() {
   ];
 }
 
-export function authWitness() {
+function authWitnessUncached() {
   return {
     measured: WITNESS_AUTH.probed,
     observations: OBSERVATIONS_AUTH.length,
@@ -621,3 +622,4 @@ export async function handleAuth({ seg, url, request, json, withBase }) {
       return json({ error: 'unknown flavor', flavors: Object.keys(AUTH) }, 404);
   }
 }
+export const authWitness = once(authWitnessUncached); // constant data; computed once per isolate (src/memo.js)

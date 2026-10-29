@@ -1,3 +1,4 @@
+import { perKey } from './memo.js';
 // /clients — what real HTTP clients did, as data. Eight families so far.
 //
 // Why this exists (session 19, 2026-09-07). Since v0.12.0 the home page has carried a paragraph
@@ -1378,12 +1379,21 @@ export function clientsIndex({ origin }) {
   };
 }
 
+// Both bodies are pure functions of the constant rows and the origin, so each is built once per
+// origin per isolate (3.4 MB of NDJSON; ~36 ms of CPU in a fresh isolate before v0.30.0, 0 after).
+const clientsJsonl = perKey((origin) => {
+  const rows = clientRows({ origin });
+  // Encoded once: handing the Response a string re-encodes it on every request (~10 ms of CPU for 3.4 MB).
+  return { body: new TextEncoder().encode(rows.map((r) => JSON.stringify(r)).join('\n') + '\n'), rows: rows.length };
+});
+const clientsIndexJson = perKey((origin) => JSON.stringify(clientsIndex({ origin }), null, 2) + '\n');
+export function warmClients(origin) { clientsJsonl(origin); clientsIndexJson(origin); }
+
 export function handleClients({ seg, url, json, withBase }) {
   const origin = url.origin;
   if (seg[0] === 'clients.jsonl') {
-    const rows = clientRows({ origin });
-    const body = rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
-    return new Response(body, {
+    const built = clientsJsonl(origin);
+    return new Response(built.body, {
       status: 200,
       headers: withBase({
         'content-type': 'application/x-ndjson; charset=utf-8',
@@ -1391,14 +1401,19 @@ export function handleClients({ seg, url, json, withBase }) {
         // Accept-Encoding: gzip, and the edge would otherwise transcode it under them.
         'cache-control': 'public, max-age=300, no-transform',
         'x-badhttp-license': LICENSE.responses.id,
-        'x-badhttp-rows': String(rows.length),
+        'x-badhttp-rows': String(built.rows),
         link: `<${origin}/license>; rel="license"`,
       }),
     });
   }
-  return json(clientsIndex({ origin }), 200, {
-    'cache-control': 'public, max-age=300, no-transform',
-    'x-badhttp-license': LICENSE.responses.id,
-    link: `<${origin}/license>; rel="license"`,
+  return new Response(clientsIndexJson(origin), {
+    status: 200,
+    statusText: 'OK',
+    headers: withBase({
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'public, max-age=300, no-transform',
+      'x-badhttp-license': LICENSE.responses.id,
+      link: `<${origin}/license>; rel="license"`,
+    }),
   });
 }

@@ -1,3 +1,4 @@
+import { once } from './memo.js';
 // /range — resumable downloads that misbehave on purpose (RFC 9110 §14).
 // The document is deterministic and SELF-DESCRIBING: 64-byte lines, each starting with its own offset,
 // so when a flavor serves the wrong bytes the corruption is visible in the file you assemble.
@@ -433,7 +434,7 @@ export function rangeFindings() {
   return out;
 }
 
-export function rangeWitness() {
+function rangeWitnessUncached() {
   return {
     measured: WITNESS_RANGE.probed,
     observations: rRows().length,
@@ -480,3 +481,4 @@ export function rangeWitness() {
       'produced the rows are in scripts/range-witness/ in the source.',
   };
 }
+export const rangeWitness = once(rangeWitnessUncached); // constant data; computed once per isolate (src/memo.js)

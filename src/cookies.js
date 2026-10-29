@@ -1,3 +1,4 @@
+import { once } from './memo.js';
 import { WITNESS_COOKIES, CLIENTS_COOKIES, OBSERVATIONS_COOKIES } from './witness-cookies-data.js';
 
 // /cookies — Set-Cookie edge cases (RFC 6265 and draft-ietf-httpbis-rfc6265bis-22, "bis" below).
@@ -462,7 +463,7 @@ export function cookieFindings(maxCount = 20) {
 }
 const FLAVOR_LIST_FOR_DELETE = ['ok', 'folded', 'many', 'duplicate', 'on-redirect', 'conflicting-expiry', 'bad-expires', 'far-future', 'wrong-domain', 'public-suffix', 'domain', 'path-prefix', 'name-prefixes', 'quoted', 'utf8', 'nameless', 'huge'];
 
-export function cookieWitness() {
+function cookieWitnessUncached() {
   return {
     measured: WITNESS_COOKIES.probed,
     observations: OBSERVATIONS_COOKIES.length,
@@ -497,3 +498,4 @@ export function cookieWitness() {
       'scripts/cookies-witness/ in the source.',
   };
 }
+export const cookieWitness = once(cookieWitnessUncached); // constant data; computed once per isolate (src/memo.js)

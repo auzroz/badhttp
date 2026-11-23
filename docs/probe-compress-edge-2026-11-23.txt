@@ -1,0 +1,890 @@
+# /compress edge probe matrix against https://badhttp.dev, 2026-11-23T22:36:54Z, from one client location (cf-ray colo shown per block).
+# Columns: flavor, client Accept-Encoding (ae; (absent) = no header, '' = empty value), curl exit, status, content-encoding as
+# received, content-length, wire bytes, first 4 bytes, declared plaintext bytes, local decode by the received coding, SHA-256 vs
+# x-badhttp-plain-sha256, Vary, and on ok the set the edge reported to the Worker (x-badhttp-negotiated-from).
+
+################ --http1.1
+ok                ae=(absent)                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=                                    rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=*                                   rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=identity                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[identity] colo=SMF
+ok                ae=gzip                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip] colo=SMF
+ok                ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip, deflate, br] colo=SMF
+ok                ae=br                                  rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[br] colo=SMF
+ok                ae=zstd                                rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=deflate                             rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[deflate] colo=SMF
+ok                ae=x-gzip                              rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip] colo=SMF
+ok                ae=GZIP                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip] colo=SMF
+ok                ae=gzip;q=0                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip] colo=SMF
+ok                ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=br;q=0                              rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[br] colo=SMF
+ok                ae=identity;q=0                        rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip] colo=SMF
+ok                ae=*;q=0                               rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip, br] colo=SMF
+br                ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip, deflate, br, zstd             rc=0  200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[] colo=SMF
+br                ae=br                                  rc=0  200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[] colo=SMF
+br                ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=x-gzip                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=GZIP                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip;q=0.001                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip;q=0, br                        rc=0  200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[] colo=SMF
+br                ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip, identity;q=0                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[] colo=SMF
+zstd              ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip, deflate, br, zstd             rc=0  200 ce=[zstd] cl=[200] wire=200 first=28b52ffd plain=4096 dec=zstd:0 SHA-OK vary=[] colo=SMF
+zstd              ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=zstd                                rc=0  200 ce=[zstd] cl=[200] wire=200 first=28b52ffd plain=4096 dec=zstd:0 SHA-OK vary=[] colo=SMF
+zstd              ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=x-gzip                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=GZIP                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip;q=0.001                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip, identity;q=0                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip, deflate, br, zstd             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=x-gzip                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=GZIP                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip;q=0.001                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip, identity;q=0                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=(absent)                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=                                    rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=*                                   rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=identity                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=gzip                                rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=br                                  rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=zstd                                rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=deflate                             rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=x-gzip                              rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=GZIP                                rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=gzip;q=0                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=br;q=0                              rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=identity;q=0                        rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=*;q=0                               rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+undeclared        ae=(absent)                            rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=                                    rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=*                                   rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=identity                            rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip                                rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip, deflate, br, zstd             rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=br                                  rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=zstd                                rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=deflate                             rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=x-gzip                              rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=GZIP                                rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip;q=0                            rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip;q=0.001                        rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=br;q=0                              rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=identity;q=0                        rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip, identity;q=0                  rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=*;q=0                               rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=(absent)                            rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=                                    rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=*                                   rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=identity                            rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip                                rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=br                                  rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=zstd                                rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=deflate                             rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=x-gzip                              rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=GZIP                                rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=(absent)                            rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=                                    rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=*                                   rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=identity                            rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=br                                  rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=zstd                                rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=deflate                             rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=x-gzip                              rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=GZIP                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+bad-crc           ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=x-gzip                              rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=GZIP                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip                                rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=x-gzip                              rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=GZIP                                rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+multi-member      ae=(absent)                            rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=                                    rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=*                                   rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=identity                            rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=gzip                                rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=br                                  rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=zstd                                rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=deflate                             rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=x-gzip                              rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=GZIP                                rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=(absent)                            rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=                                    rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=*                                   rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=identity                            rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=gzip                                rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=br                                  rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=zstd                                rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=deflate                             rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=x-gzip                              rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=GZIP                                rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=gzip;q=0                            rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=gzip;q=0.0                          rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=gzip;q=0.001                        rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=x-gzip;q=0                          rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=br;q=0                              rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=gzip;q=0, br                        rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=identity;q=0                        rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=gzip, identity;q=0                  rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=*;q=0                               rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double-hidden     ae=(absent)                            rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=                                    rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=*                                   rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=identity                            rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip                                rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=br                                  rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=zstd                                rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=deflate                             rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=x-gzip                              rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=GZIP                                rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=(absent)                            rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=                                    rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=*                                   rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=identity                            rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip                                rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip, deflate, br, zstd             rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=br                                  rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=zstd                                rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=deflate                             rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=x-gzip                              rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=GZIP                                rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip;q=0                            rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip;q=0.001                        rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=br;q=0                              rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=identity;q=0                        rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip, identity;q=0                  rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=*;q=0                               rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+unknown-coding    ae=(absent)                            rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=                                    rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=*                                   rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=identity                            rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip                                rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip, deflate, br, zstd             rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=br                                  rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=zstd                                rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=deflate                             rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=x-gzip                              rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=GZIP                                rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip;q=0                            rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip;q=0.0                          rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip;q=0.001                        rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=x-gzip;q=0                          rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=br;q=0                              rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip;q=0, br                        rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=identity;q=0                        rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip, identity;q=0                  rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=*;q=0                               rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+uppercase         ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip                                rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip, deflate, br, zstd             rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=x-gzip                              rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=GZIP                                rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip;q=0.001                        rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip, identity;q=0                  rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=(absent)                            rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=                                    rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=*                                   rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=identity                            rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip                                rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip, deflate, br, zstd             rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=br                                  rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=zstd                                rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=deflate                             rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=x-gzip                              rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=GZIP                                rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip;q=0                            rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip;q=0.0                          rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip;q=0.001                        rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=x-gzip;q=0                          rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=br;q=0                              rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip;q=0, br                        rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=identity;q=0                        rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip, identity;q=0                  rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=*;q=0                               rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+empty             ae=(absent)                            rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=                                    rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=*                                   rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=identity                            rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=gzip                                rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=br                                  rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=zstd                                rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=deflate                             rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=x-gzip                              rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=GZIP                                rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=gzip;q=0                            rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=br;q=0                              rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=identity;q=0                        rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=*;q=0                               rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+wrong-length      ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip                                rc=18 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip, deflate, br, zstd             rc=18 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=x-gzip                              rc=18 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=GZIP                                rc=18 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip;q=0.001                        rc=18 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip, identity;q=0                  rc=18 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=18 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=x-gzip                              rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=GZIP                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+bomb              ae=(absent)                            rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=                                    rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=*                                   rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=identity                            rc=0  406 ce=[] cl=[417] wire=417 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip                                rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=br                                  rc=0  406 ce=[] cl=[411] wire=411 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=zstd                                rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=deflate                             rc=0  406 ce=[] cl=[416] wire=416 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=x-gzip                              rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=GZIP                                rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip;q=0                            rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip;q=0.0                          rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=x-gzip;q=0                          rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=br;q=0                              rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip;q=0, br                        rc=0  406 ce=[] cl=[411] wire=411 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=identity;q=0                        rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=*;q=0                               rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+
+################ --http2
+ok                ae=(absent)                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=                                    rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=*                                   rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=identity                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[identity] colo=SMF
+ok                ae=gzip                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip] colo=SMF
+ok                ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip, deflate, br] colo=SMF
+ok                ae=br                                  rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[br] colo=SMF
+ok                ae=zstd                                rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=deflate                             rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[deflate] colo=SMF
+ok                ae=x-gzip                              rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip] colo=SMF
+ok                ae=GZIP                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip] colo=SMF
+ok                ae=gzip;q=0                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip] colo=SMF
+ok                ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=br;q=0                              rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[br] colo=SMF
+ok                ae=identity;q=0                        rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip] colo=SMF
+ok                ae=*;q=0                               rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[Accept-Encoding] neg=[(none: no Accept-Encoding, or nothing the edge kept)] colo=SMF
+ok                ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[Accept-Encoding] neg=[gzip, br] colo=SMF
+br                ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip, deflate, br, zstd             rc=0  200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[] colo=SMF
+br                ae=br                                  rc=0  200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[] colo=SMF
+br                ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=x-gzip                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=GZIP                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip;q=0.001                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip;q=0, br                        rc=0  200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[] colo=SMF
+br                ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=gzip, identity;q=0                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+br                ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[br] cl=[173] wire=173 first=1bff0f40 plain=4096 dec=br:0 SHA-OK vary=[] colo=SMF
+zstd              ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip, deflate, br, zstd             rc=0  200 ce=[zstd] cl=[200] wire=200 first=28b52ffd plain=4096 dec=zstd:0 SHA-OK vary=[] colo=SMF
+zstd              ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=zstd                                rc=0  200 ce=[zstd] cl=[200] wire=200 first=28b52ffd plain=4096 dec=zstd:0 SHA-OK vary=[] colo=SMF
+zstd              ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=x-gzip                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=GZIP                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip;q=0.001                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=gzip, identity;q=0                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+zstd              ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip, deflate, br, zstd             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=x-gzip                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=GZIP                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip;q=0.001                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=gzip, identity;q=0                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+deflate           ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=(absent)                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=                                    rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=*                                   rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=identity                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=gzip                                rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=br                                  rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=zstd                                rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=deflate                             rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=x-gzip                              rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=GZIP                                rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=gzip;q=0                            rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=br;q=0                              rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=identity;q=0                        rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+not-compressed    ae=*;q=0                               rc=0  200 ce=[] cl=[4096] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+not-compressed    ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[4096] wire=4096 first=30303030 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+undeclared        ae=(absent)                            rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=                                    rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=*                                   rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=identity                            rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip                                rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip, deflate, br, zstd             rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=br                                  rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=zstd                                rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=deflate                             rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=x-gzip                              rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=GZIP                                rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip;q=0                            rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip;q=0.001                        rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=br;q=0                              rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=identity;q=0                        rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=gzip, identity;q=0                  rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=*;q=0                               rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+undeclared        ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=(absent)                            rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=                                    rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=*                                   rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=identity                            rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip                                rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=br                                  rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=zstd                                rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=deflate                             rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=x-gzip                              rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=GZIP                                rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+truncated         ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=1860 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+truncated         ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[161] wire=161 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=(absent)                            rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=                                    rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=*                                   rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=identity                            rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=br                                  rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=zstd                                rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=deflate                             rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=x-gzip                              rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=GZIP                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+corrupt           ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=0 first= plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+corrupt           ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 sha-DIFF vary=[] colo=SMF
+bad-crc           ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=x-gzip                              rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=GZIP                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+bad-crc           ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+bad-crc           ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:1 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip                                rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=x-gzip                              rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=GZIP                                rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+trailing-garbage  ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[318] wire=318 first=1f8b0800 plain=4096 dec=gzip:2 SHA-OK vary=[] colo=SMF
+multi-member      ae=(absent)                            rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=                                    rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=*                                   rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=identity                            rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=gzip                                rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=br                                  rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=zstd                                rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=deflate                             rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=x-gzip                              rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=GZIP                                rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+multi-member      ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=2048 first=30303030 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+multi-member      ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[350] wire=350 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=(absent)                            rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=                                    rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=*                                   rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=identity                            rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=gzip                                rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=br                                  rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=zstd                                rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=deflate                             rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=x-gzip                              rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=GZIP                                rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=gzip;q=0                            rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=gzip;q=0.0                          rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=gzip;q=0.001                        rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=x-gzip;q=0                          rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=br;q=0                              rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=gzip;q=0, br                        rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=identity;q=0                        rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=gzip, identity;q=0                  rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double            ae=*;q=0                               rc=0  200 ce=[gzip] cl=[] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+double            ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip, gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=undecoded(gzip, gzip) sha-DIFF vary=[] colo=SMF
+double-hidden     ae=(absent)                            rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=                                    rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=*                                   rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=identity                            rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip                                rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=br                                  rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=zstd                                rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=deflate                             rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=x-gzip                              rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=GZIP                                rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+double-hidden     ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=269 first=1f8b0800 plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+double-hidden     ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[292] wire=292 first=1f8b0800 plain=4096 dec=gzip:0 sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=(absent)                            rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=                                    rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=*                                   rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=identity                            rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip                                rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip, deflate, br, zstd             rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=br                                  rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=zstd                                rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=deflate                             rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=x-gzip                              rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=GZIP                                rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip;q=0                            rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip;q=0.001                        rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=br;q=0                              rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=identity;q=0                        rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=gzip, identity;q=0                  rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=*;q=0                               rc=0  200 ce=[] cl=[251] wire=251 first=a5d5314e plain=4096 dec=identity sha-DIFF vary=[] colo=SMF
+deflate-raw       ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[deflate] cl=[251] wire=251 first=a5d5314e plain=4096 dec=undecoded(deflate) sha-DIFF vary=[] colo=SMF
+unknown-coding    ae=(absent)                            rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=                                    rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=*                                   rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=identity                            rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip                                rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip, deflate, br, zstd             rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=br                                  rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=zstd                                rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=deflate                             rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=x-gzip                              rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=GZIP                                rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip;q=0                            rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip;q=0.0                          rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip;q=0.001                        rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=x-gzip;q=0                          rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=br;q=0                              rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip;q=0, br                        rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=identity;q=0                        rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=gzip, identity;q=0                  rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=*;q=0                               rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+unknown-coding    ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[badhttp] cl=[4096] wire=4096 first=30303030 plain=4096 dec=undecoded(badhttp) SHA-OK vary=[] colo=SMF
+uppercase         ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip                                rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip, deflate, br, zstd             rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=x-gzip                              rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=GZIP                                rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip;q=0.001                        rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=gzip, identity;q=0                  rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+uppercase         ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+uppercase         ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[GZIP] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=(absent)                            rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=                                    rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=*                                   rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=identity                            rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip                                rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip, deflate, br, zstd             rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=br                                  rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=zstd                                rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=deflate                             rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=x-gzip                              rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=GZIP                                rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip;q=0                            rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip;q=0.0                          rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip;q=0.001                        rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=x-gzip;q=0                          rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=br;q=0                              rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip;q=0, br                        rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=identity;q=0                        rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=gzip, identity;q=0                  rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=*;q=0                               rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+x-gzip            ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[x-gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+empty             ae=(absent)                            rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=                                    rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=*                                   rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=identity                            rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=gzip                                rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=br                                  rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=zstd                                rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=deflate                             rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=x-gzip                              rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=GZIP                                rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=gzip;q=0                            rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=br;q=0                              rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=identity;q=0                        rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+empty             ae=*;q=0                               rc=0  200 ce=[] cl=[0] wire=0 first= plain=0 dec=identity SHA-OK vary=[] colo=SMF
+empty             ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[0] wire=0 first= plain=0 dec=gzip:1 SHA-OK vary=[] colo=SMF
+wrong-length      ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip                                rc=92 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip, deflate, br, zstd             rc=92 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=x-gzip                              rc=92 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=GZIP                                rc=92 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip;q=0.001                        rc=92 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=gzip, identity;q=0                  rc=92 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+wrong-length      ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+wrong-length      ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=92 200 ce=[gzip] cl=[4096] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=(absent)                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=                                    rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=*                                   rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=identity                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=br                                  rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=zstd                                rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=deflate                             rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=x-gzip                              rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=GZIP                                rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip;q=0                            rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip;q=0.0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=x-gzip;q=0                          rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=br;q=0                              rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip;q=0, br                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=identity;q=0                        rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+gzip-file         ae=*;q=0                               rc=0  200 ce=[] cl=[] wire=4096 first=30303030 plain=4096 dec=identity SHA-OK vary=[] colo=SMF
+gzip-file         ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[269] wire=269 first=1f8b0800 plain=4096 dec=gzip:0 SHA-OK vary=[] colo=SMF
+bomb              ae=(absent)                            rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=                                    rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=*                                   rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=identity                            rc=0  406 ce=[] cl=[417] wire=417 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip                                rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip, deflate, br, zstd             rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=br                                  rc=0  406 ce=[] cl=[411] wire=411 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=zstd                                rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=deflate                             rc=0  406 ce=[] cl=[416] wire=416 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=x-gzip                              rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=GZIP                                rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip;q=0                            rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip;q=0.0                          rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip;q=0.001                        rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=x-gzip;q=0                          rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=br;q=0                              rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip;q=0, br                        rc=0  406 ce=[] cl=[411] wire=411 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=identity;q=0                        rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=gzip, identity;q=0                  rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF
+bomb              ae=*;q=0                               rc=0  406 ce=[] cl=[502] wire=502 first=7b0a2020 plain= dec=identity no-sha vary=[Accept-Encoding] colo=SMF
+bomb              ae=br;q=0.5, gzip;q=0, x-gzip, *, foo  rc=0  200 ce=[gzip] cl=[24491] wire=24491 first=1f8b0800 plain=8388608 dec=gzip:0 SHA-OK vary=[Accept-Encoding] colo=SMF

@@ -4,7 +4,8 @@
 // An OpenAI-compatible chat completion served by Workers AI, priced flat per request in USDC on Base and
 // settled through x402 with the same machinery as /402/pay (two protocol generations, facilitator
 // failover, CDP first). The order of operations is the whole correctness argument of a paid API and is
-// enforced by settle()'s `deliver` hook: validate (400s are free) → 402 → facilitator /verify → run the
+// enforced by settle()'s `deliver` hook: check the body → no payment: 402 whatever the body (with a free
+// request_check; since session 38) → payment + bad body: 400, free → facilitator /verify → run the
 // model → facilitator /settle → 200. A model failure after a valid verify is answered 502 with
 // `charged: false` and nothing is broadcast; a settlement failure after the model answered is answered
 // as /402/pay answers it, with the completion included so a caller is never charged for nothing.
@@ -112,9 +113,9 @@ export function v1Contract(origin) {
     default_model: def.id,
     reasoning: { models: V1.models.filter((m) => m.reasoning).map((m) => m.id), reasoning_effort: 'low unless the request says medium or high; a reasoning model spends output tokens thinking before any text appears, and a run that ends with no text is refused unsettled (502, charged: false), so give it max_tokens to finish' },
     caps: { ...V1.caps, roles: [...ROLES], content: 'strings only, capped in UTF-8 bytes', stream: 'must be absent or false: a streamed body cannot be settled after delivery', unsupported: ['tools', 'functions', 'response_format', 'n > 1', 'images'] },
-    order_of_operations: ['validate the body (a 400 is free and never asks for a signature)', 'no payment: 402 with PAYMENT-REQUIRED (x402 v2) and accepts in the body (x402 v1)', 'payment: facilitator /verify', 'run the model', 'facilitator /settle', '200 with the completion, an x402 object and the receipt header'],
+    order_of_operations: ['check the body (free)', 'no payment: 402 with PAYMENT-REQUIRED (x402 v2) and accepts in the body (x402 v1), whatever the body, with request_check saying whether this body would run (since 2026-11-23: discovery probes send an empty or example body and expect the offer)', 'payment with a body that will not run: 400, free, before any facilitator is asked', 'payment: facilitator /verify', 'run the model', 'facilitator /settle', '200 with the completion, an x402 object and the receipt header'],
     charged_when: 'only after the model answered and the facilitator settled; a model failure after verify is 502 with charged:false and nothing is broadcast',
-    free: ['GET /v1', 'GET /v1/models', 'every 400'],
+    free: ['GET /v1', 'GET /v1/models', 'every 402 (the offer, with request_check)', 'every 400'],
     cost_basis: { source: V1.costBasisUrl, read_on: V1.costBasisReadOn, included_free_neurons_per_day: V1.freeNeuronsPerDay },
     logging: V1.logging,
     why: 'The one resource here whose paid content has value to anyone but a measurer; the books at /books say what it earns and what it costs.',
@@ -131,7 +132,8 @@ function modelsList() {
   };
 }
 
-// The request as validated, or {error, hint}. Nothing here costs money, so every refusal is a plain 400.
+// The request as validated, or {error, hint}. Nothing here costs money: without a payment a refusal is reported in the
+// 402's request_check, with one it is a plain 400 before any facilitator is asked (since session 38).
 function validate(body, { sandbox }) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { error: 'body must be a JSON object' };
   if (body.stream) return { error: 'stream must be absent or false', hint: 'a streamed body cannot be settled after delivery; this endpoint answers whole' };
@@ -230,18 +232,36 @@ export async function handleV1({ seg, url, request, env, payTo, json }) {
   const sandbox = networkName === V1.sandboxNetworkName;
   const net = USDC[networkName];
 
-  // Validate before anything about payment, so a malformed request is never answered with a request for a signature.
+  // The body is checked before anything about payment, but a request that carries NO payment is answered with the
+  // 402 offer whatever its body (session 38, 2026-11-23): every x402 discovery probe — CDP's own post-settlement probe
+  // and /validate among them — sends its example body, or an empty one when the extension names none (this one named
+  // only bodyFields, so CDP's probe sent nothing), without payment and expects a 402. Through v0.31.0 an empty or invalid
+  // unpaid body got a 400: in the ten days to 2026-11-23 about 4,479 POSTs (sampled analytics, mostly catalogue crawlers)
+  // got a 400 and four got the offer, and CDP never listed it (LEDGER.md #38). A body this endpoint would refuse
+  // is named in the 402's `request_check`, free, so nobody signs for a request that cannot run; a request that DOES
+  // carry a payment and a bad body is still refused with a free 400 before any facilitator is asked to /verify.
+  let bodyError = null;
+  let v = null;
   const declared = Number(request.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > V1.caps.maxBodyBytes) return json({ error: `body larger than ${V1.caps.maxBodyBytes} bytes` }, 400);
-  let rawBytes;
-  try { rawBytes = new Uint8Array(await request.arrayBuffer()); } catch (e) { return json({ error: 'unreadable body', message: String(e.message).slice(0, 200) }, 400); }
-  if (rawBytes.length > V1.caps.maxBodyBytes) return json({ error: `body larger than ${V1.caps.maxBodyBytes} bytes` }, 400);
-  const raw = new TextDecoder().decode(rawBytes);
-  let body;
-  try { body = JSON.parse(raw); } catch (e) { return json({ error: 'body is not JSON', message: String(e.message).slice(0, 200) }, 400); }
-  const v = validate(body, { sandbox });
-  if (v.error) return json({ error: v.error, ...(v.hint ? { hint: v.hint } : {}), ...(v.models ? { models: v.models } : {}), charged: false, contract: `${origin}/v1` }, 400);
-  const { model, params } = v;
+  if (Number.isFinite(declared) && declared > V1.caps.maxBodyBytes) bodyError = { error: `body larger than ${V1.caps.maxBodyBytes} bytes` };
+  if (!bodyError) {
+    let rawBytes = null;
+    try { rawBytes = new Uint8Array(await request.arrayBuffer()); } catch (e) { bodyError = { error: 'unreadable body', message: String(e.message).slice(0, 200) }; }
+    if (!bodyError && rawBytes.length > V1.caps.maxBodyBytes) bodyError = { error: `body larger than ${V1.caps.maxBodyBytes} bytes` };
+    if (!bodyError) {
+      let body;
+      try { body = JSON.parse(new TextDecoder().decode(rawBytes)); } catch (e) { bodyError = { error: rawBytes.length === 0 ? 'body is empty' : 'body is not JSON', ...(rawBytes.length ? { message: String(e.message).slice(0, 200) } : {}) }; }
+      if (!bodyError) {
+        v = validate(body, { sandbox });
+        if (v.error) { bodyError = { error: v.error, ...(v.hint ? { hint: v.hint } : {}), ...(v.models ? { models: v.models } : {}) }; v = null; }
+      }
+    }
+  }
+  const paid = decodePaymentHeader(request);
+  if (bodyError && !paid.none) return json({ ...bodyError, charged: false, contract: `${origin}/v1` }, 400);
+  // The offer for a body that will not run names the default model and token cap (the same offer a valid default body gets).
+  const model = v ? v.model : V1.models.find((m) => (sandbox ? m.sandbox : m.default));
+  const params = v ? v.params : { max_tokens: Math.min(V1.caps.maxTokensDefault, sandbox ? V1.caps.sandboxMaxTokens : V1.caps.maxTokensMax) };
 
   // Brake 2 (see above): past the hourly ceiling this isolate asks nobody for a signature.
   if (spendLastHour() >= V1.brakes.isolateSpendUsdPerHour) {
@@ -257,10 +277,27 @@ export async function handleV1({ seg, url, request, env, payTo, json }) {
   // The x402 "bazaar" extension (specs/extensions/bazaar.md), in the same two-part shape /402/pay sends — `info`
   // (an example of this very request and of what a settled one returns) and `schema` (JSON Schema for both) —
   // because the official v2 client echoes it into the payload and Coinbase's facilitator lists a resource from it.
+  // `body` is the spec's field for a body method (specs/extensions/bazaar.md: required type, method, bodyType, body) and is
+  // the example CDP's Bazaar POSTs when it probes a resource after a settlement; `bodyFields` (the v1 outputSchema name) is kept
+  // beside it with the same schema for readers that learned that one. Before session 38 only bodyFields was sent.
+  const exampleBody = { model: model.id, messages: [{ role: 'user', content: 'In one sentence, what is HTTP status 402 for?' }], max_tokens: params.max_tokens };
+  const bodySchema = {
+                type: 'object',
+                properties: {
+                  model: { type: 'string', enum: V1.models.flatMap((m) => [m.id, m.cf]), description: `default ${V1.models.find((m) => m.default).id}` },
+                  messages: { type: 'array', minItems: 1, maxItems: V1.caps.maxMessages, items: { type: 'object', required: ['role', 'content'], properties: { role: { type: 'string', enum: [...ROLES] }, content: { type: 'string' } } }, description: `total content at most ${V1.caps.maxContentBytes} bytes of UTF-8` },
+                  max_tokens: { type: 'integer', minimum: 1, maximum: V1.caps.maxTokensMax, default: V1.caps.maxTokensDefault },
+                  temperature: { type: 'number', minimum: 0, maximum: 2 },
+                  top_p: { type: 'number', minimum: 0.001, maximum: 1 },
+                  seed: { type: 'integer', minimum: 1, maximum: 9999999999 },
+                  reasoning_effort: { type: 'string', enum: ['low', 'medium', 'high'], description: `${V1.models.filter((m) => m.reasoning).map((m) => m.id).join(', ')} only; default low` },
+                },
+                required: ['messages'],
+              };
   const extensions = {
     bazaar: {
       info: {
-        input: { type: 'http', method: 'POST', bodyType: 'json', bodyFields: { model: model.id, messages: [{ role: 'user', content: 'In one sentence, what is HTTP status 402 for?' }], max_tokens: params.max_tokens }, ...(sandbox ? { queryParams: { network: V1.sandboxNetworkName } } : {}) },
+        input: { type: 'http', method: 'POST', bodyType: 'json', body: exampleBody, bodyFields: exampleBody, ...(sandbox ? { queryParams: { network: V1.sandboxNetworkName } } : {}) },
         output: { type: 'json', example: { id: 'chatcmpl-00000000-0000-0000-0000-000000000000', object: 'chat.completion', created: 1793311099, model: model.cf, choices: [{ index: 0, message: { role: 'assistant', content: 'HTTP 402 Payment Required is reserved for digital payment schemes; this endpoint uses it for x402.' }, finish_reason: 'stop' }], usage: { prompt_tokens: 81, completion_tokens: 58, total_tokens: 139 }, x402: { paid: true, network: net.caip2, network_name: networkName, real_money: net.real, amount_usd: V1.priceUsd, amount_atomic: req.amount, asset: req.asset, pay_to: payTo, payer: '0x0000000000000000000000000000000000000000', transaction: '0x' + '0'.repeat(64), explorer: `${net.explorer}0x${'0'.repeat(64)}`, facilitator: 'https://example.invalid', charged_for: 'one request, flat' } } },
       },
       schema: {
@@ -274,22 +311,11 @@ export async function handleV1({ seg, url, request, env, payTo, json }) {
               method: { type: 'string', const: 'POST' },
               bodyType: { type: 'string', const: 'json' },
               queryParams: { type: 'object', properties: { network: { type: 'string', enum: [V1.networkName, V1.sandboxNetworkName], description: `${V1.networkName} (the default) is real USDC on Base mainnet; ${V1.sandboxNetworkName} is the test-USDC sandbox (model ${V1.models.find((m) => m.sandbox).id}, max_tokens ${V1.caps.sandboxMaxTokens}, content ${V1.caps.sandboxMaxContentBytes} bytes)` } } },
-              bodyFields: {
-                type: 'object',
-                properties: {
-                  model: { type: 'string', enum: V1.models.flatMap((m) => [m.id, m.cf]), description: `default ${V1.models.find((m) => m.default).id}` },
-                  messages: { type: 'array', minItems: 1, maxItems: V1.caps.maxMessages, items: { type: 'object', required: ['role', 'content'], properties: { role: { type: 'string', enum: [...ROLES] }, content: { type: 'string' } } }, description: `total content at most ${V1.caps.maxContentBytes} bytes of UTF-8` },
-                  max_tokens: { type: 'integer', minimum: 1, maximum: V1.caps.maxTokensMax, default: V1.caps.maxTokensDefault },
-                  temperature: { type: 'number', minimum: 0, maximum: 2 },
-                  top_p: { type: 'number', minimum: 0.001, maximum: 1 },
-                  seed: { type: 'integer', minimum: 1, maximum: 9999999999 },
-                  reasoning_effort: { type: 'string', enum: ['low', 'medium', 'high'], description: `${V1.models.filter((m) => m.reasoning).map((m) => m.id).join(', ')} only; default low` },
-                },
-                required: ['messages'],
-              },
+              body: bodySchema,
+              bodyFields: bodySchema,
               headers: { type: 'object', additionalProperties: { type: 'string' } },
             },
-            required: ['type', 'method', 'bodyType', 'bodyFields'],
+            required: ['type', 'method', 'bodyType', 'body'],
             additionalProperties: false,
           },
           output: { type: 'object', properties: { type: { type: 'string' }, example: { type: 'object' } }, required: ['type'] },
@@ -314,8 +340,10 @@ export async function handleV1({ seg, url, request, env, payTo, json }) {
   });
   const respond402 = (prr, b, extraHeaders = {}) => json(b, 402, { 'payment-required': b64.encode(prr), 'cache-control': 'no-store', ...extraHeaders });
 
-  const paid = decodePaymentHeader(request);
-  if (paid.none) return respond402(pr, humanBody(pr));
+  const requestCheck = bodyError
+    ? { request_check: { runs: false, ...bodyError, note: 'This body would be refused with a free 400 once signed; nothing would be charged, but fix it before signing. The offer in this response is the one a valid body gets.' } }
+    : { request_check: { runs: true } };
+  if (paid.none) return respond402(pr, humanBody(pr, requestCheck));
   if (paid.error) return respond402({ ...pr, error: paid.error }, humanBody({ ...pr, error: paid.error }));
 
   // The model run. On mainnet it is settle()'s `deliver`: once, after the first facilitator that found the payment

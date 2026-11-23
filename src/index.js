@@ -21,7 +21,7 @@ import { handleClients, warmClients } from './clients.js';
 import { perKey } from './memo.js';
 import { handleV1, V1 } from './ai.js';
 
-const VERSION = '0.31.0';
+const VERSION = '0.32.0';
 // The last change to the /.well-known/x402 manifest (its `updated` field, per the draft). Move it when the manifest changes.
 const WELL_KNOWN_X402_UPDATED = '2026-10-29T00:00:00Z';
 

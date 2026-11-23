@@ -3,7 +3,7 @@
 // reconciled against this table.
 // Every number here must match LEDGER.md. If they disagree, LEDGER.md wins and this is a bug.
 export const BOOKS = {
-  updated: '2026-10-26',  // session 35 (a sixth and a seventh external payer booked: Lumi Trades' test-buy of 2026-10-24 and Annalist's service check of 2026-10-26, both settled through Coinbase's CDP facilitator; see LEDGER.md #35)
+  updated: '2026-11-23',  // session 38 (six more settlements booked: SettledScout twice, nohumans.directory's scout, usetested, x402-doctor's spot buy and an unidentified python-httpx payer; revenue $0.18; see LEDGER.md #38)
   currency: 'USD',
   budget_per_year: 150,
   project_started: '2026-08-23',
@@ -95,7 +95,7 @@ export const BOOKS = {
     remeasure: {
       deployed: '2026-10-29',
       from_version: '0.30.0',
-      cause_found: 'pages rendered from constant data per request in a fresh isolate; the memoized bomb sizes and the large bodies cost no measurable CPU',
+      cause_found: 'pages rendered from constant data per request in a fresh isolate; the memoized bomb sizes and the large bodies cost no measurable CPU once built (a first build is not free: see known_remaining_cpu_ms and result)',
       // Two further costs the same tail found, left for the window to weigh (neither is a page): a /compress/bomb
       // size an isolate has not built yet costs about 7 ms per MiB on its first request (12 MiB 71 ms, 16 MiB 120,
       // 24 MiB 173; the flood's 32 MiB answers 403 at the edge without the opt-in header), and a cold /books.json
@@ -105,6 +105,25 @@ export const BOOKS = {
       tail_sample_cpu_ms: { 'v0.29.0': { home: '38-81', clients: 43, clients_jsonl: 36, index_402: '5-21' }, 'v0.30.0': { home: 1, clients: 1, index_402: 1, clients_jsonl: 10 } },
       window: { from: '2026-10-30', to: '2026-11-06', days: 7, source: 'same query as above: workersInvocationsAdaptive quantiles per day' },
       decides: 'free_plan_viable and standalone_hosting_usd_per_year; until then both keep the September values',
+      // Session 38 (2026-11-23) read the window. It did NOT come in under the ceiling: every one of the seven days
+      // had a request over 10 ms, and on two the 99th percentile was over it too — the same count as September. The
+      // window itself has no path dimension. The LATER week's per-minute maxima (2026-11-16 to 11-23; workersInvocationsAdaptive
+      // by datetimeMinute, which per-minute retention still held) matched to zone requests in minutes that held a single
+      // invocation point at the routes: /clients (63.8 ms on 2026-11-22 02:51 UTC, 40.2 on 2026-11-23 01:56), /clients.jsonl
+      // (34.0, 2026-11-17 06:58), /books.json (28.0, 2026-11-18 15:40) — each the only request of its minute, which is
+      // consistent with a cold isolate's first request but does not prove it — and a tail on 2026-11-23 read the default
+      // /compress/bomb?size=8 at 66 ms on its first build in an isolate. That the same routes caused the window's maxima is
+      // an inference from the same code, not a measurement of the window. free_plan_viable stays false.
+      result: {
+        read_on: '2026-11-23',
+        days: 7,
+        per_day_cpu_ms_max: { '2026-10-30': 31.299, '2026-10-31': 43.676, '2026-11-01': 16.3, '2026-11-02': 25.275, '2026-11-03': 41.425, '2026-11-04': 30.607, '2026-11-05': 58.18 },
+        per_day_cpu_ms_p99: { '2026-10-30': 6.48, '2026-10-31': 4.561, '2026-11-01': 3.434, '2026-11-02': 6.761, '2026-11-03': 11.145, '2026-11-04': 8.385, '2026-11-05': 10.703 },
+        days_exceeding_free_ceiling: 7,
+        days_with_p99_exceeding_free_ceiling: 2,
+        verdict: 'not viable: the window kept the September verdict',
+        routes_named: { measured: '2026-11-16 to 2026-11-23, after the window (per-minute maxima, single-request minutes) and a 2026-11-23 tail', clients_cold: '40-64', clients_jsonl_cold: 34, books_json_cold: 28, bomb_size_8_first_build: 66 },
+      },
     },
   },
   // Money already owed but not yet spent. Stated so the books show what is coming rather than
@@ -167,33 +186,35 @@ export const BOOKS = {
     // two numbers (session 30, after a seventeen-proposal panel on cheap models searched for a path and
     // found none: LEDGER.md #30). Hand-maintained like the other prose here; rewrite it, with its date,
     // when the evidence changes — never let the numbers move while the sentence stays.
-    sustainability_statement_dated: '2026-10-29',
+    sustainability_statement_dated: '2026-11-23',
     sustainability_statement:
-      'Earned $0.12 to date: twelve settlements at the listed 0.01 USDC from seven external payers, six of them '
-      + 'probes that say they measure whether an x402 seller settles, the other an unidentified automated buyer, '
-      + 'none from anyone wanting to test a client (payers and hashes in the revenue rows). No path tested in '
-      + 'thirty-six sessions earned this project\'s costs: not the paid settlement test, not donations, not catalogue '
-      + 'listings, and no grant was found whose rules admit an AI-run project. On 2026-10-29 the operator answered '
-      + 'the standing question with a mandate: find a path to breakeven, the original concept negotiable. Two things '
-      + 'changed that day, both on these books. The cost side: the September measurement that ruled out the free '
-      + 'Workers plan (a 10 ms CPU ceiling per request) turned out to be this service rendering its own pages from '
-      + 'constant data on every request; v0.30.0 moved that work to startup, and a seven-day re-measurement from '
-      + '2026-10-30 decides whether the standing-alone hosting figure is $60 a year or $0 (hosting_measured.remeasure; '
-      + 'the September verdict stands until then). The revenue side: /v1/chat/completions, an OpenAI-compatible chat '
-      + 'completion from Cloudflare Workers AI at a flat 0.002 USDC per request on Base mainnet, settled through x402 '
-      + 'only after the model has answered, is the first thing on this host that is for sale to anyone but a '
-      + 'measurer. It was chosen on the demand evidence read that day (docs/research-x402-demand-2026-10-29.md in '
-      + 'the source: in the public x402 catalogue, inference is the one category with hundreds of distinct repeat '
-      + 'payers a month, one seller taking 86,313 calls from 305 payers at a $0.002 minimum) and priced as a product '
-      + 'with its cost basis published beside it (GET /v1), not at any observatory\'s ceiling. The arithmetic it must '
-      + 'meet is plain: the books\' breakeven of about $73 a year is about 3,040 such requests a month before the '
-      + 'per-token cost (at most about three quarters of the price at the caps in the worst case GET /v1 states, about a third for English text); the domain alone, $12.87, '
-      + 'about 540. It has earned nothing yet, and these books will say what it earns, by transaction hash, the '
-      + 'session each payment is noticed. The settlement-test price lever named here on 2026-10-23 stays unpulled. '
-      + 'The costs side moved the other way in October: a flood of 36 million requests for the largest /compress/bomb '
-      + 'put an estimated $7.93 of Workers request overage on the operator\'s October bill before an edge rule stopped '
-      + 'it on 2026-10-22 (costs table); the flood ended by 2026-10-27. One cost is not on these books at all: the '
-      + 'model usage that builds and runs the project is borne by the operator and is not priced here.',
+      'Earned $0.18 to date: eighteen settlements at the listed 0.01 USDC from ten external payers — seven of them '
+      + 'probes that say they measure or rate whether an x402 seller settles (two of which have bought three times), one '
+      + 'a test harness, two unidentified automated buyers — none from anyone wanting to test a client (payers and '
+      + 'hashes in the revenue rows). No path tested in thirty-eight sessions earned this project\'s costs: not the '
+      + 'paid settlement test, not donations, not catalogue listings, and no grant was found whose rules admit an '
+      + 'AI-run project. On 2026-10-29 the operator answered the standing question with a mandate: find a path to '
+      + 'breakeven, the original concept negotiable. The cost side was re-measured and did not move: after the page '
+      + 'rendering went to startup on 2026-10-29, every day of the seven from 2026-10-30 still had a request over the '
+      + 'free Workers plan\'s 10 ms CPU ceiling (by the following week\'s evidence, this service\'s own pages and books '
+      + 'in a fresh isolate and the first build of the default bomb; hosting_measured.remeasure.result), so the standing-alone '
+      + 'hosting figure stays $60 a year. The revenue side: /v1/chat/completions, an OpenAI-compatible chat completion '
+      + 'from Cloudflare Workers AI at a flat 0.002 USDC per request on Base mainnet, settled through x402 only after the '
+      + 'model has answered, chosen on the demand evidence of 2026-10-29 (docs/research-x402-demand-2026-10-29.md in '
+      + 'the source: inference is the one x402 category with hundreds of distinct repeat payers a month). It has earned '
+      + 'nothing in its first 25 days, and that is not yet evidence about demand: until 2026-11-23 it answered every '
+      + 'unpaid request whose body it would refuse with a 400 instead of the 402 offer, and catalogue crawlers and '
+      + 'Coinbase\'s own Bazaar validator probe without a payment and with an empty or example body — in the ten days '
+      + 'to 2026-11-23 about 4,479 POSTs (zone analytics, sampled) got a 400, mostly from crawlers, and four got the offer, and the CDP Bazaar, where paying buyers look, never '
+      + 'listed it. Since 2026-11-23 an unpaid request gets the offer whatever its body. The arithmetic it must meet is unchanged: '
+      + 'the books\' breakeven of about $73 a year is about 3,040 such requests a month before the per-token cost (at '
+      + 'most about three quarters of the price at the caps in the worst case GET /v1 states, about a third for English '
+      + 'text). These books will say what it earns, by transaction hash, the session each payment is noticed; a month '
+      + 'listed where buyers look and still unpaid will be a finding, written here. The settlement-test price lever '
+      + 'named on 2026-10-23 stays unpulled. October\'s flood of 36 million requests for the largest /compress/bomb '
+      + 'put an estimated $7.93 of Workers request overage on the operator\'s bill before an edge rule stopped it '
+      + '(costs table). One cost is not on these books at all: the model usage that builds and runs the project is '
+      + 'borne by the operator and is not priced here.',
     registrar_credit_note:
       'What remained in the Porkbun account after registration. The registrar publishes no '
       + 'account-balance endpoint, so this is the last figure anyone observed, not a live read.',
@@ -219,7 +240,7 @@ export const BOOKS = {
       date: '2026-08-28',
       item: 'Mainnet payer wallet funded (working capital, USDC on Base)',
       amount: 10.0,
-      note: 'Most of it is still held by the project: $9.931 at the payer, $0.054 of self-test settlements to the receive address (transfers between our own addresses — NOT revenue; tx hashes in GET /402 and in chain_movements, the newest the two 0.002 USDC self-tests of POST /v1/chat/completions on 2026-10-29), $0.015 spent on three x402-trust paid trust reports — the project\'s payments to an external x402 service.',
+      note: 'Most of it is still held by the project: $9.929 at the payer, $0.056 of self-test settlements to the receive address (transfers between our own addresses — NOT revenue; tx hashes in GET /402 and in chain_movements, the newest the three 0.002 USDC self-tests of POST /v1/chat/completions, two on 2026-10-29 and one on 2026-11-23), $0.015 spent on three x402-trust paid trust reports — the project\'s payments to an external x402 service.',
     },
     {
       date: '2026-10-22',
@@ -339,6 +360,48 @@ export const BOOKS = {
       tx: '0xecf58a4b1883d8a98d7218668c2495593b033f44364617280bd4fd08151fc1c6',
       note: 'Settled 2026-10-26 12:04:37 UTC (block 53113465) from 0xcb4cf336349504e167c26d5c8b9238e12d70bbb8, relayed by 0x42dd53906b49c202e8e934b059dc019e04634b00 (USDC transferWithAuthorization). Zone analytics show the one 200 on /402/pay/base that day, in the 12:00 UTC hour, a GET over HTTP/1.1 from the US with user agent AnnalistChecks/0.1, beside two 402s from the same agent in the same hour and one 402 quote check on 2026-10-24. Settled through Coinbase\'s CDP facilitator: the CDP Bazaar\'s merchant record for this address moved its lastUpdated and lastCalledAt to 2026-10-26T12:04:35Z, two seconds before the block. annalist.dev did not answer this host\'s requests on 2026-10-26, so what it publishes about the purchase is not known. Found by scripts/find-transfers.mjs four hours after it settled, at this session\'s start, and booked the same session.',
     },
+    {
+      date: '2026-10-31',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from SettledScout again, the fifth external payer\'s second purchase (user agent SettledScout/0.1 says it "pays once, records delivery"; this is its second)',
+      amount: 0.01,
+      tx: '0xa69eed21798f0b51d0c35f311884b655dfc5124c5f40dcad3eef054a43d3de1f',
+      note: 'Settled 2026-10-31 10:23:39 UTC (block 53326436) from 0xa1d1c0cf717402ff3651aa4873ccf96410b01978 — the address of its 2026-10-15 purchase — relayed by 0x2a89407a98a0732b7fd578c4e156b7166540eb5a, the same relayer as then (USDC transferWithAuthorization). Attributed by the payer address: zone analytics for that hour are sampled at one in ten and hold no 200 on /402/pay/base, so no user agent was observed for this one. Found at the 2026-11-23 session start (the balance was 0.06 above the watermark); scripts/find-transfers.mjs was rate-limited by its RPC, so the block was found by bisecting historical balanceOf on one RPC and the log read from that block, and booked the same session.',
+    },
+    {
+      date: '2026-11-04',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from an eighth external payer — usetested (user agent usetested-harness/0.1, +https://usetested.com)',
+      amount: 0.01,
+      tx: '0x3d5211d13eb40df3172d4422d30959604504a995aa584d7f34ea719cb6d56ed2',
+      note: 'Settled 2026-11-04 03:59:31 UTC (block 53487712) from 0x4c29ec4f680ca88d0019edbfe3a8ff5c80499494; the transaction was a Multicall3 aggregate3 call (to 0xca11bde05977b3631167028862be2a173976ca11) sent by 0xc6699d2aada6c36dfea5c248dd70f9cb0235cb63, so whichever facilitator settled it batches settlements — which one is unknown. Zone analytics show the matching 200 on /402/pay/base in the 03:00 UTC hour from Spain with user agent usetested-harness/0.1, beside its 402 quote checks in the 03:59 minute. Found at the 2026-11-23 session start (the balance was 0.06 above the watermark); scripts/find-transfers.mjs was rate-limited by its RPC, so the block was found by bisecting historical balanceOf on one RPC and the log read from that block, and booked the same session.',
+    },
+    {
+      date: '2026-11-17',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from nohumans.directory\'s paying scout again (user agent nohumans-scout/1.0), its third purchase',
+      amount: 0.01,
+      tx: '0xb27da03432e8e76d5ad7dfa46498319c01099b2be5a8d6b81b3dc4f86d6faa1b',
+      note: 'Settled 2026-11-17 07:57:16 UTC (block 58559305) from 0x54e163e9b8edda194d83f46add921bfa5fc5f4e0, the scout address nohumans.directory publishes (its earlier purchases: 2026-09-01, 2026-09-22), relayed by 0xb87e1a2cc2b4643f2892768e80e41167f17c5860. Zone analytics show the matching 200 in the 07:00 UTC hour with user agent nohumans-scout/1.0, and CoinbaseBazaarDiscovery/1.0 probing this URL in the 07:57 minute. Found at the 2026-11-23 session start (the balance was 0.06 above the watermark); scripts/find-transfers.mjs was rate-limited by its RPC, so the block was found by bisecting historical balanceOf on one RPC and the log read from that block, and booked the same session.',
+    },
+    {
+      date: '2026-11-17',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from SettledScout, its third purchase',
+      amount: 0.01,
+      tx: '0x3ece1549fc470ad996da1cd74ecdbd41bb5a7f6af2b9894da7a1119c343f0d2b',
+      note: 'Settled 2026-11-17 20:18:20 UTC (block 58781622) from 0xa1d1c0cf717402ff3651aa4873ccf96410b01978, relayed by 0x14fda13953fc30428938e6bf950d036e77214e52. Zone analytics show the matching 200 on /402/pay/base in the 20:00 UTC hour from the US with user agent SettledScout/0.1, and CoinbaseBazaarDiscovery/1.0 probing this URL in the 20:16 minute. Found at the 2026-11-23 session start (the balance was 0.06 above the watermark); scripts/find-transfers.mjs was rate-limited by its RPC, so the block was found by bisecting historical balanceOf on one RPC and the log read from that block, and booked the same session.',
+    },
+    {
+      date: '2026-11-22',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a ninth external payer — x402-doctor\'s weekly spot buy (user agent x402-doctor-spot-buy/1.0, +https://x402-doctor.fizzl.eu/trust; "buys a small random sample of endpoints once a week")',
+      amount: 0.01,
+      tx: '0x6b9fea65202edc73b148175add5f23d70f8e8650efc0371feca7a984e31540b6',
+      note: 'Settled 2026-11-22 20:00:30 UTC (block 60936275) from 0xa12871853f653f76ec303b94ac4fb6c46578a3f1, relayed by 0x97acce27d5069544480bde0f04d9f47d7422a016. Zone analytics show the one 200 on /402/pay/base that day, in the 20:00 minute from the US with user agent x402-doctor-spot-buy/1.0, and CoinbaseBazaarDiscovery/1.0 probing this URL in the same minute. Found at the 2026-11-23 session start (the balance was 0.06 above the watermark); scripts/find-transfers.mjs was rate-limited by its RPC, so the block was found by bisecting historical balanceOf on one RPC and the log read from that block, and booked the same session.',
+    },
+    {
+      date: '2026-11-23',
+      item: 'x402 payment at /402/pay/base: 0.01 USDC from a tenth external payer, unidentified (user agent python-httpx/0.28.1)',
+      amount: 0.01,
+      tx: '0xc6d5c01553e6b352e7c9dbd255d75845bb7e5b41f3802082959bb11e9718c4a5',
+      note: 'Settled 2026-11-23 10:00:37 UTC (block 61188311) from 0x82cef1cdc34d65cf690235dc24e823a6585a6f86, relayed by 0x4c934c63c786157fefd990945b25ea60a0fb0205. Zone analytics show one 402 and then one 200 on /402/pay/base in the 10:00 minute from the US with user agent python-httpx/0.28.1 (the Python x402 client\'s default transport), and CoinbaseBazaarDiscovery/1.0 probing the URL in the same minute; the CDP Bazaar merchant record\'s lastCalledAt reads 2026-11-23T10:00:37.79Z, the second of this block, so it settled through Coinbase\'s CDP facilitator. Found at the 2026-11-23 session start (the balance was 0.06 above the watermark); scripts/find-transfers.mjs was rate-limited by its RPC, so the block was found by bisecting historical balanceOf on one RPC and the log read from that block, and booked the same session.',
+    },
   ],
   // Every on-chain USDC movement of the receive address that is NOT booked revenue, labeled by
   // transaction hash. Hand-maintained like the tables above; amount_atomic is exact atomic USDC
@@ -419,6 +482,14 @@ export const BOOKS = {
       tx: '0xe3f3a1931d28eb4b8bc3024273b8d0a395ce6e5d13c073754e0fc1d1230b8de5',
       label: 'second self-test of POST /v1/chat/completions (x402 v2, settled by Coinbase CDP; bazaar schema)',
       note: 'Project money returning from the payer wallet on 2026-10-29 22:22:13 UTC (block 53261593; LEDGER.md #37). The first self-test had not made the CDP Bazaar list the new resource (the merchant record was unchanged twenty minutes later, unlike /402/pay/base, which it listed within the minute in session 28), and the one difference in what the client echoes was that this 402\'s bazaar extension carried no schema block; the schema was added and the path exercised once more with real money. Booked as a labeled transfer, never revenue. Whether the listing followed is recorded in the ledger, not assumed here.',
+    },
+    {
+      date: '2026-11-23',
+      direction: 'in',
+      amount_atomic: '2000',
+      tx: '0xc1fd2e47e1dfd99c26f00a528f757fcf7376482fc1694af76ef15d430349d5bf',
+      label: 'third self-test of POST /v1/chat/completions (x402 v2, settled by Coinbase CDP; v0.32.0, the 402 offer for every unpaid body)',
+      note: 'Project money returning from the payer wallet on 2026-11-23 23:18:49 UTC (block 61427769; LEDGER.md #38). The two 2026-10-29 settlements had not made the CDP Bazaar list the resource; this session found why — CDP probes a resource after a settlement with the extension\'s example body, or an empty one, expecting a 402, and v0.31.0 answered that 400 (CDP\'s /validate said "Endpoint returned HTTP 400 instead of 402") — and v0.32.0 answers every unpaid request with the offer. /validate passed all 25 of its checks on v0.32.0 before this payment was made; the payment is the documented trigger for indexing. Booked as a labeled transfer, never revenue. Whether the listing followed is recorded in the ledger, not assumed here.',
     },
   ],
 };
@@ -501,16 +572,23 @@ export function hostingUsage(b = BOOKS) {
       + 'it as well, so more than one caller in a hundred would have been affected. Such a request gets '
       + "Cloudflare's own error page (1102, exceeded resource limits) instead of a badhttp response, which "
       + 'for a service whose whole product is answering exactly as documented is a correctness failure, not '
-      + 'a cost saving. Which endpoints these are is not measured — Cloudflare publishes no per-path CPU — '
-      + 'but the ones built to be expensive (/compress/bomb inflates up to 32 MiB, /compress and /range at '
-      + 'their megabyte maxima) are the candidates, and they are the product rather than an accident.',
+      + 'a cost saving. In September which endpoints these were was guessed, not measured (Cloudflare\'s '
+      + 'analytics carry no path for CPU), and the guess — the bodies built to be expensive — was mostly '
+      + 'wrong: per-request tails on 2026-10-29 and 2026-11-23 and per-minute maxima matched to single '
+      + 'requests in November point at this service\'s own pages and books in a fresh isolate, with the '
+      + 'first build of the default bomb the one expensive body among them (free_plan_remeasure).',
     // The two answers, both true, to two different questions. Hosting only — the domain is a
     // separate line and is the same in both, so naming these "hosting" keeps them from reading
     // as all-in totals.
-    free_plan_remeasure: m.remeasure
-      ? `Re-measurement in progress: on ${m.remeasure.deployed} version ${m.remeasure.from_version} removed the cause of those heavy requests (${m.remeasure.cause_found}); `
-        + `a seven-day window from ${m.remeasure.window.from} on the new code decides free_plan_viable, and until it is read the September verdict stands.`
-      : undefined,
+    free_plan_remeasure: m.remeasure && m.remeasure.result
+      ? `Re-measured, read ${m.remeasure.result.read_on}: after version ${m.remeasure.from_version} (${m.remeasure.deployed}) moved the page rendering to startup, `
+        + `all ${m.remeasure.result.days_exceeding_free_ceiling} of the ${m.remeasure.result.days} days from ${m.remeasure.window.from} still had a request over the ${m.plan.free_cpu_ms_per_invocation} ms ceiling `
+        + `(daily maxima ${Object.values(m.remeasure.result.per_day_cpu_ms_max).map((x) => Math.round(x * 10) / 10).join(', ')} ms), and on ${m.remeasure.result.days_with_p99_exceeding_free_ceiling} the 99th percentile was over it. `
+        + 'In the week after the window the heaviest single requests were /clients (40-64 ms), /clients.jsonl (34) and /books.json (28), each alone in its minute (consistent with a cold isolate\'s first request), and a tail read the first build of the default /compress/bomb at 66; the same code was live in the window. Not viable; this verdict stands until a later window says otherwise.'
+      : m.remeasure
+        ? `Re-measurement in progress: on ${m.remeasure.deployed} version ${m.remeasure.from_version} removed the cause of those heavy requests (${m.remeasure.cause_found}); `
+          + `a seven-day window from ${m.remeasure.window.from} on the new code decides free_plan_viable, and until it is read the September verdict stands.`
+        : undefined,
     standalone_hosting_usd_per_year: Math.round((m.plan.paid_min_usd_per_month * 12) * 100) / 100,
     incremental_hosting_usd_per_year: usageCharge === null ? null : usageCharge * 12,
     window_note:
@@ -660,7 +738,7 @@ export function fundingManifest(origin, b = BOOKS) {
             + 'only cash that must change hands; hosting is a Cloudflare Workers Paid plan whose '
             + "included allowance this service's ordinary traffic uses under 1% of, so it adds nothing to a bill that "
             + `already exists (a flood in October 2026 was the exception, booked as a cost on the books) — though standing alone it would pay that plan's $${standalone.toFixed(2)}/year `
-            + `floor, because its heaviest requests exceeded the free plan's per-invocation CPU limit when measured in September 2026 (the cause was removed on 2026-10-29 and a re-measurement is in progress; see /books). `
+            + `floor, because its heaviest requests exceeded the free plan's per-invocation CPU limit when measured in September 2026, and still did on re-measurement in November 2026 (its own pages and books in a fresh isolate, and the first build of the default bomb; see /books). `
             + `Both figures, and the measurement behind them, are published at ${origin}/books.`,
           amount: Math.ceil(domain + standalone),
           currency: 'USD',

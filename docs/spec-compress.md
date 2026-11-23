@@ -21,15 +21,17 @@ receives on its own. Observed:
 
 1. **The edge rewrites `Accept-Encoding` to `gzip, br` before the Worker runs**, for every client, and keeps
    the client's value in `request.cf.clientAcceptEncoding` — **normalized**: a canonical set in a fixed order
-   (`gzip, br`, `gzip, identity`, `gzip, deflate`…), q-values dropped **including q=0**, `x-gzip`/`GZIP`
+   (`gzip, br`, `gzip, identity`, `gzip, deflate`…), q-values dropped **including q=0** (**amended 2026-11-23:** an entry sent with q=0 is now REMOVED from the set — `gzip;q=0` → `null`, `gzip;q=0, br` → `br`, `gzip, identity;q=0` → `gzip`; smoke passed the old behaviour on 2026-10-29, so Cloudflare changed it in between; `docs/probe-compress-edge-2026-11-23.txt`), `x-gzip`/`GZIP`
    folded to `gzip`, `*` and an empty value reported as absent (`null`), a value containing any non-ASCII byte
    reported as absent, and **`zstd` dropped from the set entirely** (`zstd` alone → `null`; `gzip, zstd` →
    `gzip`) even though the edge delivers zstd to a client that lists it. A refusal (`identity;q=0`,
-   `gzip;q=0`) never reaches the Worker, so no endpoint here can honour a q=0 refusal and `ok` never 406s;
+   `gzip;q=0`) never reaches the Worker — before 2026-11-23 because it read as a listing, since then because it
+   is removed — so no endpoint here can honour a q=0 refusal and `ok` never 406s;
    `bomb`'s 406 is the opposite case — the server refusing a client the edge would decompress for. The probe
    file's normalization table has every value tried.
 2. **The edge removes one coding layer it recognizes (gzip, br, zstd) unless the client's normalized set
-   lists it** (q=0 counts as listing), transcoding the body to identity — **`cache-control: no-transform` does
+   lists it** (q=0 counted as listing until 2026-11-23; since then a coding sent with q=0 is not listed and is
+   transcoded like any other), transcoding the body to identity — **`cache-control: no-transform` does
    not prevent it** (the Workers docs say recompression "will be applied automatically" when the client lacks
    the coding; the cache docs' "compression is disabled under no-transform" describes compressing, not this).
    A second declared layer (`double`) is delivered regardless: the one case where the edge hands a client a
@@ -167,3 +169,21 @@ WAF custom rule answers the same 403 at the edge, before the Worker, for any `?s
 header — whatever the user agent — so a flood for `?size=32` that changes its browser string is still unbilled.
 `?size=` 1–8 and the default are unchanged. The first rule (2026-10-22: a `Mozilla/` user agent on this flavor) is
 case-insensitive since the same day. `docs/RUNBOOK-zone-rate-limit.md` and LEDGER.md #33–#34 carry the reasons.
+
+## Addendum 2026-11-23 (session 38): the edge began treating q=0 as a refusal
+
+Smoke failed two pins on 2026-11-23 (`compressaenorm`, `compressbombfolded`) that had passed on 2026-10-29: Cloudflare's
+edge now **removes** an `Accept-Encoding` entry sent with `q=0` from the set it reports in
+`request.cf.clientAcceptEncoding`, and transcodes a recognized coding for a client that sent it with `q=0` (until then
+`q=0` was dropped like any q-value and the coding read as listed). `gzip;q=0` → `null` (so `ok` sends identity and
+`bomb` answers 406), `gzip;q=0.0` → `null`, `gzip;q=0.001` → `gzip`, `x-gzip;q=0` → `null`, `gzip;q=0, br` → `br`,
+`gzip, identity;q=0` → `gzip`, `identity;q=0` and `*;q=0` → `null`. The new behaviour is the one RFC 9110 §12.5.3
+describes for a coding with qvalue 0; a refusal of identity still cannot reach the Worker, so `ok` still never 406s.
+
+The whole matrix was re-probed with a committed script, `scripts/compress-witness/edge-matrix.sh` (21 flavors × 21
+Accept-Encoding values × HTTP/1.1 and HTTP/2, one request each, from one location): `docs/probe-compress-edge-2026-11-23.txt`.
+Against `docs/probe-compress-2026-09-01.txt`, 236 cells exist in both; none differs in status, coding or hash except
+where the difference is this project's or the harness's own — `bomb` answers 406 to a client without gzip (the guard
+added after 09-01), the new script hashes `bomb` (the old one did not) and has no raw-deflate decoder (`deflate-raw`
+reads `undecoded(deflate)`, status and coding unchanged), and labels an unknown coding `undecoded(badhttp)`. So the
+change is confined to q=0. Re-run the script, and commit its output under a new date, whenever a compress pin fails.

@@ -19,7 +19,8 @@ console.error('payer', account.address, 'network', network);
 try {
   const r = await fetchWithPayment(url, postBody ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: postBody } : { method: 'GET' });
   console.log('status', r.status);
-  for (const [k, v] of r.headers) if (/payment/i.test(k)) console.log('hdr', k, v.length > 120 ? v.slice(0, 120) + '…' : v);
+  // Session 38: also EXTENSION-RESPONSES, where CDP says what the Bazaar made of the extension (success / processing / rejected).
+  for (const [k, v] of r.headers) if (/payment|extension/i.test(k)) console.log('hdr', k, v.length > 120 ? v.slice(0, 120) + '…' : v);
   const pr = r.headers.get('PAYMENT-RESPONSE');
   if (pr) { try { console.log('receipt', JSON.stringify(decodePaymentResponseHeader(pr))); } catch (e) { console.log('receipt undecodable:', e.message); } }
   console.log('body', (await r.text()).slice(0, 3000));

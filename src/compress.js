@@ -11,7 +11,9 @@
 // docs/probe-compress-2026-09-01.txt, docs/spec-compress.md):
 //  - it rewrites Accept-Encoding to "gzip, br" before the Worker runs and keeps a NORMALIZED copy of the
 //    client's value in request.cf.clientAcceptEncoding: a canonical set in a fixed order, q-values dropped
-//    (q=0 included — a refusal never reaches this server), x-gzip and case folded to gzip, "*" and an empty
+//    — except that since 2026-11-23 (first observed; smoke passed the old behaviour on 2026-10-29) an entry
+//    with q=0 is REMOVED from the set, where before it was kept as if listed: either way a refusal never
+//    reaches this server (docs/probe-compress-edge-2026-11-23.txt) — x-gzip and case folded to gzip, "*" and an empty
 //    value reported as absent, a value with any non-ASCII byte reported as absent, and zstd dropped from the
 //    set entirely (even though it delivers zstd to a client that lists it);
 //  - it removes one coding layer it recognizes (gzip, br, zstd) unless that normalized set lists the coding,
@@ -154,7 +156,8 @@ export function parseAcceptEncoding(header) {
 }
 
 // 'gzip' when the set names it with q > 0, else 'identity'. (An RFC-perfect server would 406 when identity
-// is refused as well; a refusal cannot reach this server — the edge drops q=0 entries — so it never does.)
+// is refused as well; a refusal cannot reach this server — the edge removes q=0 entries from the set it
+// reports (since 2026-11-23; before that it kept them as if listed) — so it never does.)
 export function negotiate(map) {
   if (map === null) return 'identity';
   const g = map.has('gzip') ? map.get('gzip') : map.has('*') ? map.get('*') : 0;
@@ -167,8 +170,8 @@ export function negotiate(map) {
 // param: 'length' (?length= and ?code=), 'fixed' (?code=; ?length= only at the fixed length), 'size' (bomb).
 export const COMPRESS = {
   'ok': {
-    about: 'The control: gzip if the set the edge reports for you lists gzip, identity otherwise (that set reads no header, "*" and an empty value as nothing); Vary: Accept-Encoding; a correct Content-Length as sent; and the plaintext\'s length and SHA-256 in x-badhttp-plain-bytes / x-badhttp-plain-sha256 so you can prove what you decoded. q-values are already dropped from that set, so gzip;q=0 still gets gzip and identity;q=0 cannot produce a 406 from here; x-badhttp-negotiated-from shows the set.',
-    edge: 'Nothing to transcode: a client that did not list gzip is sent identity by this Worker itself — unless it refused gzip with q=0, which the edge reports as listing it, and then it gets gzip.',
+    about: 'The control: gzip if the set the edge reports for you lists gzip, identity otherwise (that set reads no header, "*" and an empty value as nothing); Vary: Accept-Encoding; a correct Content-Length as sent; and the plaintext\'s length and SHA-256 in x-badhttp-plain-bytes / x-badhttp-plain-sha256 so you can prove what you decoded. q-values are already gone from that set — since 2026-11-23 the edge removes an entry sent with q=0 (before, it kept it as if listed, and gzip;q=0 got gzip) — so gzip;q=0 gets identity and identity;q=0 cannot produce a 406 from here; x-badhttp-negotiated-from shows the set.',
+    edge: 'Nothing to transcode: a client that did not list gzip is sent identity by this Worker itself, and since 2026-11-23 so is one that refused gzip with q=0 (until then the edge reported q=0 as listing it, and it got gzip).',
     param: 'length',
   },
   'br': { about: `Brotli (RFC 7932), pre-computed for the default ${FIXED_LENGTH}-byte document because this runtime has no brotli encoder; ?length= is accepted only at ${FIXED_LENGTH}.`, edge: 'Delivered only to a client whose Accept-Encoding lists br; decoded to identity for everyone else, Content-Encoding removed and Content-Length dropped.', param: 'fixed' },
@@ -220,10 +223,10 @@ export async function handleCompress({ seg, url, request, json, bad, intParam, b
       accept_encoding: {
         as_the_edge_reports_it: cfAE,
         as_seen_by_this_worker: hdrAE,
-        note: 'The edge — Cloudflare\'s CDN, between you and this Worker — rewrites Accept-Encoding to "gzip, br" before this Worker runs and keeps your value in request.cf.clientAcceptEncoding, normalized: a canonical set in a fixed order, q-values dropped (q=0 included), x-gzip and case folded to gzip, "*" and an empty value reported as absent (null), a value containing any non-ASCII byte reported as absent, and zstd dropped from the set entirely (zstd alone reads as absent; "gzip, zstd" as "gzip") even though the edge delivers zstd to a client that lists it. /compress/ok and /compress/bomb negotiate from that set; the raw header (always "gzip, br" here) is shown but never used.',
+        note: 'The edge — Cloudflare\'s CDN, between you and this Worker — rewrites Accept-Encoding to "gzip, br" before this Worker runs and keeps your value in request.cf.clientAcceptEncoding, normalized: a canonical set in a fixed order, q-values dropped, an entry sent with q=0 removed (since 2026-11-23; until then it was kept as if listed), x-gzip and case folded to gzip, "*" and an empty value reported as absent (null), a value containing any non-ASCII byte reported as absent, and zstd dropped from the set entirely (zstd alone reads as absent; "gzip, zstd" as "gzip") even though the edge delivers zstd to a client that lists it. /compress/ok and /compress/bomb negotiate from that set; the raw header (always "gzip, br" here) is shown but never used.',
       },
       edge: {
-        note: 'The edge removes one coding layer it recognizes (gzip, br, zstd) unless the normalized set above lists it (q=0 counts as listing), transcoding the body to identity, cache-control: no-transform notwithstanding — lossily for broken streams; a second declared layer (double) is delivered regardless. It decoded zlib deflate for every client probed, including one that asked for it. It passes codings it does not recognize (x-gzip, badhttp) through untouched. edge_transcoding says what each flavor became for a client without gzip, at the default length unless a length is named. Send Accept-Encoding: gzip (br, zstd for those flavors) to receive the bytes as this Worker sent them.',
+        note: 'The edge removes one coding layer it recognizes (gzip, br, zstd) unless the normalized set above lists it (since 2026-11-23 a coding sent with q=0 is not listed, so it is transcoded too; until then q=0 counted as listing), transcoding the body to identity, cache-control: no-transform notwithstanding — lossily for broken streams; a second declared layer (double) is delivered regardless. It decoded zlib deflate for every client probed, including one that asked for it. It passes codings it does not recognize (x-gzip, badhttp) through untouched. edge_transcoding says what each flavor became for a client without gzip, at the default length unless a length is named. Send Accept-Encoding: gzip (br, zstd for those flavors) to receive the bytes as this Worker sent them.',
         probed: PROBED,
         observations: 'What six real clients and two non-decoding controls did with every flavor here, one row per observation, dated 2026-09-02: GET /clients.jsonl (index at GET /clients). Each row joins back to a /corpus.jsonl row by corpus_id.',
       },

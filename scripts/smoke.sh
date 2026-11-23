@@ -290,9 +290,10 @@ if [ "$EDGE" = 1 ]; then
 chk compressok "$(echo $c_ok | awk '{print $1, $2, $3, $5}') $(same "$(echo $c_ok | awk '{print $4}')" "$(wc -c < $T/cb | tr -d ' ')") $(same "$(gzip -dc < $T/cb | shasum -a 256 | cut -c1-64)" "$(echo $c_ok | awk '{print $6}')")" "200 gzip Accept-Encoding 4096 same same"
 chk compressoknegotiated "$(curl -si "${AEG[@]}" "$B/compress/ok" | tr -d '\r' | awk 'tolower($1)=="x-badhttp-negotiated-from:"{print $2}')$(curl -si -H 'Accept-Encoding: identity' "$B/compress/ok" | tr -d '\r' | awk 'NR==1{s=$2} tolower($1)=="content-encoding:"{ce=1} tolower($1)=="content-length:"{cl=$2} tolower($1)=="x-badhttp-negotiated-from:"{nf=$2} END{print " " s, ce+0, cl, nf}')" "gzip 200 0 4096 identity"
 chk compressoknone "$(curl -s -H 'Accept-Encoding:' -D $T/ch -o $T/cb "$B/compress/ok"; tr -d '\r' < $T/ch | awk 'NR==1{s=$2} tolower($1)=="content-encoding:"{ce=1} tolower($1)=="x-badhttp-negotiated-from:"{nf=$2} END{print s, ce+0, nf}') $(head -c 8 $T/cb)" "200 0 (none: 00000000"
-# Accept-Encoding normalization, the fact the family is designed around (one request each): q=0 and aliases fold to gzip, zstd and * vanish, mixed values keep the recognized set
+# Accept-Encoding normalization, the fact the family is designed around (one request each): aliases fold to gzip, a q=0 entry is removed (since 2026-11-23), zstd and * vanish, mixed values keep the recognized set
 nf(){ curl -si -H "Accept-Encoding: $1" "$B/compress/ok" | tr -d '\r' | awk 'tolower($1)=="x-badhttp-negotiated-from:"{sub(/^[^:]*: /,""); print}'; }
-chk compressaenorm "$(nf 'gzip;q=0')|$(nf 'x-gzip')|$(nf 'GZIP')|$(nf 'zstd' | cut -c1-6)|$(nf '*' | cut -c1-6)|$(nf 'br;q=0.5, gzip;q=0, x-gzip, *, foo')|$(nf 'deflate')" "gzip|gzip|gzip|(none:|(none:|gzip, br|deflate"
+# Amended 2026-11-23 (session 38): the edge now REMOVES an entry sent with q=0 (gzip;q=0 was reported as gzip through 2026-10-29).
+chk compressaenorm "$(nf 'gzip;q=0' | cut -c1-6)|$(nf 'gzip;q=0, br')|$(nf 'x-gzip')|$(nf 'GZIP')|$(nf 'zstd' | cut -c1-6)|$(nf '*' | cut -c1-6)|$(nf 'br;q=0.5, gzip;q=0, x-gzip, *, foo')|$(nf 'deflate')" "(none:|br|gzip|gzip|(none:|(none:|gzip, br|deflate"
 chk compressindexae "$(curl -s "${AEG[@]}" "$B/compress" | jq -r '[.accept_encoding.as_the_edge_reports_it, .accept_encoding.as_seen_by_this_worker] | join("|")')" "gzip|gzip, br"
 fi
 curl -s "${AEG[@]}" -D $T/ch -o $T/cb "$B/compress/ok?length=100"
@@ -336,8 +337,9 @@ chk compressbomb "$(tr -d '\r' < $T/ch | awk 'NR==1{s=$2} tolower($1)=="content-
 sleep 2 # breathing room under the zone rate limit
 if [ "$EDGE" = 1 ]; then
 chk compressbomb406 "$(curl -s -H 'Accept-Encoding:' -o /dev/null -w '%{http_code} %{content_type}' "$B/compress/bomb?size=1") $(curl -s -H 'Accept-Encoding: identity' "$B/compress/bomb?size=1" | jq -r ' .error') $(curl -s -H 'Accept-Encoding: *' -o /dev/null -w '%{http_code}' "$B/compress/bomb?size=1")" "406 application/json; charset=utf-8 not acceptable 406" # never inflated by the edge for a client without gzip: refused instead (also for * and no header, which RFC 9110 would let through)
-# the fail-open side of that guard: clients the edge folds to "gzip" get the member, never the inflated text
-chk compressbombfolded "$(curl -s -H 'Accept-Encoding: gzip;q=0' -D $T/ch -o $T/cb "$B/compress/bomb?size=1"; tr -d '\r' < $T/ch | awk 'tolower($1)=="content-encoding:"{print $2}') $(wc -c < $T/cb | tr -d ' ' | awk '{print ($1 < 8192) ? "member" : "inflated"}') $(curl -s -H 'Accept-Encoding: x-gzip' -D $T/ch -o $T/cb "$B/compress/bomb?size=1"; tr -d '\r' < $T/ch | awk 'tolower($1)=="content-encoding:"{print $2}') $(wc -c < $T/cb | tr -d ' ' | awk '{print ($1 < 8192) ? "member" : "inflated"}')" "gzip member gzip member"
+# the fail-open side of that guard: clients the edge folds to "gzip" (x-gzip) get the member, never the inflated text; since
+# 2026-11-23 gzip;q=0 is removed from the reported set, so that client gets the 406 (its body is the JSON refusal, under 1 KB)
+chk compressbombfolded "$(curl -s -H 'Accept-Encoding: gzip;q=0' -D $T/ch -o $T/cb "$B/compress/bomb?size=1"; tr -d '\r' < $T/ch | awk 'NR==1{print $2}') $(jq -r '.error' < $T/cb 2>/dev/null | tr ' ' '-') $(curl -s -H 'Accept-Encoding: x-gzip' -D $T/ch -o $T/cb "$B/compress/bomb?size=1"; tr -d '\r' < $T/ch | awk 'tolower($1)=="content-encoding:"{print $2}') $(wc -c < $T/cb | tr -d ' ' | awk '{print ($1 < 8192) ? "member" : "inflated"}')" "406 not-acceptable gzip member" # 2026-11-23: gzip;q=0 is a refusal at the edge now (406 from the Worker); x-gzip still folds to gzip
 # what the edge makes of each flavor for a client without gzip (the page's last column, dated 2026-09-01)
 chk compressbredge "$(curl -si "${AEG[@]}" "$B/compress/br" | tr -d '\r' | awk 'NR==1{s=$2} tolower($1)=="content-encoding:"{ce=1} END{print s, ce+0}') $(curl -s "${AEG[@]}" "$B/compress/br" | head -c 8)" "200 0 00000000"
 chk compresszstdedge "$(curl -sI -H 'Accept-Encoding: gzip, zstd' "$B/compress/zstd" | tr -d '\r' | awk 'NR==1{s=$2} tolower($1)=="content-encoding:"{ce=$2} END{print s, ce}') $(curl -sI -H 'Accept-Encoding: gzip, zstd' "$B/compress/ok" | tr -d '\r' | awk 'tolower($1)=="content-encoding:"{ce=$2} tolower($1)=="x-badhttp-negotiated-from:"{nf=$2} END{print ce, nf}')" "200 zstd gzip gzip" # zstd delivered to a client that lists it, though the Worker never sees zstd in the set
@@ -444,9 +446,9 @@ chk bookstransfers "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.transfers.error
 chk bookstransfersselftest "$(printf '%s\n' "$cjson" | jq -r 'if ((.chain.transfers.error? // "") != "") or (.chain.transfers.truncated == true) then "ok" else ([.chain.transfers.items[] | select(.tx == "0x8a331a0a28a26d290984c34bd12ae03bdc31603856b4e46bace3d2045cddc089" or .tx == "0x629b1a478e88c8be043ee0e8ebac67169a386192fde388b9a616fc850b5010b8" or .tx == "0x9eed7b72bdd445317b1a59e5c7cc12f9a44b857132dcc743121b366261e6ca75" or .tx == "0x30e24c0a8d200180906adf54ba011fd26aa2c4fb070ad78c870debd2d286a748" or .tx == "0xba553c25d371527eef124de3151a002b20b276030c1e0368553133098961c6b0") | .label] | if (length == 5) and (map(test("self-test")) | all) then "ok" else "bad" end) end')" ok
 chk bookstransferscurl "$(printf '%s\n' "$cjson" | jq -r '.chain.transfers.reproduce|test("eth_getTransactionReceipt")')" true
 # Since v0.23.0 the list is built from the receipts of the transactions the books name, so every book
-# row must be confirmed by the chain. The named-row floor (19 since session 35; 17 since session 33; 16 since session 31; 15 when this was written) keeps
+# row must be confirmed by the chain. The named-row floor (28 since session 38; 19 since session 35; 17 since session 33; 16 since session 31; 15 when this was written) keeps
 # the check from passing vacuously on an empty set; raise it when rows are added, never lower it.
-chk bookstransfersconfirmed "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.transfers.error? // "") != "" then "ok" elif (.chain.transfers.books_rows_named >= 19) and (.chain.transfers.books_rows_named == (([.revenue[]|select(.tx)]|length) + ([.chain_movements[]|select(.tx)]|length))) and (.chain.transfers.books_rows_confirmed == .chain.transfers.books_rows_named) and ((.chain.transfers.books_rows_unconfirmed|length) == 0) and (.chain.transfers.amount_mismatch_count == 0) and ([.chain.transfers.items[] | select(.confirmed_on_chain != true)] | length == 0) then "ok" else "bad" end')" ok
+chk bookstransfersconfirmed "$(printf '%s\n' "$cjson" | jq -r 'if (.chain.transfers.error? // "") != "" then "ok" elif (.chain.transfers.books_rows_named >= 28) and (.chain.transfers.books_rows_named == (([.revenue[]|select(.tx)]|length) + ([.chain_movements[]|select(.tx)]|length))) and (.chain.transfers.books_rows_confirmed == .chain.transfers.books_rows_named) and ((.chain.transfers.books_rows_unconfirmed|length) == 0) and (.chain.transfers.amount_mismatch_count == 0) and ([.chain.transfers.items[] | select(.confirmed_on_chain != true)] | length == 0) then "ok" else "bad" end')" ok
 # When the identity above is reconciled and every named row is confirmed, the rows sum to the balance exactly.
 # Recomputed in jq from the rows and the RPC balance — never from the Worker's own matches_balance, which is
 # derived from the same rows (a check that reads its expectation from the thing it checks proves nothing).
@@ -488,7 +490,15 @@ chk bookshostingfree "$(printf '%s\n' "$cjson" | jq -r '
      and ($r.hosting_measured.cpu_ms_max > $r.hosting_measured.plan.free_cpu_ms_per_invocation)
      and ($r.hosting_measured.days_in_window_exceeding_free_ceiling == $r.hosting_measured.window.days)
      and ($r.hosting_usage.free_plan_blocker | test("1102"))
+     and (($r.hosting_measured.remeasure.result // null) as $w
+          | $w != null and $w.read_on == "2026-11-23" and $w.days == 7
+          and ([$w.per_day_cpu_ms_max[] | select(. > $r.hosting_measured.plan.free_cpu_ms_per_invocation)] | length) == $w.days_exceeding_free_ceiling
+          and ([$w.per_day_cpu_ms_p99[] | select(. > $r.hosting_measured.plan.free_cpu_ms_per_invocation)] | length) == $w.days_with_p99_exceeding_free_ceiling
+          and $w.days_exceeding_free_ceiling == $w.days
+          and ($r.hosting_usage.free_plan_remeasure | test("Not viable")))
   then "ok" else "bad" end')" ok
+# Session 38: the 2026-10-30 window was read and did not clear the ceiling; the check recounts the days over it from the
+# per-day figures themselves, so a future window that DOES clear it must replace this block with its own facts.
 # The accrual is UNCHANGED by the measurement: the books still charge themselves the attributed
 # $5/mo. This is the check that stops a future session quietly adopting the flattering number.
 chk bookshostingattribution "$(printf '%s\n' "$cjson" | jq -r '[.hosting.rate_usd_per_month, (.totals.hosting_accrued / .totals.hosting_months)] | join(",")')" "5,5"
@@ -1006,13 +1016,17 @@ _aibod(){ printf '%s\n' "$1" | sed '1,/^$/d'; }
 chk aimodels "$(curl -s -o "$T/v1models.json" -w '%{http_code}' "$B/v1/models") $(jq -r '[.object, (.data|map(.id)|sort|join("+"))] | join(",")' "$T/v1models.json")" "200 list,gpt-oss-20b+llama-3.1-8b-instruct-fp8-fast"
 chk aiv1 "$(curl -s -o "$T/v1.json" -w '%{http_code}' "$B/v1") $(jq -r 'tostring|contains("0.002")' "$T/v1.json")" "200 true"
 _air=$(_aipost "$_aiurl" "$_aibody")
-chk ai402 "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(_aihdr "$_air" | jq -r --arg u "$_aiurl" '[.accepts[0].network, .accepts[0].amount, (.resource.url == $u)] | join(",")') $(_aibod "$_air" | jq -r '[.x402Version, .accepts[0].maxAmountRequired, .accepts[0].network] | join(",")')" "402 eip155:8453,2000,true 1,2000,base"
+chk ai402 "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(_aihdr "$_air" | jq -r --arg u "$_aiurl" '[.accepts[0].network, .accepts[0].amount, (.resource.url == $u)] | join(",")') $(_aibod "$_air" | jq -r '[.x402Version, .accepts[0].maxAmountRequired, .accepts[0].network, .request_check.runs] | join(",")')" "402 eip155:8453,2000,true 1,2000,base,true"
 _air=$(_aipost "$_aiurl?network=base-sepolia" "$_aibody")
 chk aisandbox402 "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(_aihdr "$_air" | jq -r --arg u "$_aiurl?network=base-sepolia" '[.accepts[0].network, .accepts[0].amount, (.resource.url == $u)] | join(",")') $(_aibod "$_air" | jq -r '[.x402Version, .accepts[0].maxAmountRequired, .accepts[0].network] | join(",")')" "402 eip155:84532,2000,true 1,2000,base-sepolia"
+# Since session 38: an UNPAID request gets the 402 offer whatever its body (discovery probes send an empty or example body
+# and expect a 402), with the body's problem named in request_check; a request carrying a payment and a bad body is a free 400.
 _air=$(_aipost "$_aiurl" '{"model":"nope","messages":[]}')
-chk aibadbody "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(printf '%s\n' "$_air" | grep -ic '^payment-required:')" "400 0"
-_air=$(_aipost "$_aiurl" '{"model":"gpt-oss-20b","stream":true,"messages":[{"role":"user","content":"hi"}]}')
-chk aistream400 "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(printf '%s\n' "$_air" | grep -ic '^payment-required:')" "400 0"
+chk aibadbody "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(printf '%s\n' "$_air" | grep -ic '^payment-required:') $(_aibod "$_air" | jq -r '[.request_check.runs, .request_check.error] | join(",")')" "402 1 false,unknown model"
+_air=$(curl -si -X POST "$_aiurl" | tr -d '\r')
+chk aiempty402 "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(_aihdr "$_air" | jq -r '[.accepts[0].amount, .extensions.bazaar.info.input.method, (.extensions.bazaar.info.input.body.messages|length), (.extensions.bazaar.schema.properties.input.required|join("+"))] | join(",")') $(_aibod "$_air" | jq -r '[.request_check.runs, .request_check.error] | join(",")')" "402 2000,POST,1,type+method+bodyType+body false,body is empty"
+_air=$(curl -si -X POST -H 'content-type: application/json' -H 'PAYMENT-SIGNATURE: bm90LWEtcGF5bWVudA==' -d '{"model":"gpt-oss-20b","stream":true,"messages":[{"role":"user","content":"hi"}]}' "$_aiurl" | tr -d '\r')
+chk aistream400 "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(printf '%s\n' "$_air" | grep -ic '^payment-required:') $(_aibod "$_air" | jq -r '.charged')" "400 0 false"
 _air=$(curl -si "$_aiurl" | tr -d '\r')
 chk aiget405 "$(printf '%s\n' "$_air" | head -1 | awk '{print $2}') $(printf '%s\n' "$_air" | grep -ic '^allow:')" "405 1"
 chk aiopenapi "$(curl -s "$B/openapi.json" | jq -r '[(.paths|has("/v1/chat/completions")), (.paths|has("/v1/models")), (.paths|has("/v1")), .paths["/v1/chat/completions"].post["x-payment-info"].price.amount, (.paths["/v1/chat/completions"].post.security == [])] | join(",")')" "true,true,true,0.002,true"
